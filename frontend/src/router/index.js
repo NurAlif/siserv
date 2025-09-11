@@ -1,0 +1,58 @@
+import { createRouter, createWebHistory } from 'vue-router';
+import { useAuthStore } from '../stores/authStore';
+import DashboardView from '../views/DashboardView.vue';
+import WriterView from '../views/WriterView.vue';
+import LoginView from '../views/LoginView.vue';
+
+const routes = [
+  {
+    path: '/',
+    name: 'Dashboard',
+    component: DashboardView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/writer/:date?', // The date parameter is optional
+    name: 'Writer',
+    component: WriterView,
+    props: true, // Pass route params as props to the component
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: LoginView,
+  },
+];
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+});
+
+// Navigation Guard
+router.beforeEach(async (to, from, next) => {
+  const authStore = useAuthStore();
+  
+  // Try to fetch user on page load if token exists but user object is null
+  if (authStore.token && !authStore.user) {
+    await authStore.fetchUser();
+  }
+
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
+  
+  if (requiresAuth && !authStore.isAuthenticated) {
+    // If route requires auth and user is not authenticated, redirect to login
+    next('/login');
+  } else if (to.path === '/login' && authStore.isAuthenticated) {
+    // If user is authenticated and tries to visit login page, redirect to dashboard
+    next('/');
+  }
+  else {
+    // Otherwise, proceed
+    next();
+  }
+});
+
+export default router;
+

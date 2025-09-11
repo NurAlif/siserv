@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LingoJourn - AI Journal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/phosphor-icons"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div id="app-container" class="max-w-4xl mx-auto p-4 md:p-6">
+
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-6">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 p-2 rounded-lg">
+                    <i class="ph-book-open-text text-white text-2xl"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-indigo-600">LingoJourn</h1>
+            </div>
+            <div id="user-profile" class="flex items-center gap-2">
+                 <span class="text-sm font-medium">User</span>
+                 <img src="https://placehold.co/40x40/E2E8F0/4A5568?text=U" class="w-8 h-8 rounded-full" alt="User Avatar">
+            </div>
+        </header>
+
+        <!-- Dashboard View -->
+        <main id="dashboard-view" class="fade-in">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold">Welcome Back!</h2>
+                        <p class="text-gray-500">Ready to practice your English today?</p>
+                    </div>
+                    <div class="flex items-center gap-3 bg-orange-100 text-orange-700 p-3 rounded-lg">
+                        <i class="ph-fire-simple-fill text-2xl"></i>
+                        <div>
+                            <div class="font-bold text-lg">12 Day Streak</div>
+                            <p class="text-sm">Keep it up!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Your Journal Entries</h3>
+                <button onclick="showWriterView()" class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2">
+                    <i class="ph-plus"></i>
+                    New Entry
+                </button>
+            </div>
+
+            <div id="journal-list" class="space-y-4">
+                <!-- Mock journal entries will be inserted here by JavaScript -->
+            </div>
+        </main>
+
+        <!-- Journal Writer View -->
+        <main id="writer-view" class="hidden fade-in">
+            <div class="flex justify-between items-center mb-4">
+                <button onclick="showDashboardView()" class="text-gray-500 hover:text-gray-800 font-medium flex items-center gap-2">
+                    <i class="ph-arrow-left"></i>
+                    Back to Dashboard
+                </button>
+                <div class="flex items-center gap-2 text-sm text-gray-500">
+                    <span>Status:</span>
+                    <span class="font-semibold text-gray-700">Saved</span>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div class="p-6 border-b border-gray-200">
+                     <h2 id="journal-title" class="text-2xl font-bold">My Amazing Day at the Beach</h2>
+                     <p id="journal-date" class="text-gray-500">September 9, 2025</p>
+                </div>
+
+                <!-- Mode Toggle -->
+                <div class="p-4 bg-gray-50 flex justify-center gap-2 rounded-t-lg border-b border-gray-200">
+                    <button id="editor-mode-btn" onclick="setMode('editor')" class="px-4 py-2 rounded-md text-sm font-semibold bg-indigo-100 text-indigo-700">
+                        <i class="ph-note-pencil"></i> Editor Mode
+                    </button>
+                    <button id="chat-mode-btn" onclick="setMode('chat')" class="px-4 py-2 rounded-md text-sm font-semibold text-gray-600 hover:bg-gray-200">
+                        <i class="ph-chats-circle"></i> Chat Mode
+                    </button>
+                </div>
+
+                <!-- Editor Mode UI -->
+                <div id="editor-content" class="p-6">
+                    <textarea id="journal-textarea" class="w-full h-96 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none transition" placeholder="Start writing your journal here..."></textarea>
+                </div>
+
+                <!-- Chat Mode UI -->
+                <div id="chat-content" class="hidden p-6">
+                    <div class="w-full h-96 border border-gray-300 rounded-lg flex flex-col">
+                        <div class="flex-grow p-4 overflow-y-auto space-y-4">
+                            <!-- Chat Messages -->
+                            <div class="flex justify-start">
+                                <div class="bg-gray-200 p-3 rounded-lg max-w-xs">
+                                    <p class="text-sm">Hi there! I'm your AI tutor. How was your day?</p>
+                                </div>
+                            </div>
+                            <div class="flex justify-end">
+                                <div class="bg-indigo-500 text-white p-3 rounded-lg max-w-xs">
+                                    <p class="text-sm">It was great! I went to the beach with my friends. We have a good time.</p>
+                                </div>
+                            </div>
+                             <div class="flex justify-start">
+                                <div class="bg-teal-50 border border-teal-200 p-3 rounded-lg max-w-xs">
+                                    <p class="text-xs font-semibold text-teal-700 mb-1">Quick correction!</p>
+                                    <p class="text-sm">You wrote: "We <span class="line-through text-red-600">have</span> a good time."</p>
+                                    <p class="text-sm">A better way to say this is: "We <span class="font-semibold text-green-700">had</span> a good time," since you're talking about the past.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-4 border-t border-gray-200">
+                            <input type="text" placeholder="Type your message..." class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="editor-actions" class="p-6 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                     <button class="w-full md:w-auto bg-gray-100 text-gray-700 font-semibold px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2">
+                        <i class="ph-image"></i>
+                        Upload Image
+                    </button>
+                    <button onclick="showAIFeedback()" class="w-full md:w-auto bg-teal-500 text-white font-semibold px-6 py-2 rounded-lg hover:bg-teal-600 transition-colors flex items-center justify-center gap-2">
+                        <i class="ph-sparkle"></i>
+                        Get AI Feedback
+                    </button>
+                </div>
+            </div>
+
+            <!-- AI Feedback Section -->
+            <div id="ai-feedback-section" class="hidden mt-6 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <h3 class="text-lg font-semibold mb-4 text-teal-700">AI Feedback & Learning Points</h3>
+                <div class="space-y-4">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <p class="font-semibold text-blue-800">Grammar: Tense</p>
+                        <p class="text-sm mt-1">Incorrect phrase: <span class="line-through text-red-600">"I have go to the park."</span></p>
+                        <p class="text-sm mt-1">Suggestion: <span class="font-semibold text-green-700">"I have gone to the park."</span></p>
+                        <p class="text-xs text-gray-600 mt-2"><strong>Explanation:</strong> When using the present perfect tense with 'have', you should use the past participle form of the verb. 'Gone' is the past participle of 'go'.</p>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-lg">
+                        <p class="font-semibold text-purple-800">Vocabulary: Awkward Phrasing</p>
+                        <p class="text-sm mt-1">Original phrase: <span class="line-through text-red-600">"The weather was very nice."</span></p>
+                        <p class="text-sm mt-1">Suggestion: <span class="font-semibold text-green-700">"The weather was beautiful."</span> or <span class="font-semibold text-green-700">"It was a gorgeous day."</span></p>
+                        <p class="text-xs text-gray-600 mt-2"><strong>Explanation:</strong> While 'nice' is correct, using more descriptive words like 'beautiful' or 'gorgeous' makes your writing more vivid and engaging.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const dashboardView = document.getElementById('dashboard-view');
+        const writerView = document.getElementById('writer-view');
+        const journalList = document.getElementById('journal-list');
+        const aiFeedbackSection = document.getElementById('ai-feedback-section');
+        
+        const editorContent = document.getElementById('editor-content');
+        const chatContent = document.getElementById('chat-content');
+        const editorModeBtn = document.getElementById('editor-mode-btn');
+        const chatModeBtn = document.getElementById('chat-mode-btn');
+        const editorActions = document.getElementById('editor-actions');
+
+        // Mock Data
+        const mockJournals = [
+            { id: 1, title: 'My Amazing Day at the Beach', date: 'September 9, 2025', snippet: 'Today was incredible! I went to the beach with my friends. We played volleyball and swam in the ocean. The weather was perfect...', image: 'https://placehold.co/100x70/AFA2FF/3730A3?text=Beach' },
+            { id: 2, title: 'A Rainy Afternoon', date: 'September 8, 2025', snippet: 'It rained all day today, so I decided to stay home. I read a book and watched a movie. It was actually a very relaxing and cozy day. I made some hot chocolate...', image: null },
+            { id: 3, title: 'Exploring the City Market', date: 'September 7, 2025', snippet: 'This morning, I explored the big market in the city center. There were so many interesting things to see, and the food stalls smelled delicious. I tried some local fruit...', image: 'https://placehold.co/100x70/A2F0FF/164E63?text=Market' },
+            { id: 4, title: 'Studying for My Exam', date: 'September 6, 2025', snippet: 'I spent most of the day studying for my English exam. It was a bit difficult, but I feel more prepared now. I practiced writing essays and reviewed a lot of vocabulary...', image: null },
+        ];
+
+        function renderJournalList() {
+            journalList.innerHTML = ''; // Clear existing list
+            mockJournals.forEach(entry => {
+                const entryElement = document.createElement('div');
+                entryElement.className = 'bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:border-indigo-400 transition-colors cursor-pointer flex items-start gap-4';
+                entryElement.onclick = () => showWriterView(entry);
+
+                let imageHtml = '';
+                if(entry.image) {
+                     imageHtml = `<img src="${entry.image}" class="w-24 h-auto rounded-md object-cover" alt="Journal Image">`;
+                } else {
+                     imageHtml = `<div class="w-24 h-[70px] bg-gray-100 rounded-md flex items-center justify-center"><i class="ph-image text-gray-400 text-2xl"></i></div>`;
+                }
+
+                entryElement.innerHTML = `
+                    ${imageHtml}
+                    <div class="flex-grow">
+                        <h4 class="font-bold text-md">${entry.title}</h4>
+                        <p class="text-sm text-gray-500 mb-2">${entry.date}</p>
+                        <p class="text-sm text-gray-600">${entry.snippet}</p>
+                    </div>
+                    <i class="ph-caret-right text-gray-400 text-xl"></i>
+                `;
+                journalList.appendChild(entryElement);
+            });
+        }
+
+        function showWriterView(entry = null) {
+            dashboardView.classList.add('hidden');
+            writerView.classList.remove('hidden');
+            aiFeedbackSection.classList.add('hidden');
+            
+            // Populate with existing entry data or set for new entry
+            const titleEl = document.getElementById('journal-title');
+            const dateEl = document.getElementById('journal-date');
+            const textareaEl = document.getElementById('journal-textarea');
+            if (entry) {
+                titleEl.textContent = entry.title;
+                dateEl.textContent = entry.date;
+                textareaEl.value = entry.snippet.replace('...', ' (and much more detail from the full entry).');
+            } else {
+                titleEl.textContent = 'New Journal Entry';
+                dateEl.textContent = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+                textareaEl.value = '';
+            }
+        }
+
+        function showDashboardView() {
+            writerView.classList.add('hidden');
+            dashboardView.classList.remove('hidden');
+        }
+
+        function showAIFeedback() {
+            aiFeedbackSection.classList.remove('hidden');
+        }
+        
+        function setMode(mode) {
+            if (mode === 'editor') {
+                editorContent.classList.remove('hidden');
+                chatContent.classList.add('hidden');
+                editorActions.classList.remove('hidden');
+                editorActions.classList.add('flex');
+
+                editorModeBtn.classList.add('bg-indigo-100', 'text-indigo-700');
+                editorModeBtn.classList.remove('text-gray-600', 'hover:bg-gray-200');
+                chatModeBtn.classList.remove('bg-indigo-100', 'text-indigo-700');
+                chatModeBtn.classList.add('text-gray-600', 'hover:bg-gray-200');
+            } else if (mode === 'chat') {
+                editorContent.classList.add('hidden');
+                chatContent.classList.remove('hidden');
+                editorActions.classList.add('hidden');
+                editorActions.classList.remove('flex');
+
+
+                chatModeBtn.classList.add('bg-indigo-100', 'text-indigo-700');
+                chatModeBtn.classList.remove('text-gray-600', 'hover:bg-gray-200');
+                editorModeBtn.classList.remove('bg-indigo-100', 'text-indigo-700');
+                editorModeBtn.classList.add('text-gray-600', 'hover:bg-gray-200');
+            }
+        }
+
+        // Initial load
+        document.addEventListener('DOMContentLoaded', () => {
+            renderJournalList();
+        });
+    </script>
+</body>
+</html>
