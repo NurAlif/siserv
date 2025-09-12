@@ -7,6 +7,6 @@ export default defineConfig({
   server: {
     port: 3000, // You can change the port if needed
     host: '0.0.0.0', // Add this line
-    allowedHosts: ['ai-ndhu-lab']
+    allowedHosts: ['ai-ndhu-lab', '134.208.6.129']
   },
 });
