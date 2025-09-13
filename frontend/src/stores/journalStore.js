@@ -100,6 +100,19 @@ export const useJournalStore = defineStore('journal', {
         this.isLoading = false;
       }
     },
+    
+    // --- ADDED: New Action for Optimistic Chat Updates ---
+    // This action adds a chat message to the local state without calling the API.
+    addChatMessageOptimistically(date, message) {
+      const journal = this.getJournalByDate(date);
+      if (journal) {
+        // Ensure the chat_messages array exists before pushing to it.
+        if (!journal.chat_messages) {
+          journal.chat_messages = [];
+        }
+        journal.chat_messages.push(message);
+      }
+    },
 
     // --- New Action: Directly set a journal's content ---
     // This allows other stores (like the AI store) to update content reactively
@@ -118,4 +131,3 @@ export const useJournalStore = defineStore('journal', {
     }
   },
 });
-

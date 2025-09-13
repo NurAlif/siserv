@@ -33,24 +33,35 @@ export const useAiStore = defineStore('ai', {
       this.error = null;
       const journalStore = useJournalStore();
       
-      try {
-        // REMOVED: The previous optimistic update was causing instability.
-        // This simplified version ensures the API call is always made reliably.
+      // --- FIX: Optimistic UI Update ---
+      // 1. Create a temporary message object for the user's input to display it immediately.
+      const userMessage = {
+        id: `temp-${Date.now()}`, // A temporary ID for Vue's :key binding
+        sender: 'user',
+        message_type: 'conversation',
+        message_text: message,
+      };
 
-        // 1. Make the actual API call.
+      // 2. Add this temporary message to the local state so the UI updates instantly.
+      journalStore.addChatMessageOptimistically(date, userMessage);
+      
+      try {
+        // 3. Make the actual API call to the backend.
         await apiClient.post(`/ai/chat/${date}`, { message });
 
-        // 2. After the API call succeeds, fetch the updated journal from the server.
-        // This will bring in both the user's new message and the AI's reply.
+        // 4. After the API call succeeds, fetch the updated journal from the server.
+        // This will replace the optimistic update with the final, correct data from the database,
+        // including the AI's response and the user's message with its permanent ID.
         await journalStore.fetchJournalByDate(date, true); // force refresh
 
       } catch (err) {
         this.error = 'An error occurred during the chat. Please try again.';
         console.error(err);
+        // NOTE: In a production app, you might want to add logic here to remove
+        // the optimistic message if the API call fails.
       } finally {
         this.isLoading = false;
       }
     },
   },
 });
-

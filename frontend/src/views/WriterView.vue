@@ -207,7 +207,19 @@ const sendMessage = async () => {
   if (!newMessage.value.trim() || !currentJournal.value || aiStore.isLoading) return;
   const messageToSend = newMessage.value;
   newMessage.value = '';
-  await aiStore.chatWithAI(currentJournal.value.journal_date, messageToSend);
+
+  // --- FIX: Ensure auto-scrolling on optimistic update ---
+  // The chatWithAI action performs an optimistic update synchronously at the beginning.
+  // By not awaiting the promise immediately, we allow the optimistic UI update to render.
+  const chatPromise = aiStore.chatWithAI(currentJournal.value.journal_date, messageToSend);
+
+  // We then manually trigger scrollToBottom. It uses nextTick, which waits for the DOM 
+  // to be updated with the new optimistic message before scrolling.
+  scrollToBottom();
+
+  // Finally, we await the promise to ensure the full round trip (including the AI's response)
+  // completes. The watcher will handle the scroll after the AI response is fetched.
+  await chatPromise;
 };
 </script>
 
