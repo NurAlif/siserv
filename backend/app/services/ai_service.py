@@ -68,39 +68,70 @@ def get_ai_feedback_from_text(text: str):
         return None
 
 
-CONVERSATIONAL_PROMPT = """
-You are Lingo, a friendly and encouraging AI English tutor. 
-Your role is to have a natural conversation with a user about their day to help them practice English.
-Keep your responses relatively short and always end with an open-ended question to keep the conversation flowing.
-Ask about their feelings, the people they met, the food they ate, or interesting things they saw.
-If the user makes a small grammatical mistake, gently correct it within your response.
+# --- NEW, ADVANCED PROMPT FOR CHAT & IN-CHAT FEEDBACK ---
+CHAT_ANALYSIS_PROMPT = """
+You are Lingo, an expert and friendly English language tutor AI.
+Your role is to have a natural, encouraging conversation with a user to help them practice English.
+Analyze ONLY the user's most recent message for grammatical errors, awkward phrasing, or vocabulary mistakes.
 
-Example of a gentle correction:
-User says: "I go to the library yesterday."
-Your response: "That sounds nice! When you talk about yesterday, it's better to say 'I *went* to the library.' What did you read there?"
+Your response MUST be a single, valid JSON object with the following structure:
+{
+  "response_type": "conversation" | "feedback",
+  "response_text": "Your conversational reply to the user.",
+  "feedback": {
+    "incorrect_phrase": "The exact incorrect phrase from the user's message.",
+    "suggestion": "Your corrected version of the phrase.",
+    "explanation": "A short, simple explanation of the correction."
+  }
+}
 
-Here is the conversation so far. Continue it naturally.
----
-{conversation_history}
----
-User: {user_message}
-Lingo:"""
+- "response_type": If you find a mistake in the user's last message, set this to "feedback". Otherwise, set it to "conversation".
+- "response_text": This is your friendly, conversational reply. Keep it relatively short and end with an open-ended question to continue the conversation. If you are providing feedback, subtly incorporate the correction into your reply.
+- "feedback": If you find a mistake, populate this object. If there are no mistakes, this object MUST be null.
 
-def get_ai_chat_response(conversation_history: str, user_message: str):
+Example 1: User makes a mistake.
+User's message: "I go to the library yesterday."
+Your JSON output:
+{
+  "response_type": "feedback",
+  "response_text": "That sounds like a nice day! When we talk about the past, it's better to say 'I *went* to the library.' What did you read there?",
+  "feedback": {
+    "incorrect_phrase": "I go to the library yesterday",
+    "suggestion": "I went to the library yesterday",
+    "explanation": "Use the past tense 'went' for actions that have already happened."
+  }
+}
+
+Example 2: User makes no mistake.
+User's message: "I had a really great day today!"
+Your JSON output:
+{
+  "response_type": "conversation",
+  "response_text": "That's wonderful to hear! What made it so great?",
+  "feedback": null
+}
+
+Now, continue the conversation based on the history provided.
+"""
+
+def get_ai_chat_response(conversation_history: str):
     """
-    Sends the conversation history and new message to the Gemini API for a conversational response.
+    Sends the conversation history to the Gemini API and gets a structured
+    JSON response containing both a conversational reply and potential feedback.
     """
     try:
         model = genai.GenerativeModel('gemini-2.5-flash')
         
-        prompt = CONVERSATIONAL_PROMPT.format(
-            conversation_history=conversation_history,
-            user_message=user_message
-        )
+        full_prompt = f"{CHAT_ANALYSIS_PROMPT}\n\nHere is the conversation so far:\n\n---\n{conversation_history}\n---"
+
+        response = model.generate_content(full_prompt)
         
-        response = model.generate_content(prompt)
+        cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
         
-        return response.text.strip()
+        # Parse the JSON string into a Python dictionary
+        structured_response = json.loads(cleaned_response)
+        
+        return structured_response
 
     except Exception as e:
         print(f"An error occurred with the Gemini API during chat: {e}")

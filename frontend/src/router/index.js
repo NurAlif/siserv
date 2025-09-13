@@ -3,6 +3,9 @@ import { useAuthStore } from '../stores/authStore';
 import DashboardView from '../views/DashboardView.vue';
 import WriterView from '../views/WriterView.vue';
 import LoginView from '../views/LoginView.vue';
+import SignupView from '../views/SignupView.vue';
+import LearningHubView from '../views/LearningHubView.vue';
+import TopicDetailView from '../views/TopicDetailView.vue';
 
 const routes = [
   {
@@ -22,6 +25,24 @@ const routes = [
     path: '/login',
     name: 'Login',
     component: LoginView,
+  },
+  { 
+    path: '/signup', 
+    name: 'Signup', 
+    component: SignupView 
+  },
+  { 
+    path: '/learning-hub', 
+    name: 'LearningHub', 
+    component: LearningHubView, 
+    meta: { requiresAuth: true } 
+  },
+  { 
+    path: '/learning-hub/topic/:topic_id', 
+    name: 'TopicDetail', 
+    component: TopicDetailView, 
+    meta: { requiresAuth: true }, 
+    props: true 
   },
 ];
 

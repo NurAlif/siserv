@@ -1,8 +1,19 @@
-from sqlalchemy import Column, Integer, String, Text, Date, ForeignKey, TIMESTAMP
+from sqlalchemy import Column, Integer, String, Text, Date, ForeignKey, TIMESTAMP, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import text
 from .database import Base
 from datetime import datetime
+
+import enum
+
+# Define an Enum for the sender type
+class MessageSender(enum.Enum):
+    user = "user"
+    ai = "ai"
+
+class MessageType(enum.Enum):
+    conversation = "conversation"
+    feedback = "feedback"
 
 # --- Authentication and Journaling Models ---
 
@@ -28,6 +39,18 @@ class Journal(Base):
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"), onupdate=datetime.utcnow)
     
     owner = relationship("User", back_populates="journals")
+    chat_messages = relationship("ChatMessage", back_populates="journal", cascade="all, delete-orphan")
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+    id = Column(Integer, primary_key=True, index=True)
+    journal_id = Column(Integer, ForeignKey("journals.id", ondelete="CASCADE"), nullable=False)
+    sender = Column(Enum(MessageSender), nullable=False)
+    message_text = Column(Text, nullable=False)
+    message_type = Column(Enum(MessageType), default=MessageType.conversation, nullable=False)
+    timestamp = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
+
+    journal = relationship("Journal", back_populates="chat_messages")
 
 # --- Learning and Progress Tracking Models ---
 

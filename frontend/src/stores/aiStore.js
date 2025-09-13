@@ -27,17 +27,22 @@ export const useAiStore = defineStore('ai', {
       }
     },
 
-    // --- New Action: Chat with the AI ---
+    // --- REWORKED and FIXED Action: Chat with the AI ---
     async chatWithAI(date, message) {
       this.isLoading = true;
       this.error = null;
+      const journalStore = useJournalStore();
+      
       try {
-        const response = await apiClient.post(`/ai/chat/${date}`, { message });
-        const { updated_journal_content } = response.data;
-        
-        // After getting the response, update the journal's content in the journalStore
-        const journalStore = useJournalStore();
-        journalStore.setJournalContent(date, updated_journal_content);
+        // REMOVED: The previous optimistic update was causing instability.
+        // This simplified version ensures the API call is always made reliably.
+
+        // 1. Make the actual API call.
+        await apiClient.post(`/ai/chat/${date}`, { message });
+
+        // 2. After the API call succeeds, fetch the updated journal from the server.
+        // This will bring in both the user's new message and the AI's reply.
+        await journalStore.fetchJournalByDate(date, true); // force refresh
 
       } catch (err) {
         this.error = 'An error occurred during the chat. Please try again.';
@@ -48,3 +53,4 @@ export const useAiStore = defineStore('ai', {
     },
   },
 });
+

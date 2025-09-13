@@ -3,6 +3,9 @@ from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime, date
 from typing import Optional, List
 
+# --- Import the new Enums from models ---
+from .models import MessageSender, MessageType
+
 # --- User Schemas ---
 
 class UserBase(BaseModel):
@@ -33,6 +36,19 @@ class TokenData(BaseModel):
     """Schema representing the data embedded within a JWT."""
     id: Optional[str] = None
 
+# --- NEW ChatMessage Schemas ---
+class ChatMessageBase(BaseModel):
+    sender: MessageSender
+    message_text: str
+    message_type: MessageType
+
+class ChatMessageOut(ChatMessageBase):
+    id: int
+    timestamp: datetime
+
+    class Config:
+        from_attributes = True
+
 # --- Journal Schemas ---
 
 class JournalBase(BaseModel):
@@ -55,6 +71,7 @@ class JournalOut(JournalBase):
     journal_date: date
     created_at: datetime
     updated_at: datetime
+    chat_messages: List[ChatMessageOut] = [] # Add this line
     
     class Config:
         from_attributes = True
@@ -84,6 +101,45 @@ class AIChatRequest(BaseModel):
 
 class AIChatResponse(BaseModel):
     """Schema for the response from the AI chat endpoint."""
-    ai_response: str
-    updated_journal_content: str
+    ai_message: ChatMessageOut
 
+# --- Progress Tracking Schemas ---
+class TopTopic(BaseModel):
+    """Schema for representing a user's most frequent learning topics."""
+    topic_name: str
+    error_count: int
+
+    class Config:
+        from_attributes = True
+
+class ProgressSummary(BaseModel):
+    """Schema for the response of the progress summary endpoint."""
+    total_errors: int
+    topics_encountered: int
+    top_topics: List[TopTopic]
+
+# --- New Schemas for Learning Hub ---
+
+class TopicDetail(BaseModel):
+    """Schema for a single error instance within a topic."""
+    incorrect_phrase: str
+    suggestion_text: str
+    explanation_text: str
+    repetition_count: int
+    last_occurred_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class UserTopic(BaseModel):
+    """Schema for a topic the user has encountered."""
+    topic_id: int
+    topic_name: str
+    error_count: int
+
+    class Config:
+        from_attributes = True
+
+class UserTopicDetails(UserTopic):
+    """Extends UserTopic to include the full list of errors."""
+    errors: List[TopicDetail]

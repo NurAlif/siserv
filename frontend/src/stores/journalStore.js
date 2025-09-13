@@ -31,20 +31,27 @@ export const useJournalStore = defineStore('journal', {
         this.isLoading = false;
       }
     },
-    async fetchJournalByDate(date) {
-        // Check if we already have it
+    async fetchJournalByDate(date, forceRefresh = false) {
+        // Check if we already have it and are not forcing a refresh
         const existing = this.getJournalByDate(date);
-        if (existing) {
+        if (existing && !forceRefresh) {
             return existing;
         }
 
         // If not, fetch it from the API
         this.isLoading = true;
         this.error = null;
-        try {
+       try {
             const response = await apiClient.get(`/journals/${date}`);
-            // Add the newly fetched journal to our list
-            this.journals.push(response.data);
+            
+            // If it already exists, update it. Otherwise, add it.
+            const index = this.journals.findIndex(j => j.journal_date === date);
+            if (index !== -1) {
+                // FIXED: Use splice to ensure reactivity
+                this.journals.splice(index, 1, response.data);
+            } else {
+                this.journals.push(response.data);
+            }
             return response.data;
         } catch (err) {
             this.error = 'Failed to load journal entry.';

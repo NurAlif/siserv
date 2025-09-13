@@ -42,11 +42,16 @@
           <div v-show="activeMode === 'chat'" id="chat-content" class="p-6">
              <div class="w-full h-96 border border-gray-300 rounded-lg flex flex-col bg-gray-50">
                 <div ref="chatContainer" class="flex-grow p-4 overflow-y-auto space-y-4">
-                   <div v-for="(message, index) in chatHistory" :key="index" class="flex" :class="message.sender === 'User' ? 'justify-end' : 'justify-start'">
-                      <div class="p-3 rounded-lg max-w-xs break-words" :class="message.sender === 'User' ? 'bg-indigo-500 text-white' : 'bg-gray-200'">
-                         <p class="text-sm">{{ message.text }}</p>
+                   <!-- Iterate over the new chat_messages array -->
+                   <div v-for="message in currentJournal?.chat_messages" :key="message.id" class="flex" :class="message.sender === 'user' ? 'justify-end' : 'justify-start'">
+                      <!-- Standard Conversation Bubble -->
+                      <div v-if="message.message_type === 'conversation'" class="p-3 rounded-lg max-w-xs break-words" :class="message.sender === 'user' ? 'bg-indigo-500 text-white' : 'bg-gray-200'">
+                         <p class="text-sm">{{ message.message_text }}</p>
                       </div>
+                      <!-- Feedback Card -->
+                      <ChatFeedbackCard v-else-if="message.message_type === 'feedback'" :message="message" />
                    </div>
+                   <!-- Loading Indicator -->
                    <div v-if="aiStore.isLoading" class="flex justify-start">
                         <div class="bg-gray-200 p-3 rounded-lg animate-pulse">
                             <p class="text-sm text-gray-400">...</p>
@@ -106,13 +111,16 @@ import { useJournalStore } from '../stores/journalStore';
 import { useAiStore } from '../stores/aiStore';
 import { format } from 'date-fns';
 import AIFeedbackCard from '../components/AIFeedbackCard.vue';
+import ChatFeedbackCard from '../components/ChatFeedbackCard.vue';
 
 const route = useRoute();
 const router = useRouter();
 const journalStore = useJournalStore();
 const aiStore = useAiStore();
 
-const currentJournal = ref(null);
+// CHANGED: currentJournal is now a computed property for full reactivity.
+const currentJournal = computed(() => journalStore.getJournalByDate(route.params.date));
+
 const content = ref('');
 const statusText = ref('Saved');
 const activeMode = ref('editor');
@@ -127,34 +135,38 @@ const displayDate = computed(() => {
   return format(new Date(), 'MMMM d, yyyy');
 });
 
+// REWORKED: This function now only ensures the data is present in the store.
 const loadJournalData = async () => {
   const date = route.params.date;
-  if (date) {
-    let journal = journalStore.getJournalByDate(date);
-    if (!journal) {
-      await journalStore.fetchJournalByDate(date);
-      journal = journalStore.getJournalByDate(date);
-    }
-    currentJournal.value = journal;
-  } else {
-    currentJournal.value = null;
+  if (date && !currentJournal.value) { // Check the computed property
+    await journalStore.fetchJournalByDate(date);
   }
-  content.value = currentJournal.value?.content || '';
 };
 
 onMounted(loadJournalData);
 watch(() => route.params.date, loadJournalData);
 
-// This 'watcher' is the critical fix. It ensures that if the journal's
-// content is updated in the central store (e.g., by the AI chat action),
-// our local 'content' variable is also updated, which makes the UI refresh.
-watch(
-  () => currentJournal.value?.content,
-  (newContentFromStore) => {
-    if (newContentFromStore !== undefined && newContentFromStore !== content.value) {
-      content.value = newContentFromStore;
+// ADDED: This watcher syncs local state and handles side effects like scrolling.
+const scrollToBottom = () => {
+  nextTick(() => {
+    if (chatContainer.value) {
+      chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
     }
-  }
+  });
+};
+
+watch(
+  currentJournal,
+  (newJournal, oldJournal) => {
+    // Sync the textarea content when the journal changes.
+    content.value = newJournal?.content || '';
+
+    // Scroll chat to the bottom if the number of messages has changed.
+    if (newJournal?.chat_messages?.length !== oldJournal?.chat_messages?.length) {
+        scrollToBottom();
+    }
+  },
+  { deep: true, immediate: true }
 );
 
 const saveJournal = async () => {
@@ -191,35 +203,11 @@ const modeButtonClass = (mode) => {
   return `${base} text-gray-600 hover:bg-gray-200`;
 };
 
-const chatHistory = computed(() => {
-  if (!content.value) return [];
-  const messages = [];
-  const lines = content.value.split('\n\n');
-  for (const line of lines) {
-    if (line.startsWith('User: ')) {
-      messages.push({ sender: 'User', text: line.substring(6) });
-    } else if (line.startsWith('Lingo: ')) {
-      messages.push({ sender: 'Lingo', text: line.substring(7) });
-    }
-  }
-  return messages;
-});
-
 const sendMessage = async () => {
   if (!newMessage.value.trim() || !currentJournal.value || aiStore.isLoading) return;
   const messageToSend = newMessage.value;
   newMessage.value = '';
   await aiStore.chatWithAI(currentJournal.value.journal_date, messageToSend);
 };
-
-const scrollToBottom = () => {
-  nextTick(() => {
-    if (chatContainer.value) {
-      chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
-    }
-  });
-};
-
-watch(chatHistory, scrollToBottom, { deep: true });
 </script>
 

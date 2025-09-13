@@ -39,6 +39,12 @@
           {{ authStore.isLoading ? 'Logging in...' : 'Log In' }}
         </button>
       </form>
+      <p class="text-center text-sm text-gray-600">
+        Don't have an account? 
+        <router-link to="/signup" class="font-medium text-indigo-600 hover:text-indigo-500">
+          Sign Up
+        </router-link>
+      </p>
     </main>
   </div>
 </template>
