@@ -5,10 +5,10 @@ import json
 # Configure the Gemini API client
 genai.configure(api_key=settings.gemini_api_key)
 
-# A detailed system prompt to guide the AI's behavior
-FEEDBACK_ANALYSIS_PROMPT = """
+# A detailed system prompt to guide the AI's behavior for FINAL feedback
+FINISHING_PROMPT = """
 You are an expert English language tutor AI. Your name is Lingo.
-Your task is to analyze a user's journal entry and provide clear, constructive feedback.
+Your task is to analyze a user's journal entry and provide clear, constructive feedback for final polishing.
 The user is an English language learner. Your tone should be encouraging, patient, and helpful.
 
 Analyze the provided text based on the following criteria:
@@ -24,54 +24,25 @@ For each issue you find, you MUST provide the following information in a structu
 
 IMPORTANT: Your final output must be a valid JSON object that is a list of these feedback items.
 Do not include any text, greetings, or explanations outside of the JSON structure.
-The JSON output should be a list of objects, like this:
-[
-  {
-    "error_type": "Grammar: Tense",
-    "incorrect_phrase": "I have go to the park.",
-    "suggestion": "I have gone to the park.",
-    "explanation": "When using the present perfect tense with 'have', you should use the past participle form of the verb. 'Gone' is the past participle of 'go'."
-  },
-  {
-    "error_type": "Vocabulary: Awkward Phrasing",
-    "incorrect_phrase": "The weather was very nice.",
-    "suggestion": "The weather was beautiful.",
-    "explanation": "While 'nice' is correct, using more descriptive words like 'beautiful' or 'gorgeous' makes your writing more vivid."
-  }
-]
 If you find no errors, return an empty list: [].
 """
 
-def get_ai_feedback_from_text(text: str):
-    """
-    Sends the user's text to the Gemini API and gets structured feedback.
-    """
-    try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        # Combine the system prompt and the user's text
-        full_prompt = f"{FEEDBACK_ANALYSIS_PROMPT}\n\nHere is the user's journal entry to analyze:\n\n---\n{text}\n---"
-        
-        response = model.generate_content(full_prompt)
-        
-        # Clean the response to ensure it's valid JSON
-        # The model might sometimes wrap the JSON in ```json ... ```
-        cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
-        
-        # Parse the JSON string into a Python list of dictionaries
-        feedback_list = json.loads(cleaned_response)
-        
-        return feedback_list
+# NEW PROMPT for Phase 1: Scaffolding/Brainstorming
+SCAFFOLDING_CHAT_PROMPT = """
+You are Lingo, a creative and friendly English language tutor AI.
+Your current role is to be a brainstorming partner. Your goal is to help the user explore their day and find an interesting topic for their journal entry.
+Keep your responses conversational, encouraging, and ask open-ended questions to dig deeper.
+Guide the user towards creating a simple 3-point outline for their journal entry.
+Your response MUST be a single, valid JSON object with the following structure:
+{
+  "response_text": "Your conversational reply to the user."
+}
+"""
 
-    except Exception as e:
-        # In a real app, you'd want more robust error logging here
-        print(f"An error occurred with the Gemini API: {e}")
-        return None
-
-
-# --- NEW, ADVANCED PROMPT FOR CHAT & IN-CHAT FEEDBACK ---
-CHAT_ANALYSIS_PROMPT = """
+# NEW PROMPT for Phase 2: Writing/Drafting
+WRITING_CHAT_PROMPT = """
 You are Lingo, an expert and friendly English language tutor AI.
-Your role is to have a natural, encouraging conversation with a user to help them practice English.
+Your role is to have a natural, encouraging conversation with a user to help them practice English while they are writing.
 Analyze ONLY the user's most recent message for grammatical errors, awkward phrasing, or vocabulary mistakes.
 
 Your response MUST be a single, valid JSON object with the following structure:
@@ -89,7 +60,7 @@ Your response MUST be a single, valid JSON object with the following structure:
 - "response_text": This is your friendly, conversational reply. Keep it relatively short and end with an open-ended question to continue the conversation. If you are providing feedback, subtly incorporate the correction into your reply.
 - "feedback": If you find a mistake, populate this object. If there are no mistakes, this object MUST be null.
 
-Example 1: User makes a mistake.
+Example 1 (User makes a mistake):
 User's message: "I go to the library yesterday."
 Your JSON output:
 {
@@ -102,7 +73,7 @@ Your JSON output:
   }
 }
 
-Example 2: User makes no mistake.
+Example 2 (User makes no mistake):
 User's message: "I had a really great day today!"
 Your JSON output:
 {
@@ -114,25 +85,58 @@ Your JSON output:
 Now, continue the conversation based on the history provided.
 """
 
-def get_ai_chat_response(conversation_history: str):
+def get_ai_feedback_from_text(text: str):
     """
-    Sends the conversation history to the Gemini API and gets a structured
-    JSON response containing both a conversational reply and potential feedback.
+    Sends the user's text to the Gemini API and gets structured feedback
+    using the detailed FINISHING_PROMPT.
     """
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        full_prompt = f"{FINISHING_PROMPT}\n\nHere is the user's journal entry to analyze:\n\n---\n{text}\n---"
         
-        full_prompt = f"{CHAT_ANALYSIS_PROMPT}\n\nHere is the conversation so far:\n\n---\n{conversation_history}\n---"
-
         response = model.generate_content(full_prompt)
         
         cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
+        feedback_list = json.loads(cleaned_response)
         
-        # Parse the JSON string into a Python dictionary
+        return feedback_list
+
+    except Exception as e:
+        print(f"An error occurred with the Gemini API: {e}")
+        return None
+
+
+def get_ai_chat_response(conversation_history: str, phase: str):
+    """
+    Sends the conversation history to the Gemini API and gets a structured
+    JSON response based on the current writing phase.
+    """
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        if phase == 'scaffolding':
+            prompt_template = SCAFFOLDING_CHAT_PROMPT
+        elif phase == 'writing':
+            prompt_template = WRITING_CHAT_PROMPT
+        else: # Default case
+            prompt_template = WRITING_CHAT_PROMPT
+
+        full_prompt = f"{prompt_template}\n\nHere is the conversation so far:\n\n---\n{conversation_history}\n---"
+
+        response = model.generate_content(full_prompt)
+        cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
         structured_response = json.loads(cleaned_response)
+        
+        if phase == 'scaffolding':
+            return {
+                "response_type": "conversation",
+                "response_text": structured_response.get("response_text", "I'm not sure how to respond."),
+                "feedback": None
+            }
         
         return structured_response
 
     except Exception as e:
         print(f"An error occurred with the Gemini API during chat: {e}")
         return None
+

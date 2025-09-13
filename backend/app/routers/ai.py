@@ -22,8 +22,8 @@ def get_and_save_ai_feedback(
     """
     Analyzes a journal entry's content, returns structured AI feedback,
     and saves the learning points to the database to track user progress.
+    This is primarily used for the 'finishing' phase.
     """
-    # 1. Find the user's journal for the specified date
     journal = db.query(models.Journal).filter(
         models.Journal.user_id == current_user.id,
         models.Journal.journal_date == journal_date
@@ -35,7 +35,6 @@ def get_and_save_ai_feedback(
             detail=f"Journal entry for date {journal_date} not found."
         )
 
-    # 2. Call the AI service to get feedback
     feedback_data = ai_service.get_ai_feedback_from_text(request.text)
 
     if feedback_data is None:
@@ -44,11 +43,9 @@ def get_and_save_ai_feedback(
             detail="The AI service is currently unavailable."
         )
 
-    # 3. Process and save the feedback to the database
+    # ... (rest of the database saving logic remains the same)
     for item in feedback_data:
         feedback_item = schemas.AIFeedbackItem(**item)
-        
-        # Get or create the LearningTopic
         topic = db.query(models.LearningTopic).filter(models.LearningTopic.topic_name == feedback_item.error_type).first()
         if not topic:
             topic = models.LearningTopic(topic_name=feedback_item.error_type)
@@ -56,7 +53,6 @@ def get_and_save_ai_feedback(
             db.commit()
             db.refresh(topic)
 
-        # Check for existing UserError to track repetitions
         user_error = db.query(models.UserError).filter(
             models.UserError.user_id == current_user.id,
             models.UserError.topic_id == topic.id,
@@ -74,11 +70,9 @@ def get_and_save_ai_feedback(
             )
             db.add(user_error)
         
-        # We commit here to ensure user_error gets an ID for the history record
         db.commit()
         db.refresh(user_error)
 
-        # Get or create the LearningPoint
         learning_point = db.query(models.LearningPoint).filter(
             models.LearningPoint.topic_id == topic.id,
             models.LearningPoint.explanation_text == feedback_item.explanation
@@ -94,7 +88,6 @@ def get_and_save_ai_feedback(
             db.commit()
             db.refresh(learning_point)
 
-        # Create the history link
         history_record = models.UserLearningHistory(
             error_id=user_error.id,
             learning_point_id=learning_point.id
@@ -113,13 +106,8 @@ def chat_with_ai(
     current_user: models.User = Depends(security.get_current_user)
 ):
     """
-    Handles a turn in the conversation.
-    1. Saves the user's message to the database.
-    2. Gets a structured response from the AI (conversation + optional feedback).
-    3. Saves the AI's messages to the database.
-    4. Returns the AI's primary conversational message.
+    Handles a conversation turn, using a different AI personality based on the journal's current phase.
     """
-    # 1. Find the user's journal for the specified date
     journal = db.query(models.Journal).options(joinedload(models.Journal.chat_messages)).filter(
         models.Journal.user_id == current_user.id,
         models.Journal.journal_date == journal_date
@@ -130,8 +118,9 @@ def chat_with_ai(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Journal entry for date {journal_date} not found."
         )
-
-    # 2. Save the user's message
+        
+    # --- MODIFIED LOGIC ---
+    # 1. Save the user's message (same as before)
     user_message = models.ChatMessage(
         journal_id=journal.id,
         sender=models.MessageSender.user,
@@ -141,16 +130,15 @@ def chat_with_ai(
     db.add(user_message)
     db.commit()
 
-    # 3. Build conversation history string for the AI prompt
+    # 2. Build conversation history (same as before)
     history = ""
-    # We refetch the journal to ensure the user_message is included
     db.refresh(journal) 
     for msg in journal.chat_messages:
         sender = "User" if msg.sender == models.MessageSender.user else "Lingo"
         history += f"{sender}: {msg.message_text}\n"
 
-    # 4. Get structured response from the AI service
-    ai_response_data = ai_service.get_ai_chat_response(history)
+    # 3. Get AI response, PASSING IN THE CURRENT PHASE
+    ai_response_data = ai_service.get_ai_chat_response(history, journal.writing_phase.value)
 
     if not ai_response_data:
         raise HTTPException(
@@ -158,7 +146,7 @@ def chat_with_ai(
             detail="The AI service is currently unavailable for chat."
         )
 
-    # 5. Save the AI's conversational response
+    # 4. Save AI's conversational response (same as before)
     ai_conversation_message = models.ChatMessage(
         journal_id=journal.id,
         sender=models.MessageSender.ai,
@@ -167,9 +155,9 @@ def chat_with_ai(
     )
     db.add(ai_conversation_message)
     db.commit()
-    db.refresh(ai_conversation_message) # Refresh to get ID and timestamp
+    db.refresh(ai_conversation_message)
 
-    # 6. If feedback was provided, save it as a separate message
+    # 5. Handle and save feedback if provided (same as before, though scaffolding prompt won't provide it)
     if ai_response_data.get("response_type") == "feedback" and ai_response_data.get("feedback"):
         feedback_message = models.ChatMessage(
             journal_id=journal.id,

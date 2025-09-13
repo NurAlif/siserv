@@ -15,6 +15,12 @@ class MessageType(enum.Enum):
     conversation = "conversation"
     feedback = "feedback"
 
+# --- NEW: Enum for the journal writing phase ---
+class JournalPhase(enum.Enum):
+    scaffolding = "scaffolding"
+    writing = "writing"
+    finishing = "finishing"
+
 # --- Authentication and Journaling Models ---
 
 class User(Base):
@@ -34,7 +40,12 @@ class Journal(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     journal_date = Column(Date, nullable=False)
     title = Column(String(255), nullable=True)
-    content = Column(Text, nullable=True)
+    
+    # --- UPDATED Fields ---
+    outline_content = Column(Text, nullable=True) # For Phase 1
+    content = Column(Text, nullable=True) # For Phase 2
+    writing_phase = Column(Enum(JournalPhase), default=JournalPhase.scaffolding, nullable=False) # For tracking progress
+
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"), onupdate=datetime.utcnow)
     
@@ -90,4 +101,3 @@ class UserLearningHistory(Base):
     timestamp = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
 
     error_instance = relationship("UserError", back_populates="history")
-

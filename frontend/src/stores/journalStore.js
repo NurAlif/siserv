@@ -80,16 +80,17 @@ export const useJournalStore = defineStore('journal', {
       }
     },
 
-    // --- New Action: Update a journal entry ---
-    async updateJournal(date, content) {
+    // --- MODIFIED Action: Update a journal entry ---
+    async updateJournal(date, payload) { // payload can be { content } or { outline_content }
       this.isLoading = true;
       this.error = null;
       try {
-        const response = await apiClient.put(`/journals/${date}`, { content });
+        const response = await apiClient.put(`/journals/${date}`, payload);
         // Find and update the journal in our local list
         const index = this.journals.findIndex(j => j.journal_date === date);
         if (index !== -1) {
-          this.journals[index] = response.data;
+          // Use Object.assign to merge new data into the existing object to maintain reactivity
+          Object.assign(this.journals[index], response.data);
         }
         return response.data;
       } catch (err) {
@@ -99,6 +100,27 @@ export const useJournalStore = defineStore('journal', {
       } finally {
         this.isLoading = false;
       }
+    },
+
+    // --- NEW Action: Update the journal's writing phase ---
+    async updateJournalPhase(date, phase) {
+        this.isLoading = true;
+        this.error = null;
+        try {
+            const response = await apiClient.put(`/journals/${date}/phase`, { writing_phase: phase });
+            const index = this.journals.findIndex(j => j.journal_date === date);
+            if (index !== -1) {
+                // Update the local state with the authoritative response from the server
+                Object.assign(this.journals[index], response.data);
+            }
+            return response.data;
+        } catch (err) {
+            this.error = 'Failed to update journal phase.';
+            console.error(err);
+            return null;
+        } finally {
+            this.isLoading = false;
+        }
     },
     
     // --- ADDED: New Action for Optimistic Chat Updates ---

@@ -19,10 +19,10 @@ def create_journal(
     """
     Creates a new journal entry for the current user for today's date.
     A user can only create one journal entry per day.
+    The new journal starts in the 'scaffolding' phase.
     """
     today = date.today()
     
-    # Check if a journal entry for today already exists for this user
     existing_journal = db.query(models.Journal).filter(
         models.Journal.user_id == current_user.id,
         models.Journal.journal_date == today
@@ -34,11 +34,13 @@ def create_journal(
             detail="A journal entry for today already exists."
         )
 
-    # Create the new journal entry
+    # REFINED: Ensure content fields are never None on creation
     new_journal = models.Journal(
         user_id=current_user.id,
         journal_date=today,
-        content=journal.content
+        content="", # Always start with an empty string
+        outline_content="", # Always start with an empty string
+        writing_phase=models.JournalPhase.scaffolding
     )
     db.add(new_journal)
     db.commit()
@@ -87,7 +89,7 @@ def update_journal(
     current_user: models.User = Depends(security.get_current_user)
 ):
     """
-    Updates the content of a specific journal entry by date for the current user.
+    Updates the outline or main content of a specific journal entry.
     """
     journal_query = db.query(models.Journal).filter(
         models.Journal.user_id == current_user.id,
@@ -102,9 +104,45 @@ def update_journal(
             detail=f"Journal entry for date {journal_date} not found."
         )
     
-    # Update the journal content
-    journal_query.update(updated_journal.dict(), synchronize_session=False)
+    # Use exclude_unset=True to only update fields that were actually sent
+    update_data = updated_journal.dict(exclude_unset=True)
+    journal_query.update(update_data, synchronize_session=False)
     db.commit()
     
     return journal_query.first()
+
+@router.put("/{journal_date}/phase", response_model=schemas.JournalOut)
+def update_journal_phase(
+    journal_date: date,
+    phase_update: schemas.JournalPhaseUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Updates the writing phase of a journal entry.
+    - If moving to 'writing', it copies the outline to the main content.
+    """
+    journal_query = db.query(models.Journal).filter(
+        models.Journal.user_id == current_user.id,
+        models.Journal.journal_date == journal_date
+    )
+
+    journal = journal_query.first()
+
+    if not journal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Journal entry for date {journal_date} not found."
+        )
+
+    # Logic for transitioning from scaffolding to writing
+    if journal.writing_phase == models.JournalPhase.scaffolding and phase_update.writing_phase == models.JournalPhase.writing:
+        # Copy outline to content if content is empty
+        if not journal.content and journal.outline_content:
+            journal.content = journal.outline_content
+
+    journal.writing_phase = phase_update.writing_phase
+    db.commit()
+
+    return journal
 

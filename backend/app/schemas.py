@@ -1,10 +1,9 @@
-# ... existing user, token, journal, and AI feedback schemas ...
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime, date
 from typing import Optional, List
 
 # --- Import the new Enums from models ---
-from .models import MessageSender, MessageType
+from .models import MessageSender, MessageType, JournalPhase
 
 # --- User Schemas ---
 
@@ -53,16 +52,28 @@ class ChatMessageOut(ChatMessageBase):
 
 class JournalBase(BaseModel):
     """Base schema for journal data."""
-    content: str
     title: Optional[str] = None
+    outline_content: Optional[str] = None
+    content: Optional[str] = None
+    writing_phase: Optional[JournalPhase] = None
+
 
 class JournalCreate(BaseModel):
-    """Schema for creating a new journal entry."""
-    content: str
+    """Schema for creating a new journal entry. Content is optional at creation."""
+    content: Optional[str] = None
 
 class JournalUpdate(BaseModel):
-    """Schema for updating an existing journal entry."""
-    content: str
+    """
+    Schema for updating an existing journal entry.
+    Allows updating outline or main content.
+    """
+    outline_content: Optional[str] = None
+    content: Optional[str] = None
+
+# --- NEW: Schema for updating the journal's phase ---
+class JournalPhaseUpdate(BaseModel):
+    writing_phase: JournalPhase
+
 
 class JournalOut(JournalBase):
     """Schema for returning journal data to the client."""
@@ -71,7 +82,7 @@ class JournalOut(JournalBase):
     journal_date: date
     created_at: datetime
     updated_at: datetime
-    chat_messages: List[ChatMessageOut] = [] # Add this line
+    chat_messages: List[ChatMessageOut] = []
     
     class Config:
         from_attributes = True
@@ -143,3 +154,4 @@ class UserTopic(BaseModel):
 class UserTopicDetails(UserTopic):
     """Extends UserTopic to include the full list of errors."""
     errors: List[TopicDetail]
+
