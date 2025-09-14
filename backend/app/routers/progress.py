@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from typing import List
 from sqlalchemy.orm import joinedload
+from datetime import date, timedelta
 
 from .. import database, schemas, models, security
 
@@ -135,3 +136,49 @@ def get_topic_details(
         "error_count": topic_info.error_count,
         "errors": errors_query
     }
+
+@router.get("/streak", response_model=schemas.StreakOut)
+def get_user_streak(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Calculates the user's current writing streak based on consecutive daily
+    journal entries.
+    """
+    # 1. Fetch all unique journal dates for the user, sorted from newest to oldest.
+    journal_dates_query = db.query(models.Journal.journal_date).filter(
+        models.Journal.user_id == current_user.id
+    ).distinct().order_by(models.Journal.journal_date.desc()).all()
+    
+    # Extract date objects from the query result
+    journal_dates = [item.journal_date for item in journal_dates_query]
+
+    if not journal_dates:
+        return {"streak_count": 0}
+
+    # 2. Check if the streak is active.
+    today = date.today()
+    most_recent_date = journal_dates[0]
+    
+    # If the most recent entry is older than yesterday, the streak is broken.
+    if most_recent_date < today - timedelta(days=1):
+        return {"streak_count": 0}
+
+    # 3. Calculate the streak length.
+    streak_count = 1
+    last_date = most_recent_date
+
+    # Iterate through the rest of the dates to find consecutive days.
+    for i in range(1, len(journal_dates)):
+        current_date = journal_dates[i]
+        # If the gap between the last date and the current date is exactly one day,
+        # it's a consecutive entry.
+        if last_date - current_date == timedelta(days=1):
+            streak_count += 1
+            last_date = current_date
+        else:
+            # If the chain is broken, stop counting.
+            break
+            
+    return {"streak_count": streak_count}

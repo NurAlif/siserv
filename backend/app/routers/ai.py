@@ -69,7 +69,7 @@ def get_and_save_ai_feedback(
                 incorrect_phrase=feedback_item.incorrect_phrase
             )
             db.add(user_error)
-        
+        # We commit here to ensure user_error gets an ID for the history record
         db.commit()
         db.refresh(user_error)
 
@@ -96,6 +96,39 @@ def get_and_save_ai_feedback(
         db.commit()
 
     return {"feedback": feedback_data}
+
+
+@router.post("/conceptual-feedback/{journal_date}", response_model=schemas.AIConceptualFeedbackResponse)
+def get_conceptual_feedback(
+    journal_date: date,
+    request: schemas.AIFeedbackRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Analyzes a journal entry's content for high-level conceptual feedback
+    without saving any learning points.
+    """
+    journal = db.query(models.Journal).filter(
+        models.Journal.user_id == current_user.id,
+        models.Journal.journal_date == journal_date
+    ).first()
+
+    if not journal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Journal entry for date {journal_date} not found."
+        )
+
+    feedback_text = ai_service.get_ai_conceptual_feedback(request.text)
+
+    if feedback_text is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The AI service for conceptual feedback is currently unavailable."
+        )
+
+    return {"feedback_text": feedback_text}
 
 
 @router.post("/chat/{journal_date}", response_model=schemas.AIChatResponse)
@@ -137,7 +170,7 @@ def chat_with_ai(
         sender = "User" if msg.sender == models.MessageSender.user else "Lingo"
         history += f"{sender}: {msg.message_text}\n"
 
-    # 3. Get AI response, PASSING IN THE CURRENT PHASE
+    # 4. Get structured response from the AI service
     ai_response_data = ai_service.get_ai_chat_response(history, journal.writing_phase.value)
 
     if not ai_response_data:
@@ -169,3 +202,4 @@ def chat_with_ai(
         db.commit()
 
     return {"ai_message": ai_conversation_message}
+

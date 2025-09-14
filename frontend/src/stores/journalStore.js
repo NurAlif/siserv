@@ -80,8 +80,7 @@ export const useJournalStore = defineStore('journal', {
       }
     },
 
-    // --- MODIFIED Action: Update a journal entry ---
-    async updateJournal(date, payload) { // payload can be { content } or { outline_content }
+    async updateJournal(date, payload) {
       this.isLoading = true;
       this.error = null;
       try {
@@ -89,8 +88,7 @@ export const useJournalStore = defineStore('journal', {
         // Find and update the journal in our local list
         const index = this.journals.findIndex(j => j.journal_date === date);
         if (index !== -1) {
-          // Use Object.assign to merge new data into the existing object to maintain reactivity
-          Object.assign(this.journals[index], response.data);
+          this.journals[index] = response.data;
         }
         return response.data;
       } catch (err) {
@@ -101,30 +99,26 @@ export const useJournalStore = defineStore('journal', {
         this.isLoading = false;
       }
     },
-
-    // --- NEW Action: Update the journal's writing phase ---
-    async updateJournalPhase(date, phase) {
-        this.isLoading = true;
-        this.error = null;
-        try {
-            const response = await apiClient.put(`/journals/${date}/phase`, { writing_phase: phase });
-            const index = this.journals.findIndex(j => j.journal_date === date);
-            if (index !== -1) {
-                // Update the local state with the authoritative response from the server
-                Object.assign(this.journals[index], response.data);
-            }
-            return response.data;
-        } catch (err) {
-            this.error = 'Failed to update journal phase.';
-            console.error(err);
-            return null;
-        } finally {
-            this.isLoading = false;
-        }
-    },
     
-    // --- ADDED: New Action for Optimistic Chat Updates ---
-    // This action adds a chat message to the local state without calling the API.
+    async updateJournalPhase(date, phase) {
+      this.isLoading = true;
+      this.error = null;
+      try {
+        const response = await apiClient.put(`/journals/${date}/phase`, { phase });
+        const index = this.journals.findIndex(j => j.journal_date === date);
+        if (index !== -1) {
+          this.journals[index] = response.data;
+        }
+        return response.data;
+      } catch (err) {
+        this.error = 'Failed to update journal phase.';
+        console.error(err);
+        return null;
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
     addChatMessageOptimistically(date, message) {
       const journal = this.getJournalByDate(date);
       if (journal) {
@@ -153,3 +147,4 @@ export const useJournalStore = defineStore('journal', {
     }
   },
 });
+

@@ -1,9 +1,10 @@
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime, date
 from typing import Optional, List
+import enum
 
 # --- Import the new Enums from models ---
-from .models import MessageSender, MessageType, JournalPhase
+from .models import MessageSender, MessageType
 
 # --- User Schemas ---
 
@@ -55,24 +56,25 @@ class JournalBase(BaseModel):
     title: Optional[str] = None
     outline_content: Optional[str] = None
     content: Optional[str] = None
-    writing_phase: Optional[JournalPhase] = None
-
+    content: str
+    title: Optional[str] = None
 
 class JournalCreate(BaseModel):
-    """Schema for creating a new journal entry. Content is optional at creation."""
-    content: Optional[str] = None
+    """Schema for creating a new journal entry."""
+    content: str
 
 class JournalUpdate(BaseModel):
-    """
-    Schema for updating an existing journal entry.
-    Allows updating outline or main content.
-    """
+    content: str
     outline_content: Optional[str] = None
-    content: Optional[str] = None
 
-# --- NEW: Schema for updating the journal's phase ---
+class JournalPhase(str, enum.Enum):
+    scaffolding = "scaffolding"
+    writing = "writing"
+    finishing = "finishing"
+    completed = "completed"
+
 class JournalPhaseUpdate(BaseModel):
-    writing_phase: JournalPhase
+    phase: JournalPhase
 
 
 class JournalOut(JournalBase):
@@ -80,6 +82,8 @@ class JournalOut(JournalBase):
     id: int
     user_id: int
     journal_date: date
+    outline_content: Optional[str] = None
+    writing_phase: JournalPhase
     created_at: datetime
     updated_at: datetime
     chat_messages: List[ChatMessageOut] = []
@@ -103,6 +107,10 @@ class AIFeedbackItem(BaseModel):
 class AIFeedbackResponse(BaseModel):
     """The overall response schema for the AI feedback endpoint."""
     feedback: List[AIFeedbackItem]
+
+class AIConceptualFeedbackResponse(BaseModel):
+    """Schema for high-level conceptual feedback."""
+    feedback_text: str
 
 # --- AI Chat Schemas (New) ---
 
@@ -129,6 +137,10 @@ class ProgressSummary(BaseModel):
     topics_encountered: int
     top_topics: List[TopTopic]
 
+class StreakOut(BaseModel):
+    """Schema for returning the user's current streak."""
+    streak_count: int
+
 # --- New Schemas for Learning Hub ---
 
 class TopicDetail(BaseModel):
@@ -154,4 +166,3 @@ class UserTopic(BaseModel):
 class UserTopicDetails(UserTopic):
     """Extends UserTopic to include the full list of errors."""
     errors: List[TopicDetail]
-

@@ -8,6 +8,7 @@ export const useProgressStore = defineStore('progress', {
     currentTopicDetails: null,
     isLoading: false,
     error: null,
+    streak: 0,
   }),
   actions: {
     async fetchProgressSummary() {
@@ -53,6 +54,20 @@ export const useProgressStore = defineStore('progress', {
       } finally {
         this.isLoading = false;
       }
+    },
+
+    async fetchStreak() {
+        this.isLoading = true;
+        this.error = null;
+        try {
+            const response = await apiClient.get('/progress/streak');
+            this.streak = response.data.streak_count;
+        } catch (err) {
+            this.error = 'Failed to load writing streak.';
+            console.error(err);
+        } finally {
+            this.isLoading = false;
+        }
     },
   },
 });

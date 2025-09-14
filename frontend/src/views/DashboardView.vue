@@ -12,7 +12,7 @@
             <path d="M221.5,145.45C221.5,184.12,190,224,150,224s-72-39.88-72-78.55c0-20.93,12.35-46,29.9-71.55,14.28-20.81,28.2-38,33.43-45.11a8,8,0,0,1,13.34,0c5.23,7.07,19.15,24.3,33.43,45.11C209.15,99.44,221.5,124.52,221.5,145.45ZM152,80a16,16,0,1,0-16,16A16,16,0,0,0,152,80Z"></path>
           </svg>
           <div>
-            <div class="font-bold text-lg">12 Day Streak</div>
+            <div class="font-bold text-lg">{{ progressStore.streak }} Day Streak</div>
             <p class="text-sm">Keep it up!</p>
           </div>
         </div>
@@ -76,6 +76,7 @@ const progressStore = useProgressStore(); // Instantiate progress store
 // Fetch data when the component is first mounted
 onMounted(() => {
   journalStore.fetchJournals();
-  progressStore.fetchProgressSummary(); // Fetch progress data
+  progressStore.fetchProgressSummary();
+  progressStore.fetchStreak(); // Fetch streak data
 });
 </script>

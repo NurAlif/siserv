@@ -1,0 +1,1302 @@
+Codebase Structure Overview:
+
+└── app
+    ├── config.py
+    ├── database.py
+    ├── main.py
+    ├── models.py
+    ├── routers
+    │   ├── ai.py
+    │   ├── auth.py
+    │   ├── journals.py
+    │   └── progress.py
+    ├── schemas.py
+    ├── security.py
+    └── services
+        └── ai_service.py
+
+
+==================================================
+
+Compiled Code Contents:
+
+
+### File: app/schemas.py
+
+```
+from pydantic import BaseModel, EmailStr, Field
+from datetime import datetime, date
+from typing import Optional, List
+import enum
+
+# --- Import the new Enums from models ---
+from .models import MessageSender, MessageType
+
+# --- User Schemas ---
+
+class UserBase(BaseModel):
+    """Base schema for user data, containing common fields."""
+    email: EmailStr
+    username: str
+
+class UserCreate(UserBase):
+    """Schema for creating a new user. Includes the password."""
+    password: str
+
+class UserOut(UserBase):
+    """Schema for returning user data to the client. Excludes the password."""
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# --- Token Schemas for Login ---
+
+class Token(BaseModel):
+    """Schema for the response when a user logs in successfully."""
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    """Schema representing the data embedded within a JWT."""
+    id: Optional[str] = None
+
+# --- NEW ChatMessage Schemas ---
+class ChatMessageBase(BaseModel):
+    sender: MessageSender
+    message_text: str
+    message_type: MessageType
+
+class ChatMessageOut(ChatMessageBase):
+    id: int
+    timestamp: datetime
+
+    class Config:
+        from_attributes = True
+
+# --- Journal Schemas ---
+
+class JournalBase(BaseModel):
+    """Base schema for journal data."""
+    title: Optional[str] = None
+    outline_content: Optional[str] = None
+    content: Optional[str] = None
+    content: str
+    title: Optional[str] = None
+
+class JournalCreate(BaseModel):
+    """Schema for creating a new journal entry."""
+    content: str
+
+class JournalUpdate(BaseModel):
+    content: str
+    outline_content: Optional[str] = None
+
+class JournalPhase(str, enum.Enum):
+    scaffolding = "scaffolding"
+    writing = "writing"
+    finishing = "finishing"
+    completed = "completed"
+
+class JournalPhaseUpdate(BaseModel):
+    phase: JournalPhase
+
+
+class JournalOut(JournalBase):
+    """Schema for returning journal data to the client."""
+    id: int
+    user_id: int
+    journal_date: date
+    outline_content: Optional[str] = None
+    writing_phase: JournalPhase
+    created_at: datetime
+    updated_at: datetime
+    chat_messages: List[ChatMessageOut] = []
+    
+    class Config:
+        from_attributes = True
+        
+# --- AI Schemas ---
+
+class AIFeedbackRequest(BaseModel):
+    """Schema for the request body when asking for AI feedback."""
+    text: str = Field(..., min_length=10, description="The journal text to be analyzed.")
+
+class AIFeedbackItem(BaseModel):
+    """Schema for a single piece of feedback from the AI."""
+    error_type: str = Field(..., description="e.g., 'Grammar: Tense', 'Vocabulary: Phrasing'")
+    incorrect_phrase: str
+    suggestion: str
+    explanation: str
+
+class AIFeedbackResponse(BaseModel):
+    """The overall response schema for the AI feedback endpoint."""
+    feedback: List[AIFeedbackItem]
+
+class AIConceptualFeedbackResponse(BaseModel):
+    """Schema for high-level conceptual feedback."""
+    feedback_text: str
+
+# --- AI Chat Schemas (New) ---
+
+class AIChatRequest(BaseModel):
+    """Schema for the request body when sending a chat message."""
+    message: str = Field(..., min_length=1)
+
+class AIChatResponse(BaseModel):
+    """Schema for the response from the AI chat endpoint."""
+    ai_message: ChatMessageOut
+
+# --- Progress Tracking Schemas ---
+class TopTopic(BaseModel):
+    """Schema for representing a user's most frequent learning topics."""
+    topic_name: str
+    error_count: int
+
+    class Config:
+        from_attributes = True
+
+class ProgressSummary(BaseModel):
+    """Schema for the response of the progress summary endpoint."""
+    total_errors: int
+    topics_encountered: int
+    top_topics: List[TopTopic]
+
+class StreakOut(BaseModel):
+    """Schema for returning the user's current streak."""
+    streak_count: int
+
+# --- New Schemas for Learning Hub ---
+
+class TopicDetail(BaseModel):
+    """Schema for a single error instance within a topic."""
+    incorrect_phrase: str
+    suggestion_text: str
+    explanation_text: str
+    repetition_count: int
+    last_occurred_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class UserTopic(BaseModel):
+    """Schema for a topic the user has encountered."""
+    topic_id: int
+    topic_name: str
+    error_count: int
+
+    class Config:
+        from_attributes = True
+
+class UserTopicDetails(UserTopic):
+    """Extends UserTopic to include the full list of errors."""
+    errors: List[TopicDetail]
+
+```
+
+
+### File: app/security.py
+
+```
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
+from passlib.context import CryptContext
+from datetime import datetime, timedelta
+from jose import JWTError, jwt
+
+from . import database, models, schemas
+from .config import settings
+
+# This tells FastAPI where the client should go to get the token.
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
+
+# --- Password Hashing ---
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verifies a plain password against a hashed one."""
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    """Hashes a plain password."""
+    return pwd_context.hash(password)
+
+
+# --- JWT Token Handling ---
+def create_access_token(data: dict):
+    """
+    Creates a JWT access token.
+    """
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+    return encoded_jwt
+
+def verify_access_token(token: str, credentials_exception):
+    """
+    Verifies a JWT. Decodes it and validates the user ID.
+    """
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        user_id: str = payload.get("user_id")
+        if user_id is None:
+            raise credentials_exception
+        token_data = schemas.TokenData(id=str(user_id))
+    except JWTError:
+        raise credentials_exception
+    return token_data
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database.get_db)):
+    """
+    Dependency to get the current user from a token.
+    This will be used to protect endpoints.
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    token_data = verify_access_token(token, credentials_exception)
+    
+    user = db.query(models.User).filter(models.User.id == token_data.id).first()
+    
+    if user is None:
+        raise credentials_exception
+        
+    return user
+
+
+```
+
+
+### File: app/models.py
+
+```
+from sqlalchemy import Column, Integer, String, Text, Date, ForeignKey, TIMESTAMP, Enum
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql.expression import text
+from .database import Base
+from datetime import datetime
+
+import enum
+
+# Define an Enum for the sender type
+class MessageSender(enum.Enum):
+    user = "user"
+    ai = "ai"
+
+class MessageType(enum.Enum):
+    conversation = "conversation"
+    feedback = "feedback"
+    
+# Define an Enum for the journal writing phase
+class JournalPhase(enum.Enum):
+    scaffolding = "scaffolding"
+    writing = "writing"
+    finishing = "finishing"
+    completed = "completed"
+
+# --- Authentication and Journaling Models ---
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, nullable=False, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    hashed_password = Column(String(255), nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
+    
+    journals = relationship("Journal", back_populates="owner")
+    errors = relationship("UserError", back_populates="user")
+
+class Journal(Base):
+    __tablename__ = "journals"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    journal_date = Column(Date, nullable=False)
+    title = Column(String(255), nullable=True)
+    content = Column(Text, nullable=True, default='')
+    outline_content = Column(Text, nullable=True, default='')
+    writing_phase = Column(Enum(JournalPhase), default=JournalPhase.scaffolding, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"), onupdate=datetime.utcnow)
+    
+    owner = relationship("User", back_populates="journals")
+    chat_messages = relationship("ChatMessage", back_populates="journal", cascade="all, delete-orphan")
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+    id = Column(Integer, primary_key=True, index=True)
+    journal_id = Column(Integer, ForeignKey("journals.id", ondelete="CASCADE"), nullable=False)
+    sender = Column(Enum(MessageSender), nullable=False)
+    message_text = Column(Text, nullable=False)
+    message_type = Column(Enum(MessageType), default=MessageType.conversation, nullable=False)
+    timestamp = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
+
+    journal = relationship("Journal", back_populates="chat_messages")
+
+# --- Learning and Progress Tracking Models ---
+
+class LearningTopic(Base):
+    __tablename__ = "learning_topics"
+    id = Column(Integer, primary_key=True, index=True)
+    topic_name = Column(String(100), unique=True, nullable=False)
+    description = Column(Text, nullable=True)
+
+class UserError(Base):
+    __tablename__ = "user_errors"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    topic_id = Column(Integer, ForeignKey("learning_topics.id"), nullable=False)
+    incorrect_phrase = Column(Text, nullable=False)
+    repetition_count = Column(Integer, default=1, nullable=False)
+    status = Column(String(50), default='active', nullable=False)
+    first_occurred_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
+    last_occurred_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
+    
+    user = relationship("User", back_populates="errors")
+    topic = relationship("LearningTopic")
+    history = relationship("UserLearningHistory", back_populates="error_instance")
+
+class LearningPoint(Base):
+    __tablename__ = "learning_points"
+    id = Column(Integer, primary_key=True, index=True)
+    topic_id = Column(Integer, ForeignKey("learning_topics.id"), nullable=False)
+    explanation_text = Column(Text, nullable=False)
+    suggestion_text = Column(Text, nullable=False)
+
+class UserLearningHistory(Base):
+    __tablename__ = "user_learning_history"
+    id = Column(Integer, primary_key=True, index=True)
+    error_id = Column(Integer, ForeignKey("user_errors.id", ondelete="CASCADE"), nullable=False)
+    learning_point_id = Column(Integer, ForeignKey("learning_points.id"), nullable=False)
+    timestamp = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
+
+    error_instance = relationship("UserError", back_populates="history")
+
+
+```
+
+
+### File: app/database.py
+
+```
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from .config import settings
+
+# The database URL is read from our settings instance
+SQLALCHEMY_DATABASE_URL = settings.database_url
+
+# The engine is the entry point to the database.
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
+
+# Each instance of SessionLocal will be a database session.
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Base class that our ORM models will inherit from.
+Base = declarative_base()
+
+# Dependency for API endpoints to get a DB session
+def get_db():
+    """
+    A dependency that provides a database session for each request,
+    ensuring the session is always closed after the request is finished.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+```
+
+
+### File: app/main.py
+
+```
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from . import models
+from .database import engine
+from .routers import auth, journals, ai, progress
+
+# This line creates the database tables.
+models.Base.metadata.create_all(bind=engine)
+
+app = FastAPI()
+
+# --- CORS Middleware Configuration ---
+# This is the crucial part to fix the frontend connection errors.
+# It tells the browser that it's safe for your frontend to make requests to this backend.
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # For development, ["*"] allows all origins. For production, you should restrict this to your frontend's domain, e.g., ["https://www.lingojourn.com"].
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all HTTP methods (GET, POST, PUT, etc.).
+    allow_headers=["*"],  # Allows all headers (including Authorization).
+)
+# --- End of CORS Configuration ---
+
+
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the LingoJourn API!"}
+
+
+# Include the routers from other files
+app.include_router(auth.router)
+app.include_router(journals.router)
+app.include_router(ai.router)
+app.include_router(progress.router)
+
+
+```
+
+
+### File: app/config.py
+
+```
+from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+    """
+    Manages application settings loaded from environment variables.
+    """
+    database_url: str
+    secret_key: str
+    algorithm: str
+    access_token_expire_minutes: int
+    gemini_api_key: str # Added for the Gemini API
+
+    class Config:
+        env_file = ".env"
+
+# Create a single instance of the settings to be used throughout the app
+settings = Settings()
+
+
+```
+
+
+### File: app/services/ai_service.py
+
+```
+import google.generativeai as genai
+from ..config import settings
+import json
+
+# Configure the Gemini API client
+genai.configure(api_key=settings.gemini_api_key)
+# A detailed system prompt to guide the AI's behavior
+
+FINISHING_PROMPT = """
+You are an expert English language tutor AI. Your name is Lingo.
+Your task is to analyze a user's journal entry and provide clear, constructive feedback for final polishing.
+The user is an English language learner. Your tone should be encouraging, patient, and helpful.
+
+Analyze the provided text based on the following criteria:
+1.  **Grammar:** Identify grammatical mistakes (e.g., incorrect tense, subject-verb agreement, prepositions).
+2.  **Vocabulary:** Find awkward phrasing or suggest more vivid and appropriate words.
+3.  **Cohesion and Flow:** Check for issues in sentence structure and logical flow.
+
+For each issue you find, you MUST provide the following information in a structured format:
+- "error_type": A short category for the error (e.g., "Grammar: Tense", "Vocabulary: Awkward Phrasing").
+- "incorrect_phrase": The exact phrase from the user's text that is incorrect.
+- "suggestion": The corrected version of the phrase.
+- "explanation": A concise, easy-to-understand explanation of why it was incorrect and why the suggestion is better.
+
+IMPORTANT: Your final output must be a valid JSON object that is a list of these feedback items.
+Do not include any text, greetings, or explanations outside of the JSON structure.
+If you find no errors, return an empty list: [].
+"""
+
+SCAFFOLDING_PROMPT = """
+You are Lingo, a friendly and creative English language tutor.
+Your current role is to be a brainstorming partner. Your goal is to help the user explore their day and find an interesting topic to write about in their journal.
+Ask encouraging, open-ended questions to help them think of ideas.
+Once they have some ideas, help them structure a simple 3-point outline.
+Keep your responses conversational and relatively short. End with a question to keep the conversation going.
+
+Your response MUST be a single, valid JSON object with the following structure:
+{
+  "response_type": "conversation",
+  "response_text": "Your conversational reply to the user.",
+  "feedback": null
+}
+"""
+
+WRITING_CHAT_PROMPT = """
+You are Lingo, an expert and friendly English language tutor AI.
+Your role is to have a natural, encouraging conversation with a user to help them practice English.
+Analyze ONLY the user's most recent message for grammatical errors, awkward phrasing, or vocabulary mistakes.
+
+Your response MUST be a single, valid JSON object with the following structure:
+{
+  "response_type": "conversation" | "feedback",
+  "response_text": "Your conversational reply to the user.",
+  "feedback": {
+    "incorrect_phrase": "The exact incorrect phrase from the user's message.",
+    "suggestion": "Your corrected version of the phrase.",
+    "explanation": "A short, simple explanation of the correction."
+  }
+}
+
+- "response_type": If you find a mistake in the user's last message, set this to "feedback". Otherwise, set it to "conversation".
+- "response_text": This is your friendly, conversational reply. Keep it relatively short and end with an open-ended question to continue the conversation. If you are providing feedback, subtly incorporate the correction into your reply.
+- "feedback": If you find a mistake, populate this object. If there are no mistakes, this object MUST be null.
+"""
+
+FEEDBACK_ANALYSIS_PROMPT = """
+You are an expert English language tutor AI. Your name is Lingo.
+Your task is to analyze a user's journal entry and provide clear, constructive feedback for final polishing.
+The user is an English language learner. Your tone should be encouraging, patient, and helpful.
+
+Analyze the provided text based on the following criteria:
+1.  **Grammar:** Identify grammatical mistakes (e.g., incorrect tense, subject-verb agreement, prepositions).
+2.  **Vocabulary:** Find awkward phrasing or suggest more vivid and appropriate words.
+3.  **Cohesion and Flow:** Check for issues in sentence structure and logical flow.
+
+For each issue you find, you MUST provide the following information in a structured format:
+- "error_type": A short category for the error (e.g., "Grammar: Tense", "Vocabulary: Awkward Phrasing").
+- "incorrect_phrase": The exact phrase from the user's text that is incorrect.
+- "suggestion": The corrected version of the phrase.
+- "explanation": A concise, easy-to-understand explanation of why it was incorrect and why the suggestion is better.
+
+IMPORTANT: Your final output must be a valid JSON object that is a list of these feedback items.
+Do not include any text, greetings, or explanations outside of the JSON structure.
+If you find no errors, return an empty list: [].
+"""
+
+CONCEPTUAL_FEEDBACK_PROMPT = """
+You are Lingo, an expert and encouraging English language writing coach.
+Your task is to provide high-level, conceptual feedback on a user's journal draft.
+DO NOT correct grammar, spelling, or individual words.
+Instead, focus on the following:
+1.  **Clarity & Cohesion:** Is the story easy to follow? Are the transitions between ideas smooth?
+2.  **Detail & Depth:** Are there parts of the story that could be more descriptive or detailed? Could the user explore their feelings more deeply?
+3.  **Engagement:** Is the writing engaging? What is the strongest part of the writing?
+
+Your response should be a single paragraph of encouraging and constructive advice, written directly to the user. Start with a positive comment. Your tone should be that of a helpful coach, not a critic. Your final output MUST be a single JSON object with one key, "feedback_text".
+
+Example:
+{
+  "feedback_text": "This is a great start! The way you described the market was very vivid. To make it even stronger, you could try expanding on how you felt when you saw your friend. Tell me more about that moment!"
+}
+"""
+
+
+def get_ai_feedback_from_text(text: str):
+    """
+    Sends the user's text to the Gemini API and gets structured feedback
+    using the detailed FINISHING_PROMPT.
+    """
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        full_prompt = f"{FINISHING_PROMPT}\n\nHere is the user's journal entry to analyze:\n\n---\n{text}\n---"
+        
+        response = model.generate_content(full_prompt)
+        
+        cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
+        feedback_list = json.loads(cleaned_response)
+        
+        return feedback_list
+    except Exception as e:
+        # In a real app, you'd want more robust error logging here
+        print(f"An error occurred with the Gemini API: {e}")
+        return None
+
+
+def get_ai_chat_response(conversation_history: str, phase: str):
+    """
+    Sends the conversation history to the Gemini API and gets a structured
+    JSON response based on the current writing phase.
+    """
+    try:
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        
+        # Determine which system prompt to use based on the journal's phase
+        if phase == 'scaffolding':
+            system_prompt = SCAFFOLDING_PROMPT
+        else: # Default to writing chat prompt
+            system_prompt = WRITING_CHAT_PROMPT
+
+        full_prompt = f"{system_prompt}\n\nHere is the conversation so far:\n\n---\n{conversation_history}\n---"
+
+        response = model.generate_content(full_prompt)
+        cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
+        structured_response = json.loads(cleaned_response)
+        
+        return structured_response
+
+    except Exception as e:
+        print(f"An error occurred with the Gemini API during chat: {e}")
+        return None
+
+def get_ai_conceptual_feedback(text: str):
+    """
+    Sends the user's text to the Gemini API for high-level conceptual feedback.
+    """
+    try:
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        full_prompt = f"{CONCEPTUAL_FEEDBACK_PROMPT}\n\nHere is the user's draft to analyze:\n\n---\n{text}\n---"
+        
+        response = model.generate_content(full_prompt)
+        
+        cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
+        
+        structured_response = json.loads(cleaned_response)
+        
+        return structured_response.get("feedback_text")
+
+    except Exception as e:
+        print(f"An error occurred with the Gemini API during conceptual feedback: {e}")
+        return None
+
+
+```
+
+
+### File: app/routers/journals.py
+
+```
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from datetime import date
+from typing import List
+
+from .. import database, schemas, models, security
+
+router = APIRouter(
+    prefix="/api/journals",
+    tags=["Journals"]
+)
+
+@router.post("/", response_model=schemas.JournalOut, status_code=status.HTTP_201_CREATED)
+def create_journal(
+    journal: schemas.JournalCreate, 
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Creates a new journal entry for the current user for today's date.
+    A user can only create one journal entry per day.
+    """
+    today = date.today()
+    
+    # Check if a journal entry for today already exists for this user
+    existing_journal = db.query(models.Journal).filter(
+        models.Journal.user_id == current_user.id,
+        models.Journal.journal_date == today
+    ).first()
+
+    if existing_journal:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A journal entry for today already exists."
+        )
+
+    # Create the new journal entry
+    new_journal = models.Journal(
+        user_id=current_user.id,
+        journal_date=today,
+        content=journal.content or "",
+        outline_content = "" # Ensure it's not null
+    )
+    db.add(new_journal)
+    db.commit()
+    db.refresh(new_journal)
+    
+    return new_journal
+
+@router.get("/", response_model=List[schemas.JournalOut])
+def get_all_journals(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Retrieves all journal entries for the currently logged-in user.
+    """
+    journals = db.query(models.Journal).filter(models.Journal.user_id == current_user.id).order_by(models.Journal.journal_date.desc()).all()
+    return journals
+
+@router.get("/{journal_date}", response_model=schemas.JournalOut)
+def get_journal_by_date(
+    journal_date: date,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Retrieves a specific journal entry by date for the current user.
+    """
+    journal = db.query(models.Journal).filter(
+        models.Journal.user_id == current_user.id,
+        models.Journal.journal_date == journal_date
+    ).first()
+
+    if not journal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Journal entry for date {journal_date} not found."
+        )
+    
+    return journal
+
+@router.put("/{journal_date}", response_model=schemas.JournalOut)
+def update_journal(
+    journal_date: date,
+    updated_journal: schemas.JournalUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Updates the content of a specific journal entry by date for the current user.
+    """
+    journal = db.query(models.Journal).filter(
+        models.Journal.user_id == current_user.id,
+        models.Journal.journal_date == journal_date
+    ).first()
+
+    if not journal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Journal entry for date {journal_date} not found."
+        )
+    
+    # Update the journal content
+    journal.content = updated_journal.content
+    if updated_journal.outline_content is not None:
+        journal.outline_content = updated_journal.outline_content
+
+    db.commit()
+    db.refresh(journal)
+    
+    return journal
+
+@router.put("/{journal_date}/phase", response_model=schemas.JournalOut)
+def update_journal_phase(
+    journal_date: date,
+    updated_phase: schemas.JournalPhaseUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Updates the writing phase of a specific journal entry.
+    """
+    journal = db.query(models.Journal).filter(
+        models.Journal.user_id == current_user.id,
+        models.Journal.journal_date == journal_date
+    ).first()
+
+    if not journal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Journal entry for date {journal_date} not found."
+        )
+
+    # CORRECTED LINE: Access .phase instead of .writing_phase
+    journal.writing_phase = updated_phase.phase
+    db.commit()
+    db.refresh(journal)
+    
+    return journal
+
+
+```
+
+
+### File: app/routers/auth.py
+
+```
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
+from .. import database, schemas, models, security
+
+router = APIRouter(
+    prefix="/api/auth",
+    tags=["Authentication"]
+)
+
+@router.post("/signup", response_model=schemas.UserOut, status_code=status.HTTP_201_CREATED)
+def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
+    """
+    Handles user registration.
+    - Hashes the password.
+    - Checks for existing user/email.
+    - Creates a new user in the database.
+    """
+    # Check if a user with the same email or username already exists
+    db_user_email = db.query(models.User).filter(models.User.email == user.email).first()
+    if db_user_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered."
+        )
+    
+    db_user_username = db.query(models.User).filter(models.User.username == user.username).first()
+    if db_user_username:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username is already taken."
+        )
+
+    # Hash the password before storing
+    hashed_password = security.get_password_hash(user.password)
+    
+    # Create a new user instance and save to the database
+    new_user = models.User(
+        username=user.username,
+        email=user.email,
+        hashed_password=hashed_password
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user) # Refresh the instance to get the new ID and created_at
+
+    return new_user
+
+
+@router.post("/token", response_model=schemas.Token)
+def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
+    """
+    Handles user login.
+    - Verifies username and password.
+    - Returns a JWT access token on success.
+    """
+    # Find the user by their username (form_data.username)
+    user = db.query(models.User).filter(models.User.username == form_data.username).first()
+
+    # If user doesn't exist or password doesn't match, raise an error
+    if not user or not security.verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Create the access token
+    access_token = security.create_access_token(
+        data={"user_id": user.id}
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@router.get("/me", response_model=schemas.UserOut)
+def read_users_me(current_user: models.User = Depends(security.get_current_user)):
+    """
+    Fetches the profile for the currently logged-in user.
+    Requires a valid JWT in the Authorization header.
+    """
+    return current_user
+
+```
+
+
+### File: app/routers/progress.py
+
+```
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from sqlalchemy import func, desc
+from typing import List
+from sqlalchemy.orm import joinedload
+from datetime import date, timedelta
+
+from .. import database, schemas, models, security
+
+router = APIRouter(
+    prefix="/api/progress",
+    tags=["Progress"]
+)
+
+@router.get("/summary", response_model=schemas.ProgressSummary)
+def get_progress_summary(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Retrieves a high-level summary of the user's learning progress,
+    including total errors and top 3 most common error topics.
+    """
+    user_id = current_user.id
+
+    # 1. Calculate total errors
+    total_errors = db.query(models.UserError).filter(models.UserError.user_id == user_id).count()
+
+    # 2. Calculate total unique topics encountered
+    topics_encountered = db.query(func.count(func.distinct(models.UserError.topic_id))).filter(models.UserError.user_id == user_id).scalar() or 0
+
+    # 3. Find the top 3 topics with the most errors
+    # We join UserError with LearningTopic, group by topic,
+    # count the errors in each group, and take the top 3.
+    top_topics_query = db.query(
+        models.LearningTopic.topic_name,
+        func.count(models.UserError.id).label("error_count")
+    ).join(
+        models.LearningTopic, models.UserError.topic_id == models.LearningTopic.id
+    ).filter(
+        models.UserError.user_id == user_id
+    ).group_by(
+        models.LearningTopic.topic_name
+    ).order_by(
+        desc("error_count")
+    ).limit(3).all()
+
+    # Format the result to match the Pydantic schema
+    top_topics = [schemas.TopTopic(topic_name=name, error_count=count) for name, count in top_topics_query]
+    
+    return {
+        "total_errors": total_errors,
+        "topics_encountered": topics_encountered,
+        "top_topics": top_topics
+    }
+
+# --- New Endpoint 1: Get All Topics ---
+@router.get("/topics", response_model=List[schemas.UserTopic])
+def get_user_topics(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Retrieves all learning topics a user has encountered, along with the
+    count of unique errors for each topic.
+    """
+    user_id = current_user.id
+
+    topics_query = db.query(
+        models.LearningTopic.id.label("topic_id"),
+        models.LearningTopic.topic_name,
+        func.count(models.UserError.id).label("error_count")
+    ).join(
+        models.LearningTopic, models.UserError.topic_id == models.LearningTopic.id
+    ).filter(
+        models.UserError.user_id == user_id
+    ).group_by(
+        models.LearningTopic.id, models.LearningTopic.topic_name
+    ).order_by(
+        desc("error_count")
+    ).all()
+
+    return topics_query
+
+
+# --- New Endpoint 2: Get Topic Details ---
+@router.get("/topics/{topic_id}", response_model=schemas.UserTopicDetails)
+def get_topic_details(
+    topic_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Retrieves detailed information for a specific topic, including all
+    associated errors and their corresponding learning points (explanations).
+    """
+    user_id = current_user.id
+
+    # 1. Get the topic info and error count first
+    topic_info = db.query(
+        models.LearningTopic.id.label("topic_id"),
+        models.LearningTopic.topic_name,
+        func.count(models.UserError.id).label("error_count")
+    ).join(
+        models.LearningTopic, models.UserError.topic_id == models.LearningTopic.id
+    ).filter(
+        models.UserError.user_id == user_id,
+        models.LearningTopic.id == topic_id
+    ).group_by(
+        models.LearningTopic.id, models.LearningTopic.topic_name
+    ).first()
+
+    if not topic_info:
+        raise HTTPException(status_code=404, detail="Topic not found for this user.")
+
+    # 2. Get all errors for this topic, joining with history and learning points
+    # to fetch the explanation and suggestion for each error.
+    errors_query = db.query(
+        models.UserError.incorrect_phrase,
+        models.LearningPoint.suggestion_text,
+        models.LearningPoint.explanation_text,
+        models.UserError.repetition_count,
+        models.UserError.last_occurred_at
+    ).select_from(models.UserError).join(
+        models.UserLearningHistory, models.UserError.id == models.UserLearningHistory.error_id
+    ).join(
+        models.LearningPoint, models.UserLearningHistory.learning_point_id == models.LearningPoint.id
+    ).filter(
+        models.UserError.user_id == user_id,
+        models.UserError.topic_id == topic_id
+    ).distinct().all()
+    
+    return {
+        "topic_id": topic_info.topic_id,
+        "topic_name": topic_info.topic_name,
+        "error_count": topic_info.error_count,
+        "errors": errors_query
+    }
+
+@router.get("/streak", response_model=schemas.StreakOut)
+def get_user_streak(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Calculates the user's current writing streak based on consecutive daily
+    journal entries.
+    """
+    # 1. Fetch all unique journal dates for the user, sorted from newest to oldest.
+    journal_dates_query = db.query(models.Journal.journal_date).filter(
+        models.Journal.user_id == current_user.id
+    ).distinct().order_by(models.Journal.journal_date.desc()).all()
+    
+    # Extract date objects from the query result
+    journal_dates = [item.journal_date for item in journal_dates_query]
+
+    if not journal_dates:
+        return {"streak_count": 0}
+
+    # 2. Check if the streak is active.
+    today = date.today()
+    most_recent_date = journal_dates[0]
+    
+    # If the most recent entry is older than yesterday, the streak is broken.
+    if most_recent_date < today - timedelta(days=1):
+        return {"streak_count": 0}
+
+    # 3. Calculate the streak length.
+    streak_count = 1
+    last_date = most_recent_date
+
+    # Iterate through the rest of the dates to find consecutive days.
+    for i in range(1, len(journal_dates)):
+        current_date = journal_dates[i]
+        # If the gap between the last date and the current date is exactly one day,
+        # it's a consecutive entry.
+        if last_date - current_date == timedelta(days=1):
+            streak_count += 1
+            last_date = current_date
+        else:
+            # If the chain is broken, stop counting.
+            break
+            
+    return {"streak_count": streak_count}
+```
+
+
+### File: app/routers/ai.py
+
+```
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from datetime import date, datetime
+from sqlalchemy.orm import joinedload
+import json
+
+from .. import schemas, security, models, database
+from ..services import ai_service
+
+router = APIRouter(
+    prefix="/api/ai",
+    tags=["AI"]
+)
+
+@router.post("/feedback/{journal_date}", response_model=schemas.AIFeedbackResponse)
+def get_and_save_ai_feedback(
+    journal_date: date,
+    request: schemas.AIFeedbackRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Analyzes a journal entry's content, returns structured AI feedback,
+    and saves the learning points to the database to track user progress.
+    This is primarily used for the 'finishing' phase.
+    """
+    journal = db.query(models.Journal).filter(
+        models.Journal.user_id == current_user.id,
+        models.Journal.journal_date == journal_date
+    ).first()
+
+    if not journal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Journal entry for date {journal_date} not found."
+        )
+
+    feedback_data = ai_service.get_ai_feedback_from_text(request.text)
+
+    if feedback_data is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The AI service is currently unavailable."
+        )
+
+    # ... (rest of the database saving logic remains the same)
+    for item in feedback_data:
+        feedback_item = schemas.AIFeedbackItem(**item)
+        topic = db.query(models.LearningTopic).filter(models.LearningTopic.topic_name == feedback_item.error_type).first()
+        if not topic:
+            topic = models.LearningTopic(topic_name=feedback_item.error_type)
+            db.add(topic)
+            db.commit()
+            db.refresh(topic)
+
+        user_error = db.query(models.UserError).filter(
+            models.UserError.user_id == current_user.id,
+            models.UserError.topic_id == topic.id,
+            models.UserError.incorrect_phrase == feedback_item.incorrect_phrase
+        ).first()
+        
+        if user_error:
+            user_error.repetition_count += 1
+            user_error.last_occurred_at = datetime.utcnow()
+        else:
+            user_error = models.UserError(
+                user_id=current_user.id,
+                topic_id=topic.id,
+                incorrect_phrase=feedback_item.incorrect_phrase
+            )
+            db.add(user_error)
+        # We commit here to ensure user_error gets an ID for the history record
+        db.commit()
+        db.refresh(user_error)
+
+        learning_point = db.query(models.LearningPoint).filter(
+            models.LearningPoint.topic_id == topic.id,
+            models.LearningPoint.explanation_text == feedback_item.explanation
+        ).first()
+
+        if not learning_point:
+            learning_point = models.LearningPoint(
+                topic_id=topic.id,
+                explanation_text=feedback_item.explanation,
+                suggestion_text=feedback_item.suggestion
+            )
+            db.add(learning_point)
+            db.commit()
+            db.refresh(learning_point)
+
+        history_record = models.UserLearningHistory(
+            error_id=user_error.id,
+            learning_point_id=learning_point.id
+        )
+        db.add(history_record)
+        db.commit()
+
+    return {"feedback": feedback_data}
+
+
+@router.post("/conceptual-feedback/{journal_date}", response_model=schemas.AIConceptualFeedbackResponse)
+def get_conceptual_feedback(
+    journal_date: date,
+    request: schemas.AIFeedbackRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Analyzes a journal entry's content for high-level conceptual feedback
+    without saving any learning points.
+    """
+    journal = db.query(models.Journal).filter(
+        models.Journal.user_id == current_user.id,
+        models.Journal.journal_date == journal_date
+    ).first()
+
+    if not journal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Journal entry for date {journal_date} not found."
+        )
+
+    feedback_text = ai_service.get_ai_conceptual_feedback(request.text)
+
+    if feedback_text is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The AI service for conceptual feedback is currently unavailable."
+        )
+
+    return {"feedback_text": feedback_text}
+
+
+@router.post("/chat/{journal_date}", response_model=schemas.AIChatResponse)
+def chat_with_ai(
+    journal_date: date,
+    request: schemas.AIChatRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Handles a conversation turn, using a different AI personality based on the journal's current phase.
+    """
+    journal = db.query(models.Journal).options(joinedload(models.Journal.chat_messages)).filter(
+        models.Journal.user_id == current_user.id,
+        models.Journal.journal_date == journal_date
+    ).first()
+
+    if not journal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Journal entry for date {journal_date} not found."
+        )
+        
+    # --- MODIFIED LOGIC ---
+    # 1. Save the user's message (same as before)
+    user_message = models.ChatMessage(
+        journal_id=journal.id,
+        sender=models.MessageSender.user,
+        message_text=request.message,
+        message_type=models.MessageType.conversation
+    )
+    db.add(user_message)
+    db.commit()
+
+    # 2. Build conversation history (same as before)
+    history = ""
+    db.refresh(journal) 
+    for msg in journal.chat_messages:
+        sender = "User" if msg.sender == models.MessageSender.user else "Lingo"
+        history += f"{sender}: {msg.message_text}\n"
+
+    # 4. Get structured response from the AI service
+    ai_response_data = ai_service.get_ai_chat_response(history, journal.writing_phase.value)
+
+    if not ai_response_data:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The AI service is currently unavailable for chat."
+        )
+
+    # 4. Save AI's conversational response (same as before)
+    ai_conversation_message = models.ChatMessage(
+        journal_id=journal.id,
+        sender=models.MessageSender.ai,
+        message_text=ai_response_data.get("response_text", "I'm not sure how to respond to that."),
+        message_type=models.MessageType.conversation
+    )
+    db.add(ai_conversation_message)
+    db.commit()
+    db.refresh(ai_conversation_message)
+
+    # 5. Handle and save feedback if provided (same as before, though scaffolding prompt won't provide it)
+    if ai_response_data.get("response_type") == "feedback" and ai_response_data.get("feedback"):
+        feedback_message = models.ChatMessage(
+            journal_id=journal.id,
+            sender=models.MessageSender.ai,
+            message_text=json.dumps(ai_response_data["feedback"]),
+            message_type=models.MessageType.feedback
+        )
+        db.add(feedback_message)
+        db.commit()
+
+    return {"ai_message": ai_conversation_message}
+
+
+```

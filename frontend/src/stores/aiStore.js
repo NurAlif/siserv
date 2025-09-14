@@ -7,6 +7,8 @@ export const useAiStore = defineStore('ai', {
     feedback: [],
     isLoading: false,
     error: null,
+    conceptualFeedback: null,
+    isConceptualLoading: false,
   }),
   actions: {
     async getFeedback(date, text) {
@@ -24,6 +26,21 @@ export const useAiStore = defineStore('ai', {
         console.error(err);
       } finally {
         this.isLoading = false;
+      }
+    },
+
+    async getConceptualFeedback(date, text) {
+      this.isConceptualLoading = true;
+      this.error = null;
+      this.conceptualFeedback = null; // Clear previous feedback
+      try {
+        const response = await apiClient.post(`/ai/conceptual-feedback/${date}`, { text });
+        this.conceptualFeedback = response.data.feedback_text;
+      } catch (err) {
+        this.error = 'An error occurred while getting high-level feedback.';
+        console.error(err);
+      } finally {
+        this.isConceptualLoading = false;
       }
     },
 

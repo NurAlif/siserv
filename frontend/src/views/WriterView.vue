@@ -20,16 +20,21 @@
 
       <!-- Phase Indicator -->
       <div class="p-4 bg-gray-50 border-b border-gray-200">
-        <div class="flex items-center justify-between max-w-md mx-auto">
-          <div v-for="phase in phases" :key="phase.id" class="flex items-center" :class="{'flex-1': phase.id < 3}">
-            <div class="flex flex-col items-center">
+        <div class="flex items-start justify-between max-w-lg mx-auto">
+          <template v-for="(phase, index) in phases" :key="phase.id">
+            <div class="flex flex-col items-center text-center w-24">
               <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold" :class="getPhaseClass(phase.id)">
-                {{ phase.id }}
+                  <svg v-if="phase.id === 4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"></path></svg>
+                  <span v-else>{{ phase.id }}</span>
               </div>
               <p class="text-xs mt-1 font-semibold" :class="{'text-indigo-600': isPhaseActive(phase.id), 'text-gray-500': !isPhaseActive(phase.id)}">{{ phase.name }}</p>
             </div>
-            <div v-if="phase.id < 3" class="flex-1 h-1 mx-2 rounded" :class="getPhaseLineClass(phase.id)"></div>
-          </div>
+
+            <div v-if="index < phases.length - 1" 
+                 class="flex-1 h-1 mt-5 rounded" 
+                 :class="getPhaseLineClass(phase.id)">
+            </div>
+          </template>
         </div>
       </div>
       
@@ -69,6 +74,13 @@
             <h3 class="font-bold text-green-800">Phase 2: Write your draft</h3>
             <p class="text-sm text-green-700 mt-1">Now, expand on your outline. Don't worry about perfection, just focus on telling your story and getting your ideas down.</p>
         </div>
+        <div v-if="aiStore.conceptualFeedback" class="mb-4 bg-purple-50 border-l-4 border-purple-400 p-4 rounded-r-lg relative">
+            <button @click="aiStore.conceptualFeedback = null" class="absolute top-2 right-2 text-purple-400 hover:text-purple-600">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M208.49,191.51a12,12,0,0,1-17,17L128,145,64.49,208.49a12,12,0,0,1-17-17L111,128,47.51,64.49a12,12,0,0,1,17-17L128,111l63.51-63.52a12,12,0,0,1,17,17L145,128Z"></path></svg>
+            </button>
+            <h4 class="font-bold text-purple-800">High-Level Feedback</h4>
+            <p class="text-sm text-purple-700 mt-1">{{ aiStore.conceptualFeedback }}</p>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="md:col-span-2">
                 <textarea v-model="content" class="w-full h-96 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none transition"></textarea>
@@ -84,8 +96,8 @@
                 Ask Lingo for Help
             </button>
             <div class="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-                 <button disabled class="w-full sm:w-auto bg-gray-200 text-gray-500 font-semibold px-4 py-2 rounded-lg cursor-not-allowed">
-                    Get High-Level Feedback
+                 <button @click="getHighLevelFeedback" :disabled="aiStore.isConceptualLoading" class="w-full sm:w-auto bg-purple-500 text-white font-semibold px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors disabled:bg-purple-300 disabled:cursor-not-allowed">
+                    {{ aiStore.isConceptualLoading ? 'Analyzing...' : 'Get High-Level Feedback' }}
                 </button>
                 <button @click="moveToPhase('finishing')" class="w-full sm:w-auto bg-teal-500 text-white font-semibold px-6 py-2 rounded-lg hover:bg-teal-600 transition-colors">
                     Finish & Get Final Feedback
@@ -135,13 +147,36 @@
                 Back to Writing
             </button>
             <button 
-                @click="handleCompletion"
+                @click="moveToPhase('completed')"
                 :disabled="!allSuggestionsApplied" 
                 class="w-full sm:w-auto bg-green-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed">
                 Mark as Complete
             </button>
         </div>
       </div>
+
+      <!-- Phase 4: Completed -->
+      <div v-if="currentPhase === 'completed'" class="p-6 text-center">
+        <div class="max-w-md mx-auto">
+          <div class="bg-green-100 text-green-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto">
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="currentColor" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"></path></svg>
+          </div>
+          <h3 class="text-2xl font-bold mt-4">Journal Completed!</h3>
+          <p class="text-gray-600 mt-2">Excellent work! You've finished this entry. All your learning points have been saved to your progress hub.</p>
+          <div class="mt-6">
+            <div class="bg-gray-50 p-4 rounded-lg border text-left">
+                <h4 class="font-semibold text-gray-700 mb-2">Your Final Entry</h4>
+                <div class="text-sm text-gray-800 whitespace-pre-wrap">{{ content }}</div>
+            </div>
+          </div>
+          <div class="mt-6 flex justify-center gap-4">
+             <router-link to="/" class="bg-indigo-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+                Back to Dashboard
+            </router-link>
+          </div>
+        </div>
+      </div>
+
 
        <div v-show="isChatActive" class="p-6 border-t border-gray-200">
          <div class="w-full h-96 border border-gray-300 rounded-lg flex flex-col bg-gray-50">
@@ -164,7 +199,7 @@
           </div>
       </div>
 
-      <div class="p-6 border-t border-gray-200 flex justify-end">
+      <div v-if="currentPhase !== 'completed'" class="p-6 border-t border-gray-200 flex justify-end">
         <button @click="saveJournal" :disabled="journalStore.isLoading" class="bg-indigo-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 transition-colors">
             {{ journalStore.isLoading ? 'Saving...' : 'Save Changes' }}
         </button>
@@ -202,6 +237,7 @@ const phases = ref([
     { id: 1, name: 'Scaffolding' },
     { id: 2, name: 'Writing' },
     { id: 3, name: 'Finishing' },
+    { id: 4, name: 'Completed' },
 ]);
 
 const displayDate = computed(() => {
@@ -296,6 +332,12 @@ const sendMessage = async () => {
   await aiStore.chatWithAI(currentJournal.value.journal_date, messageToSend);
 };
 
+// --- Phase 2 High-Level Feedback ---
+const getHighLevelFeedback = async () => {
+    if (!currentJournal.value) return;
+    await aiStore.getConceptualFeedback(currentJournal.value.journal_date, content.value);
+};
+
 // --- Phase 3 Logic ---
 const highlightedContent = computed(() => {
     if (currentPhase.value !== 'finishing' || !aiStore.feedback.length) {
@@ -325,18 +367,11 @@ const allSuggestionsApplied = computed(() => {
     return appliedSuggestions.value.length >= aiStore.feedback.length;
 });
 
-const handleCompletion = async () => {
-    await saveJournal();
-    statusText.value = 'Journal Completed!';
-    // Optionally, navigate away or show a success message
-    // router.push('/');
-};
-
 function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-const phaseMap = { scaffolding: 1, writing: 2, finishing: 3 };
+const phaseMap = { scaffolding: 1, writing: 2, finishing: 3, completed: 4 };
 const isPhaseActive = (phaseId) => phaseMap[currentPhase.value] >= phaseId;
 const getPhaseClass = (phaseId) => {
     if (phaseMap[currentPhase.value] > phaseId) return 'bg-green-500 text-white';
