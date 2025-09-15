@@ -134,12 +134,14 @@ def get_conceptual_feedback(
 @router.post("/chat/{journal_date}", response_model=schemas.AIChatResponse)
 def chat_with_ai(
     journal_date: date,
-    request: schemas.AIChatRequest,
+    request: schemas.AIChatRequest, # We might want a new schema to accept outline_content from frontend
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(security.get_current_user)
 ):
     """
     Handles a conversation turn, using a different AI personality based on the journal's current phase.
+    Gathers additional context like the current outline and previous entries to provide a more informed response.
+    The AI can now perform actions like updating the journal's outline directly.
     """
     journal = db.query(models.Journal).options(joinedload(models.Journal.chat_messages)).filter(
         models.Journal.user_id == current_user.id,
@@ -152,8 +154,7 @@ def chat_with_ai(
             detail=f"Journal entry for date {journal_date} not found."
         )
         
-    # --- MODIFIED LOGIC ---
-    # 1. Save the user's message (same as before)
+    # 1. Save the user's message
     user_message = models.ChatMessage(
         journal_id=journal.id,
         sender=models.MessageSender.user,
@@ -163,15 +164,30 @@ def chat_with_ai(
     db.add(user_message)
     db.commit()
 
-    # 2. Build conversation history (same as before)
+    # 2. Build conversation history
     history = ""
     db.refresh(journal) 
     for msg in journal.chat_messages:
         sender = "User" if msg.sender == models.MessageSender.user else "Lingo"
         history += f"{sender}: {msg.message_text}\n"
 
+    # 3. (NEW) Gather additional context for the AI
+    current_outline = journal.outline_content
+    # This is a simplified summary. A more robust implementation could use another AI call
+    # to summarize the last 3 journal entries.
+    previous_journals = db.query(models.Journal.content).filter(
+        models.Journal.user_id == current_user.id, 
+        models.Journal.journal_date < journal_date
+    ).order_by(models.Journal.journal_date.desc()).limit(3).all()
+    previous_journal_summary = " ".join([j.content for j in previous_journals if j.content])
+    
     # 4. Get structured response from the AI service
-    ai_response_data = ai_service.get_ai_chat_response(history, journal.writing_phase.value)
+    ai_response_data = ai_service.get_ai_chat_response(
+        history, 
+        journal.writing_phase.value,
+        current_outline,
+        previous_journal_summary
+    )
 
     if not ai_response_data:
         raise HTTPException(
@@ -179,27 +195,38 @@ def chat_with_ai(
             detail="The AI service is currently unavailable for chat."
         )
 
-    # 4. Save AI's conversational response (same as before)
+    # 5. (MODIFIED) Process the AI's response based on its action
+    action = ai_response_data.get("action")
+    payload = ai_response_data.get("payload", {})
+    
+    ai_message_text = "I'm not sure how to respond." # Default text
+
+    if action == "ASK_QUESTION":
+        ai_message_text = payload.get("question", ai_message_text)
+
+    elif action == "SUGGEST_TOPICS":
+        # Format the topics into a readable string for the chat history
+        topics_str = "\\n".join([f"- {topic}" for topic in payload.get("topics", [])])
+        ai_message_text = f"{payload.get('intro_text', 'What about these?')}\\n{topics_str}"
+
+    elif action == "ADD_TO_OUTLINE":
+        text_to_add = payload.get("text_to_add")
+        if text_to_add:
+            # IMPORTANT: The agent directly modifies the journal's outline
+            journal.outline_content = (journal.outline_content or "") + text_to_add
+            db.commit()
+        ai_message_text = payload.get("follow_up_question", "I've added that. What's next?")
+
+    # 6. Save the AI's conversational response to chat history
     ai_conversation_message = models.ChatMessage(
         journal_id=journal.id,
         sender=models.MessageSender.ai,
-        message_text=ai_response_data.get("response_text", "I'm not sure how to respond to that."),
+        message_text=ai_message_text,
         message_type=models.MessageType.conversation
     )
     db.add(ai_conversation_message)
     db.commit()
     db.refresh(ai_conversation_message)
-
-    # 5. Handle and save feedback if provided (same as before, though scaffolding prompt won't provide it)
-    if ai_response_data.get("response_type") == "feedback" and ai_response_data.get("feedback"):
-        feedback_message = models.ChatMessage(
-            journal_id=journal.id,
-            sender=models.MessageSender.ai,
-            message_text=json.dumps(ai_response_data["feedback"]),
-            message_type=models.MessageType.feedback
-        )
-        db.add(feedback_message)
-        db.commit()
-
+    
+    # The frontend will fetch the updated journal, including the new outline content
     return {"ai_message": ai_conversation_message}
-

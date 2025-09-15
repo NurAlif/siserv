@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="flex justify-between items-center mb-4">
       <router-link to="/" class="text-gray-500 hover:text-gray-800 font-medium flex items-center gap-2">
-         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z"></path></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z"></path></svg>
         Back to Dashboard
       </router-link>
       <div class="flex items-center gap-2 text-sm text-gray-500">
@@ -53,9 +53,9 @@
             </ul>
         </div>
         <textarea 
-            v-model="outlineContent" 
-            placeholder="Write down your main ideas or key points here..." 
-            class="w-full h-48 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none transition">
+          v-model="outlineContent" 
+          placeholder="Write down your main ideas or key points here..." 
+          class="w-full h-48 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none transition">
         </textarea>
         <div class="mt-4 flex flex-col sm:flex-row gap-4">
             <button @click="toggleChatMode" class="w-full sm:w-auto flex-1 bg-gray-100 text-gray-800 font-semibold px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2">
@@ -118,7 +118,7 @@
                 <div v-html="highlightedContent" class="w-full h-96 p-4 border border-gray-300 rounded-lg overflow-y-auto bg-gray-50 whitespace-pre-wrap"></div>
             </div>
             <div class="md:col-span-1">
-                 <h4 class="font-semibold text-gray-700 mb-2">Suggestions</h4>
+                <h4 class="font-semibold text-gray-700 mb-2">Suggestions</h4>
                 <div id="ai-feedback-section" class="space-y-3">
                     <div v-if="aiStore.isLoading" class="text-center py-4">
                         <p class="text-gray-500 animate-pulse">Analyzing your text...</p>
@@ -180,27 +180,27 @@
 
        <div v-show="isChatActive" class="p-6 border-t border-gray-200">
          <div class="w-full h-96 border border-gray-300 rounded-lg flex flex-col bg-gray-50">
-            <div ref="chatContainer" class="flex-grow p-4 overflow-y-auto space-y-4">
-               <div v-for="message in currentJournal?.chat_messages" :key="message.id" class="flex" :class="message.sender === 'user' ? 'justify-end' : 'justify-start'">
-                  <div v-if="message.message_type === 'conversation'" class="p-3 rounded-lg max-w-xs break-words" :class="message.sender === 'user' ? 'bg-indigo-500 text-white' : 'bg-gray-200'">
-                     <p class="text-sm">{{ message.message_text }}</p>
+           <div ref="chatContainer" class="flex-grow p-4 overflow-y-auto space-y-4">
+             <div v-for="message in currentJournal?.chat_messages" :key="message.id" class="flex" :class="message.sender === 'user' ? 'justify-end' : 'justify-start'">
+                <div v-if="message.message_type === 'conversation'" class="p-3 rounded-lg max-w-xs break-words" :class="message.sender === 'user' ? 'bg-indigo-500 text-white' : 'bg-gray-200'">
+                   <p class="text-sm">{{ message.message_text }}</p>
+                </div>
+                <ChatFeedbackCard v-else-if="message.message_type === 'feedback'" :message="message" />
+             </div>
+             <div v-if="aiStore.isLoading" class="flex justify-start">
+                  <div class="bg-gray-200 p-3 rounded-lg animate-pulse">
+                      <p class="text-sm text-gray-400">...</p>
                   </div>
-                  <ChatFeedbackCard v-else-if="message.message_type === 'feedback'" :message="message" />
-               </div>
-               <div v-if="aiStore.isLoading" class="flex justify-start">
-                    <div class="bg-gray-200 p-3 rounded-lg animate-pulse">
-                        <p class="text-sm text-gray-400">...</p>
-                    </div>
-               </div>
-            </div>
-            <div class="p-4 border-t border-gray-200 bg-white">
-              <input v-model="newMessage" @keyup.enter="sendMessage" :disabled="aiStore.isLoading || !currentJournal" type="text" placeholder="Type your message..." class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none disabled:bg-gray-100">
-            </div>
-          </div>
-      </div>
+             </div>
+           </div>
+           <div class="p-4 border-t border-gray-200 bg-white">
+             <input v-model="newMessage" @keyup.enter="sendMessage" :disabled="aiStore.isLoading || !currentJournal" type="text" placeholder="Type your message..." class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none disabled:bg-gray-100">
+           </div>
+         </div>
+       </div>
 
       <div v-if="currentPhase !== 'completed'" class="p-6 border-t border-gray-200 flex justify-end">
-        <button @click="saveJournal" :disabled="journalStore.isLoading" class="bg-indigo-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 transition-colors">
+        <button @click="saveJournal()" :disabled="journalStore.isLoading" class="bg-indigo-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 transition-colors">
             {{ journalStore.isLoading ? 'Saving...' : 'Save Changes' }}
         </button>
       </div>
@@ -297,9 +297,9 @@ watch(() => currentJournal.value?.chat_messages, () => {
     }
 }, { deep: true });
 
-const saveJournal = async () => {
+const saveJournal = async (showStatus = true) => {
   if (!currentJournal.value) return;
-  statusText.value = 'Saving...';
+  if (showStatus) statusText.value = 'Saving...';
 
   const payload = {
     content: content.value,
@@ -308,7 +308,7 @@ const saveJournal = async () => {
   
   const savedJournal = await journalStore.updateJournal(currentJournal.value.journal_date, payload);
   
-  statusText.value = savedJournal ? 'All changes saved!' : 'Error saving.';
+  if (showStatus) statusText.value = savedJournal ? 'All changes saved!' : 'Error saving.';
 };
 
 const moveToPhase = async (phase) => {
@@ -327,6 +327,13 @@ const toggleChatMode = () => {
 
 const sendMessage = async () => {
   if (!newMessage.value.trim() || !currentJournal.value || aiStore.isLoading) return;
+
+  // If we are in the scaffolding phase, save the journal first to ensure the AI
+  // has the most up-to-date outline content as context for its response.
+  if (currentPhase.value === 'scaffolding') {
+    await saveJournal(false); // Save without showing the status text
+  }
+
   const messageToSend = newMessage.value;
   newMessage.value = '';
   await aiStore.chatWithAI(currentJournal.value.journal_date, messageToSend);
@@ -383,4 +390,3 @@ const getPhaseLineClass = (phaseId) => {
     return 'bg-gray-200';
 };
 </script>
-
