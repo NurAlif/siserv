@@ -137,7 +137,12 @@ def chat_with_ai(
     
     if journal.writing_phase == models.JournalPhase.scaffolding:
         chat_history = [{"role": msg.sender.name, "content": msg.message_text} for msg in journal.chat_messages]
-        session_state = { "current_outline": journal.outline_content, "chat_history": chat_history }
+        # PASS the current turn count from the database to the AI
+        session_state = {
+            "current_outline": journal.outline_content,
+            "chat_history": chat_history,
+            "topic_turn_count": journal.scaffolding_turn_count
+        }
         user_context = journal.owner.context_profile.profile_data if journal.owner.context_profile and journal.owner.context_profile.profile_data else {}
         
         ai_response = ai_service.get_scaffolding_response(user_context, session_state)
@@ -145,21 +150,21 @@ def chat_with_ai(
         action = ai_response.get("action")
         payload = ai_response.get("payload", {})
 
+        # UPDATE the journal's turn count with the new value from the AI's response
+        journal.scaffolding_turn_count = payload.get("new_topic_turn_count", 0)
+
         if action == "ADD_TO_OUTLINE":
             journal.outline_content = (journal.outline_content or "") + payload.get("text_to_add", "")
             ai_message_text = payload.get("follow_up_question", "I've added that. What's next?")
-        elif action == "PROBE_TOPIC":
-            ai_message_text = payload.get("question", "Tell me more about that.")
-        elif action == "SUGGEST_BRANCH":
-            ai_message_text = payload.get("question", "What else happened today?")
-        elif action == "ASK_GENERAL_QUESTION":
-            ai_message_text = payload.get("question", "What would you like to write about?")
-        # This handles the old "ASK_QUESTION" for backward compatibility or as a fallback.
-        elif action == "ASK_QUESTION":
-             ai_message_text = payload.get("question", ai_message_text)
+        elif action in ["PROBE_TOPIC", "SUGGEST_BRANCH", "ASK_GENERAL_QUESTION", "ASK_QUESTION"]:
+            ai_message_text = payload.get("question", "What would you like to discuss?")
 
     elif journal.writing_phase == models.JournalPhase.writing:
-        ai_message_text = ai_service.get_writing_assistance(request.message)
+        ai_message_text = ai_service.get_writing_partner_response(
+            user_message=request.message,
+            outline=journal.outline_content,
+            current_draft=journal.content
+        )
 
     # 3. Save AI's response message
     ai_message = models.ChatMessage(
