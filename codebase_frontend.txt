@@ -195,50 +195,61 @@ app.mount('#app');
 
 ```
 <template>
-  <div v-if="authStore.isAuthenticated">
-    <div id="app-container" class="max-w-4xl mx-auto p-4 md:p-6">
-      <header class="flex justify-between items-center mb-6">
-        <div class="flex items-center gap-3">
-           <router-link to="/" class="flex items-center gap-3">
-             <div class="bg-indigo-600 p-2 rounded-lg">
-                <!-- Book Icon -->
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" class="text-white" fill="currentColor" viewBox="0 0 256 256"><path d="M208,24H88A48.05,48.05,0,0,0,40,72V208a48.05,48.05,0,0,0,48,48H208a8,8,0,0,0,8-8V32A8,8,0,0,0,208,24ZM88,240a32,32,0,0,1,0-64H200V240ZM200,40v96H88a32,32,0,0,1,0-64h8V40Z"></path></svg>
-             </div>
-             <h1 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400">LingoJourn</h1>
-           </router-link>
-           <!-- Navigation Link to Learning Hub -->
-           <nav class="ml-6">
-             <router-link to="/learning-hub" class="text-sm font-semibold text-gray-600 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors">Learning Hub</router-link>
-           </nav>
-        </div>
-        <div id="user-profile" class="flex items-center gap-4">
-           <span class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ authStore.user?.username }}</span>
-           <!-- Dark Mode Toggle -->
-           <button @click="uiStore.toggleDarkMode()" title="Toggle Dark Mode" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-              <svg v-if="uiStore.isDarkMode" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="text-yellow-400" viewBox="0 0 256 256"><path d="M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160ZM208,128a8,8,0,0,1-8,8H184a8,8,0,0,1,0-16h16A8,8,0,0,1,208,128ZM128,48a8,8,0,0,1-8,8V72a8,8,0,0,1-16,0V56a8,8,0,0,1,8-8A8,8,0,0,1,128,48ZM72,120H56a8,8,0,0,0,0,16H72a8,8,0,0,0,0-16Zm109.66,58.34a8,8,0,0,0,5.65-2.34l11.32-11.32a8,8,0,0,0-11.32-11.32l-11.32,11.32a8,8,0,0,0,5.67,13.66ZM74.34,74.34l-11.32-11.32a8,8,0,1,0-11.32,11.32l11.32,11.32a8,8,0,0,0,11.32-11.32ZM181.66,74.34a8,8,0,0,0-11.32,0L159,85.66a8,8,0,0,0,11.32,11.32l11.32-11.32A8,8,0,0,0,181.66,74.34ZM85.66,159,74.34,170.34a8,8,0,0,0,11.32,11.32l11.32-11.32a8,8,0,1,0-11.32-11.32ZM128,208a8,8,0,0,1,8-8v16a8,8,0,0,1,0,16V200A8,8,0,0,1,128,208Z"></path></svg>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="text-gray-600 dark:text-gray-300" viewBox="0 0 256 256"><path d="M216,144a88.08,88.08,0,0,1-88,88,88,88,0,0,1,0-176,87.27,87.27,0,0,1,64,24,8,8,0,0,1-11.31,11.31A71.32,71.32,0,0,0,128,72a72,72,0,0,0,0,144,71.32,71.32,0,0,0,52.69-21.31,8,8,0,0,1,11.31,11.31A87.27,87.27,0,0,1,216,144Z"></path></svg>
-           </button>
-           <button @click="authStore.logout()" title="Logout" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-              <!-- SignOut Icon -->
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="text-gray-600 dark:text-gray-300" viewBox="0 0 256 256"><path d="M112,216a8,8,0,0,1-8,8H48a16,16,0,0,1-16-16V48A16,16,0,0,1,48,32h56a8,8,0,0,1,0,16H48V208h56A8,8,0,0,1,112,216Zm109.66-93.66-48-48a8,8,0,0,0-11.32,11.32L196.69,120H104a8,8,0,0,0,0,16h92.69l-34.35,34.34a8,8,0,0,0,11.32,11.32l48-48a8,8,0,0,0,0-11.32Z"></path></svg>
-           </button>
-        </div>
-      </header>
-      <router-view />
-    </div>
+  <div v-if="authStore.isAuthenticated" :class="containerClass">
+    <header v-if="!isWriterView" class="flex justify-between items-center mb-6 flex-shrink-0">
+      <div class="flex items-center gap-3">
+         <router-link to="/" class="flex items-center gap-3">
+           <div class="bg-indigo-600 p-2 rounded-lg">
+              <!-- Book Icon -->
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" class="text-white" fill="currentColor" viewBox="0 0 256 256"><path d="M208,24H88A48.05,48.05,0,0,0,40,72V208a48.05,48.05,0,0,0,48,48H208a8,8,0,0,0,8-8V32A8,8,0,0,0,208,24ZM88,240a32,32,0,0,1,0-64H200V240ZM200,40v96H88a32,32,0,0,1,0-64h8V40Z"></path></svg>
+           </div>
+           <h1 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400">LingoJourn</h1>
+         </router-link>
+         <!-- Navigation Link to Learning Hub -->
+         <nav class="ml-6">
+           <router-link to="/learning-hub" class="text-sm font-semibold text-gray-600 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors">Learning Hub</router-link>
+         </nav>
+      </div>
+      <div id="user-profile" class="flex items-center gap-4">
+         <span class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ authStore.user?.username }}</span>
+         <!-- Dark Mode Toggle -->
+         <button @click="uiStore.toggleDarkMode()" title="Toggle Dark Mode" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+            <svg v-if="uiStore.isDarkMode" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="text-yellow-400" viewBox="0 0 256 256"><path d="M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160ZM208,128a8,8,0,0,1-8,8H184a8,8,0,0,1,0-16h16A8,8,0,0,1,208,128ZM128,48a8,8,0,0,1-8,8V72a8,8,0,0,1-16,0V56a8,8,0,0,1,8-8A8,8,0,0,1,128,48ZM72,120H56a8,8,0,0,0,0,16H72a8,8,0,0,0,0-16Zm109.66,58.34a8,8,0,0,0,5.65-2.34l11.32-11.32a8,8,0,0,0-11.32-11.32l-11.32,11.32a8,8,0,0,0,5.67,13.66ZM74.34,74.34l-11.32-11.32a8,8,0,1,0-11.32,11.32l11.32,11.32a8,8,0,0,0,11.32-11.32ZM181.66,74.34a8,8,0,0,0-11.32,0L159,85.66a8,8,0,0,0,11.32,11.32l11.32-11.32A8,8,0,0,0,181.66,74.34ZM85.66,159,74.34,170.34a8,8,0,0,0,11.32,11.32l11.32-11.32a8,8,0,1,0-11.32-11.32ZM128,208a8,8,0,0,1,8-8v16a8,8,0,0,1,0,16V200A8,8,0,0,1,128,208Z"></path></svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="text-gray-600 dark:text-gray-300" viewBox="0 0 256 256"><path d="M216,144a88.08,88.08,0,0,1-88,88,88,88,0,0,1,0-176,87.27,87.27,0,0,1,64,24,8,8,0,0,1-11.31,11.31A71.32,71.32,0,0,0,128,72a72,72,0,0,0,0,144,71.32,71.32,0,0,0,52.69-21.31,8,8,0,0,1,11.31,11.31A87.27,87.27,0,0,1,216,144Z"></path></svg>
+         </button>
+         <button @click="authStore.logout()" title="Logout" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+            <!-- SignOut Icon -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="text-gray-600 dark:text-gray-300" viewBox="0 0 256 256"><path d="M112,216a8,8,0,0,1-8,8H48a16,16,0,0,1-16-16V48A16,16,0,0,1,48,32h56a8,8,0,0,1,0,16H48V208h56A8,8,0,0,1,112,216Zm109.66-93.66-48-48a8,8,0,0,0-11.32,11.32L196.69,120H104a8,8,0,0,0,0,16h92.69l-34.35,34.34a8,8,0,0,0,11.32,11.32l48-48a8,8,0,0,0,0-11.32Z"></path></svg>
+         </button>
+      </div>
+    </header>
+    <router-view class="flex-grow overflow-hidden" />
   </div>
-  <div v-else>
-    <router-view />
+  <div v-else class="h-full">
+    <router-view class="h-full"/>
   </div>
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { onMounted, computed } from 'vue';
+import { useRoute } from 'vue-router';
 import { useAuthStore } from './stores/authStore';
 import { useUiStore } from './stores/uiStore';
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
+const route = useRoute();
+
+const isWriterView = computed(() => route.name === 'Writer');
+
+const containerClass = computed(() => {
+  if (isWriterView.value) {
+    // For WriterView, use a full-height flex container for the immersive layout.
+    return 'h-full flex flex-col';
+  }
+  // For all other views, use the original centered, padded layout.
+  return 'max-w-4xl mx-auto p-4 md:p-6';
+});
 
 onMounted(() => {
   uiStore.initTheme();
@@ -256,11 +267,16 @@ onMounted(() => {
 @tailwind utilities;
 
 @layer base {
+  html,
+  body,
+  #app {
+    @apply h-full;
+  }
+
   body {
     @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300;
   }
 }
-
 ```
 
 
@@ -527,169 +543,238 @@ onMounted(() => {
 
 ```
 <template>
-  <main id="writer-view" class="fade-in">
-    <!-- Header -->
-    <div class="flex justify-between items-center mb-4">
-      <router-link to="/" class="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100 font-medium flex items-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z"></path></svg>
-        Back to Dashboard
-      </router-link>
-      <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-        <span>Status:</span>
-        <span class="font-semibold text-gray-700 dark:text-gray-300">{{ statusText }}</span>
+  <main id="writer-view" class="fade-in flex flex-col h-full w-full bg-white dark:bg-gray-800">
+
+    <!-- ================================== -->
+    <!--  1. NEW COMPACT & ANIMATED HEADER  -->
+    <!-- ================================== -->
+    <div class="flex-shrink-0 p-3 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
+      <!-- Left Section: Navigation, Title, and Status -->
+      <div class="flex items-center gap-3">
+        <router-link to="/" title="Back to Dashboard" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z"></path></svg>
+        </router-link>
+        <div>
+          <h2 class="text-md font-bold text-gray-900 dark:text-gray-100 truncate">{{ currentJournal?.title || 'New Journal Entry' }}</h2>
+          <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+            <span>{{ displayDate }}</span>
+            <span class="mx-2">·</span>
+            <span>Status: <strong>{{ statusText }}</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Section: Compact Phase Indicator -->
+      <div class="flex items-center">
+        <template v-for="(phase, index) in phases" :key="phase.id">
+          <div class="flex items-center">
+            <!-- Connector Line (appears after the first item) -->
+            <div v-if="index > 0" class="w-8 h-1 rounded transition-colors" :class="getPhaseLineClass(phase.id)"></div>
+            <!-- Phase Circle with Tooltip -->
+            <div class="group relative">
+              <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300" :class="getPhaseClass(phase.id)">
+                 <svg v-if="phase.id === 4" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"></path></svg>
+                 <span v-else>{{ phase.id }}</span>
+              </div>
+              <span class="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-max opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 text-white text-xs font-semibold rounded-md py-1 px-2 pointer-events-none z-10">
+                {{ phase.name }}
+              </span>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
 
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-      <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-        <h2 id="journal-title" class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ currentJournal?.title || 'New Journal Entry' }}</h2>
-        <p id="journal-date" class="text-gray-500 dark:text-gray-400">{{ displayDate }}</p>
+
+    <!-- ======================= -->
+    <!--   2. MAIN CONTENT AREA  -->
+    <!-- ======================= -->
+    <div class="flex-grow overflow-hidden relative">
+
+      <!-- A. Standard scrolling container for most phases -->
+      <div v-if="currentPhase !== 'writing'" class="absolute inset-0 h-full overflow-y-auto">
+        <!-- Phase 1: Scaffolding -->
+        <div v-if="currentPhase === 'scaffolding'" class="p-6">
+          <div class="bg-indigo-50 dark:bg-indigo-900/50 p-4 rounded-lg mb-4">
+              <h3 class="font-bold text-indigo-800 dark:text-indigo-200">Phase 1: Let's build an outline!</h3>
+              <p class="text-sm text-indigo-700 dark:text-indigo-300 mt-1">Answer the questions, chat with the AI, or write your own key points below. The goal is to create a simple plan for your journal entry.</p>
+          </div>
+          <div class="mb-4 space-y-2 text-sm text-gray-600 dark:text-gray-300">
+              <p><strong>Guiding questions:</strong></p>
+              <ul class="list-disc list-inside bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md">
+                  <li>What was the most memorable part of your day?</li>
+                  <li>Did you learn or try something new?</li>
+                  <li>How are you feeling right now?</li>
+              </ul>
+          </div>
+          <textarea 
+            v-model="outlineContent" 
+            placeholder="Write down your main ideas or key points here..." 
+            class="w-full h-48 p-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none transition bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+          </textarea>
+        </div>
+        
+        <!-- Scaffolding Chat -->
+        <div v-show="isChatActive && currentPhase === 'scaffolding'" class="p-6 border-t border-gray-200 dark:border-gray-700">
+            <div class="w-full h-96 border border-gray-300 dark:border-gray-600 rounded-lg flex flex-col bg-gray-50 dark:bg-gray-900">
+            <div ref="scaffoldingChatContainer" class="flex-grow p-4 overflow-y-auto space-y-4">
+                <div v-for="message in currentJournal?.chat_messages" :key="message.id" class="flex" :class="message.sender === 'user' ? 'justify-end' : 'justify-start'">
+                <div v-if="message.message_type === 'conversation'" class="p-3 rounded-lg max-w-xs break-words" :class="message.sender === 'user' ? 'bg-indigo-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'">
+                    <p class="text-sm">{{ message.message_text }}</p>
+                </div>
+                </div>
+                <div v-if="aiStore.isLoading" class="flex justify-start">
+                    <div class="bg-gray-200 dark:bg-gray-700 p-3 rounded-lg animate-pulse">
+                        <p class="text-sm text-gray-400">...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                <input v-model="newMessage" @keyup.enter="sendMessage" :disabled="aiStore.isLoading || !currentJournal" type="text" :placeholder="chatPlaceholder" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none disabled:bg-gray-100 dark:disabled:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+            </div>
+            </div>
+        </div>
+
+        <!-- Phase 3: Finishing -->
+        <div v-if="currentPhase === 'finishing'" class="p-6">
+          <div class="bg-rose-50 dark:bg-rose-900/50 p-4 rounded-lg mb-4">
+              <h3 class="font-bold text-rose-800 dark:text-rose-200">Phase 3: Polish your writing</h3>
+              <p class="text-sm text-rose-700 dark:text-rose-300 mt-1">Review the AI's suggestions below to improve your grammar, vocabulary, and style. Your original text is highlighted with suggestions.</p>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div class="md:col-span-2">
+                  <h4 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">Your Corrected Text</h4>
+                  <div v-html="highlightedContent" class="w-full h-96 p-4 border border-gray-300 dark:border-gray-600 rounded-lg overflow-y-auto bg-gray-50 dark:bg-gray-700/50 whitespace-pre-wrap"></div>
+              </div>
+              <div class="md:col-span-1">
+                  <h4 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">Suggestions</h4>
+                  <div id="ai-feedback-section" class="space-y-3">
+                      <div v-if="aiStore.isLoading" class="text-center py-4">
+                          <p class="text-gray-500 dark:text-gray-400 animate-pulse">Analyzing your text...</p>
+                      </div>
+                      <div v-else-if="aiStore.error" class="bg-red-50 dark:bg-red-900/50 text-red-700 dark:text-red-300 p-4 rounded-lg">
+                          <p>{{ aiStore.error }}</p>
+                      </div>
+                      <div v-else-if="aiStore.feedback.length > 0">
+                          <AIFeedbackCard 
+                              v-for="(item, index) in aiStore.feedback"
+                              :key="index"
+                              :feedback-item="item"
+                              :is-applied="appliedSuggestions.includes(item.incorrect_phrase)"
+                              @apply-suggestion="applySuggestion"
+                          />
+                      </div>
+                      <div v-else class="text-center py-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                          <p class="text-gray-600 dark:text-gray-300 font-semibold">Great job!</p>
+                          <p class="text-gray-500 dark:text-gray-400">The AI didn't find any specific errors to correct.</p>
+                      </div>
+                  </div>
+              </div>
+          </div>
+        </div>
+        
+        <!-- Phase 4: Completed -->
+        <div v-if="currentPhase === 'completed'" class="p-6 text-center">
+          <div class="max-w-md mx-auto">
+            <div class="bg-green-100 text-green-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="currentColor" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"></path></svg>
+            </div>
+            <h3 class="text-2xl font-bold mt-4 text-gray-900 dark:text-gray-100">Journal Completed!</h3>
+            <p class="text-gray-600 dark:text-gray-400 mt-2">Excellent work! You've finished this entry. All your learning points have been saved to your progress hub.</p>
+            <div class="mt-6">
+              <div class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border dark:border-gray-700 text-left">
+                  <h4 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">Your Final Entry</h4>
+                  <div class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{{ content }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Phase Indicator -->
-      <div class="p-4 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
-        <div class="flex items-start justify-between max-w-lg mx-auto">
-          <template v-for="(phase, index) in phases" :key="phase.id">
-            <div class="flex flex-col items-center text-center w-24">
-              <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold" :class="getPhaseClass(phase.id)">
-                  <svg v-if="phase.id === 4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"></path></svg>
-                  <span v-else>{{ phase.id }}</span>
-              </div>
-              <p class="text-xs mt-1 font-semibold" :class="{'text-indigo-600 dark:text-indigo-400': isPhaseActive(phase.id), 'text-gray-500 dark:text-gray-400': !isPhaseActive(phase.id)}">{{ phase.name }}</p>
-            </div>
-
-            <div v-if="index < phases.length - 1" 
-                 class="flex-1 h-1 mt-5 rounded" 
-                 :class="getPhaseLineClass(phase.id)">
-            </div>
-          </template>
+      <!-- B. Special non-scrolling layout for Writing Phase -->
+      <div v-if="currentPhase === 'writing'" class="h-full flex flex-col p-6 gap-4">
+        <!-- Banner -->
+        <div class="flex-shrink-0 bg-green-50 dark:bg-green-900/50 p-4 rounded-lg">
+            <h3 class="font-bold text-green-800 dark:text-green-200">Phase 2: Write your draft</h3>
+            <p class="text-sm text-green-700 dark:text-green-300 mt-1">Use your outline to write your journal entry. Your writing partner, Lingo, is here to help if you get stuck.</p>
         </div>
+        
+        <!-- Mobile View Switcher -->
+        <div class="md:hidden flex-shrink-0 flex border border-gray-300 dark:border-gray-600 rounded-lg p-1 bg-gray-100 dark:bg-gray-900">
+            <button @click="mobileView = 'writer'" :class="[mobileView === 'writer' ? 'bg-indigo-600 text-white shadow' : 'text-gray-600 dark:text-gray-300', 'flex-1 p-2 rounded-md font-semibold text-sm transition-all duration-200 ease-in-out']">📝 Writer</button>
+            <button @click="mobileView = 'partner'" :class="[mobileView === 'partner' ? 'bg-indigo-600 text-white shadow' : 'text-gray-600 dark:text-gray-300', 'flex-1 p-2 rounded-md font-semibold text-sm transition-all duration-200 ease-in-out']">🤖 Partner</button>
+        </div>
+        
+        <!-- Main Grid for Desktop -->
+        <div class="flex-grow overflow-hidden grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Left Column: Outline + Writer -->
+          <div class="flex flex-col gap-4 min-h-0" :class="{'hidden md:flex': mobileView !== 'writer'}">
+            <!-- Outline Section -->
+            <div class="flex-shrink-0 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border dark:border-gray-700">
+                <h4 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">Your Outline</h4>
+                <div class="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap max-h-24 overflow-y-auto">{{ outlineContent || "No outline was created."}}</div>
+            </div>
+            <!-- Writing Area -->
+            <textarea v-model="content" class="flex-grow w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none transition bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none"></textarea>
+          </div>
+          
+          <!-- Right Column: Partner Sidebar -->
+          <div class="flex flex-col min-h-0" :class="{'hidden md:flex': mobileView !== 'partner'}">
+            <!-- Chat Section (takes full height of this column) -->
+            <div class="flex-grow w-full border border-gray-300 dark:border-gray-600 rounded-lg flex flex-col bg-gray-50 dark:bg-gray-900 overflow-hidden">
+                <div class="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2 flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" class="text-indigo-500 dark:text-indigo-400" fill="currentColor" viewBox="0 0 256 256"><path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,212.3a16,16,0,0,0,20.55,18.85l37.81-12.6A104,104,0,1,0,128,24Zm0,192a88.1,88.1,0,0,1-45.43-13.25a8,8,0,0,0-9-1.33L40,211.52l9.9-32.68a8,8,0,0,0-1.12-8.52A88,88,0,1,1,128,216Z"></path></svg>
+                    <h4 class="font-semibold text-gray-800 dark:text-gray-200">Writing Partner</h4>
+                </div>
+                <div ref="chatContainer" class="flex-grow p-4 overflow-y-auto space-y-4">
+                    <!-- Chat Messages -->
+                      <div v-for="message in currentJournal?.chat_messages" :key="message.id" class="flex" :class="message.sender === 'user' ? 'justify-end' : 'justify-start'">
+                        <div v-if="message.message_type === 'conversation'" class="p-3 rounded-lg max-w-xs break-words" :class="message.sender === 'user' ? 'bg-indigo-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'">
+                            <p class="text-sm">{{ message.message_text }}</p>
+                        </div>
+                      </div>
+                      <div v-if="aiStore.isLoading" class="flex justify-start">
+                          <div class="bg-gray-200 dark:bg-gray-700 p-3 rounded-lg animate-pulse">
+                              <p class="text-sm text-gray-400">...</p>
+                          </div>
+                      </div>
+                </div>
+                <div class="p-2 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-shrink-0">
+                    <input v-model="newMessage" @keyup.enter="sendMessage" :disabled="aiStore.isLoading || !currentJournal" type="text" :placeholder="chatPlaceholder" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none disabled:bg-gray-100 dark:disabled:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ======================= -->
+    <!-- 3. NON-SCROLLABLE BOTTOM -->
+    <!-- ======================= -->
+    <div class="flex-shrink-0 p-4 border-t border-gray-200 dark:border-gray-700">
+      <!-- Hoisted Buttons -->
+      <div v-if="currentPhase === 'scaffolding'" class="flex flex-col sm:flex-row gap-4">
+        <button @click="toggleChatMode" class="w-full sm:w-auto flex-1 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-semibold px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,212.3a16,16,0,0,0,20.55,18.85l37.81-12.6A104,104,0,1,0,128,24Zm0,192a88.1,88.1,0,0,1-45.43-13.25a8,8,0,0,0-9-1.33L40,211.52l9.9-32.68a8,8,0,0,0-1.12-8.52A88,88,0,1,1,128,216Z"></path></svg>
+            Chat with Lingo
+        </button>
+        <button @click="moveToPhase('writing')" class="w-full sm:w-auto flex-1 bg-indigo-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+            Start Writing
+        </button>
+      </div>
+
+      <div v-if="currentPhase === 'writing'" class="flex justify-end">
+        <button @click="moveToPhase('finishing')" class="w-full sm:w-auto bg-teal-500 text-white font-semibold px-6 py-2 rounded-lg hover:bg-teal-600 transition-colors">
+            Finish & Get Final Feedback
+        </button>
       </div>
       
-      <!-- Phase 1: Scaffolding -->
-      <div v-if="currentPhase === 'scaffolding'" class="p-6">
-        <div class="bg-indigo-50 dark:bg-indigo-900/50 p-4 rounded-lg mb-4">
-            <h3 class="font-bold text-indigo-800 dark:text-indigo-200">Phase 1: Let's build an outline!</h3>
-            <p class="text-sm text-indigo-700 dark:text-indigo-300 mt-1">Answer the questions, chat with the AI, or write your own key points below. The goal is to create a simple plan for your journal entry.</p>
-        </div>
-        <div class="mb-4 space-y-2 text-sm text-gray-600 dark:text-gray-300">
-            <p><strong>Guiding questions:</strong></p>
-            <ul class="list-disc list-inside bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md">
-                <li>What was the most memorable part of your day?</li>
-                <li>Did you learn or try something new?</li>
-                <li>How are you feeling right now?</li>
-            </ul>
-        </div>
-        <textarea 
-          v-model="outlineContent" 
-          placeholder="Write down your main ideas or key points here..." 
-          class="w-full h-48 p-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none transition bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-        </textarea>
-        <div class="mt-4 flex flex-col sm:flex-row gap-4">
-            <button @click="toggleChatMode" class="w-full sm:w-auto flex-1 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-semibold px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,212.3a16,16,0,0,0,20.55,18.85l37.81-12.6A104,104,0,1,0,128,24Zm0,192a88.1,88.1,0,0,1-45.43-13.25a8,8,0,0,0-9-1.33L40,211.52l9.9-32.68a8,8,0,0,0-1.12-8.52A88,88,0,1,1,128,216Z"></path></svg>
-                Chat with Lingo to Find a Topic
-            </button>
-            <button @click="moveToPhase('writing')" class="w-full sm:w-auto flex-1 bg-indigo-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
-                Start Writing
-            </button>
-        </div>
-      </div>
-
-      <!-- Phase 2: Writing -->
-      <div v-if="currentPhase === 'writing'" class="p-6">
-        <div class="bg-green-50 dark:bg-green-900/50 p-4 rounded-lg mb-4">
-            <h3 class="font-bold text-green-800 dark:text-green-200">Phase 2: Write your draft</h3>
-            <p class="text-sm text-green-700 dark:text-green-300 mt-1">Use the space below to write your journal entry. Your writing partner, Lingo, is on the right to help you if you get stuck.</p>
-        </div>
-        
-        <!-- NEW WRITING LAYOUT -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- Main Writing Area -->
-            <div class="md:col-span-2">
-                <textarea v-model="content" class="w-full h-[550px] p-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none transition bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"></textarea>
-            </div>
-
-            <!-- Writing Partner Sidebar -->
-            <div class="md:col-span-1 flex flex-col gap-4 h-[550px]">
-                <!-- Outline Section -->
-                <div class="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border dark:border-gray-700">
-                    <h4 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">Your Outline</h4>
-                    <div class="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap max-h-24 overflow-y-auto">{{ outlineContent || "No outline was created."}}</div>
-                </div>
-                
-                <!-- Chat Section -->
-                <div class="flex-grow w-full border border-gray-300 dark:border-gray-600 rounded-lg flex flex-col bg-gray-50 dark:bg-gray-900">
-                    <div class="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" class="text-indigo-500 dark:text-indigo-400" fill="currentColor" viewBox="0 0 256 256"><path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,212.3a16,16,0,0,0,20.55,18.85l37.81-12.6A104,104,0,1,0,128,24Zm0,192a88.1,88.1,0,0,1-45.43-13.25a8,8,0,0,0-9-1.33L40,211.52l9.9-32.68a8,8,0,0,0-1.12-8.52A88,88,0,1,1,128,216Z"></path></svg>
-                        <h4 class="font-semibold text-gray-800 dark:text-gray-200">Writing Partner</h4>
-                    </div>
-                    <div ref="chatContainer" class="flex-grow p-4 overflow-y-auto space-y-4">
-                        <!-- Chat Messages -->
-                         <div v-for="message in currentJournal?.chat_messages" :key="message.id" class="flex" :class="message.sender === 'user' ? 'justify-end' : 'justify-start'">
-                            <div v-if="message.message_type === 'conversation'" class="p-3 rounded-lg max-w-xs break-words" :class="message.sender === 'user' ? 'bg-indigo-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'">
-                               <p class="text-sm">{{ message.message_text }}</p>
-                            </div>
-                         </div>
-                         <div v-if="aiStore.isLoading" class="flex justify-start">
-                              <div class="bg-gray-200 dark:bg-gray-700 p-3 rounded-lg animate-pulse">
-                                  <p class="text-sm text-gray-400">...</p>
-                              </div>
-                         </div>
-                    </div>
-                    <div class="p-2 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                        <input v-model="newMessage" @keyup.enter="sendMessage" :disabled="aiStore.isLoading || !currentJournal" type="text" :placeholder="chatPlaceholder" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none disabled:bg-gray-100 dark:disabled:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="mt-4 flex flex-col sm:flex-row justify-end items-center gap-4">
-            <div class="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-                <button @click="moveToPhase('finishing')" class="w-full sm:w-auto bg-teal-500 text-white font-semibold px-6 py-2 rounded-lg hover:bg-teal-600 transition-colors">
-                    Finish & Get Final Feedback
-                </button>
-            </div>
-        </div>
-      </div>
-
-      <!-- Phase 3: Finishing -->
-      <div v-if="currentPhase === 'finishing'" class="p-6">
-         <div class="bg-rose-50 dark:bg-rose-900/50 p-4 rounded-lg mb-4">
-            <h3 class="font-bold text-rose-800 dark:text-rose-200">Phase 3: Polish your writing</h3>
-            <p class="text-sm text-rose-700 dark:text-rose-300 mt-1">Review the AI's suggestions below to improve your grammar, vocabulary, and style. Your original text is highlighted with suggestions.</p>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="md:col-span-2">
-                <h4 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">Your Corrected Text</h4>
-                <div v-html="highlightedContent" class="w-full h-96 p-4 border border-gray-300 dark:border-gray-600 rounded-lg overflow-y-auto bg-gray-50 dark:bg-gray-700/50 whitespace-pre-wrap"></div>
-            </div>
-            <div class="md:col-span-1">
-                <h4 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">Suggestions</h4>
-                <div id="ai-feedback-section" class="space-y-3">
-                    <div v-if="aiStore.isLoading" class="text-center py-4">
-                        <p class="text-gray-500 dark:text-gray-400 animate-pulse">Analyzing your text...</p>
-                    </div>
-                    <div v-else-if="aiStore.error" class="bg-red-50 dark:bg-red-900/50 text-red-700 dark:text-red-300 p-4 rounded-lg">
-                        <p>{{ aiStore.error }}</p>
-                    </div>
-                    <div v-else-if="aiStore.feedback.length > 0">
-                        <AIFeedbackCard 
-                            v-for="(item, index) in aiStore.feedback"
-                            :key="index"
-                            :feedback-item="item"
-                            :is-applied="appliedSuggestions.includes(item.incorrect_phrase)"
-                            @apply-suggestion="applySuggestion"
-                        />
-                    </div>
-                    <div v-else class="text-center py-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                        <p class="text-gray-600 dark:text-gray-300 font-semibold">Great job!</p>
-                        <p class="text-gray-500 dark:text-gray-400">The AI didn't find any specific errors to correct.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="mt-6 pt-4 border-t dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div v-if="currentPhase === 'finishing'" class="flex flex-col sm:flex-row justify-between items-center gap-4">
+         <button @click="saveJournal()" :disabled="journalStore.isLoading" class="w-full sm:w-auto bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">
+            {{ journalStore.isLoading ? 'Saving...' : 'Save Changes' }}
+        </button>
+        <div class="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
             <button @click="moveToPhase('writing')" class="w-full sm:w-auto bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">
                 Back to Writing
             </button>
@@ -701,55 +786,13 @@ onMounted(() => {
             </button>
         </div>
       </div>
-
-      <!-- Phase 4: Completed -->
-      <div v-if="currentPhase === 'completed'" class="p-6 text-center">
-        <div class="max-w-md mx-auto">
-          <div class="bg-green-100 text-green-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto">
-            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="currentColor" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"></path></svg>
-          </div>
-          <h3 class="text-2xl font-bold mt-4 text-gray-900 dark:text-gray-100">Journal Completed!</h3>
-          <p class="text-gray-600 dark:text-gray-400 mt-2">Excellent work! You've finished this entry. All your learning points have been saved to your progress hub.</p>
-          <div class="mt-6">
-            <div class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border dark:border-gray-700 text-left">
-                <h4 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">Your Final Entry</h4>
-                <div class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{{ content }}</div>
-            </div>
-          </div>
-          <div class="mt-6 flex justify-center gap-4">
-             <router-link to="/" class="bg-indigo-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
-                Back to Dashboard
-            </router-link>
-          </div>
-        </div>
+      
+      <div v-if="currentPhase === 'completed'" class="flex justify-center gap-4">
+          <router-link to="/" class="bg-indigo-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+            Back to Dashboard
+        </router-link>
       </div>
 
-
-       <div v-show="isChatActive && currentPhase === 'scaffolding'" class="p-6 border-t border-gray-200 dark:border-gray-700">
-         <div class="w-full h-96 border border-gray-300 dark:border-gray-600 rounded-lg flex flex-col bg-gray-50 dark:bg-gray-900">
-           <div ref="scaffoldingChatContainer" class="flex-grow p-4 overflow-y-auto space-y-4">
-             <div v-for="message in currentJournal?.chat_messages" :key="message.id" class="flex" :class="message.sender === 'user' ? 'justify-end' : 'justify-start'">
-                <div v-if="message.message_type === 'conversation'" class="p-3 rounded-lg max-w-xs break-words" :class="message.sender === 'user' ? 'bg-indigo-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'">
-                   <p class="text-sm">{{ message.message_text }}</p>
-                </div>
-             </div>
-             <div v-if="aiStore.isLoading" class="flex justify-start">
-                  <div class="bg-gray-200 dark:bg-gray-700 p-3 rounded-lg animate-pulse">
-                      <p class="text-sm text-gray-400">...</p>
-                  </div>
-             </div>
-           </div>
-           <div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-             <input v-model="newMessage" @keyup.enter="sendMessage" :disabled="aiStore.isLoading || !currentJournal" type="text" :placeholder="chatPlaceholder" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none disabled:bg-gray-100 dark:disabled:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-           </div>
-         </div>
-       </div>
-
-      <div v-if="currentPhase !== 'completed' && currentPhase !== 'writing'" class="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end">
-        <button @click="saveJournal()" :disabled="journalStore.isLoading" class="bg-indigo-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400 dark:disabled:bg-indigo-800 transition-colors">
-            {{ journalStore.isLoading ? 'Saving...' : 'Save Changes' }}
-        </button>
-      </div>
     </div>
   </main>
 </template>
@@ -770,6 +813,9 @@ const aiStore = useAiStore();
 const currentJournal = computed(() => journalStore.getJournalByDate(route.params.date));
 const currentPhase = computed(() => currentJournal.value?.writing_phase || 'scaffolding');
 
+// New state for mobile tab view
+const mobileView = ref('writer'); // 'writer' or 'partner'
+
 const content = ref('');
 const outlineContent = ref('');
 const statusText = ref('Saved');
@@ -778,13 +824,16 @@ const chatContainer = ref(null); // For writing phase chat
 const scaffoldingChatContainer = ref(null); // For scaffolding phase chat
 const isChatActive = ref(false); // Only for scaffolding now
 const appliedSuggestions = ref([]);
-
 const phases = ref([
     { id: 1, name: 'Scaffolding' },
     { id: 2, name: 'Writing' },
     { id: 3, name: 'Finishing' },
     { id: 4, name: 'Completed' },
 ]);
+
+// --- FIX START: Debounce timer for auto-saving ---
+let debounceTimer = null;
+// --- FIX END ---
 
 const displayDate = computed(() => {
   if (currentJournal.value) {
@@ -802,7 +851,6 @@ const chatPlaceholder = computed(() => {
     }
     return 'Type your message...';
 });
-
 
 const loadJournalData = async () => {
   const date = route.params.date;
@@ -835,12 +883,19 @@ const scrollToBottom = () => {
 
 watch(
   currentJournal,
-  (newJournal) => {
-    if (newJournal) {
+  (newJournal, oldJournal) => {
+    // Only update content from the journal object if it's different
+    // from the current local content. This prevents the watcher from
+    // overwriting what the user is currently typing.
+    if (newJournal && newJournal.content !== content.value) {
       content.value = newJournal.content || '';
+    }
+    if (newJournal && newJournal.outline_content !== outlineContent.value) {
       outlineContent.value = newJournal.outline_content || '';
+    }
+    
+    if (newJournal) {
       appliedSuggestions.value = []; // Reset when journal changes
-      
       if(newJournal.writing_phase === 'finishing' && (!aiStore.feedback.length || aiStore.error)) {
         aiStore.getFeedback(newJournal.journal_date, newJournal.content);
       }
@@ -853,26 +908,48 @@ watch(() => currentJournal.value?.chat_messages, () => {
     scrollToBottom();
 }, { deep: true });
 
-// Auto-save content changes during the writing phase
-watch(content, (newValue, oldValue) => {
-    if (currentPhase.value === 'writing' && newValue !== oldValue) {
-        saveJournal();
+// --- FIX START: Debounced auto-save ---
+watch(content, (newValue) => {
+    if (!currentJournal.value || currentJournal.value.content === newValue) {
+        return;
     }
+
+    statusText.value = 'Typing...';
+    
+    if (debounceTimer) {
+        clearTimeout(debounceTimer);
+    }
+
+    debounceTimer = setTimeout(() => {
+        if (currentPhase.value === 'writing') {
+            saveJournal();
+        }
+    }, 3000); // 3-second delay
 });
+// --- FIX END ---
 
 
 const saveJournal = async (showStatus = true) => {
   if (!currentJournal.value) return;
   if (showStatus) statusText.value = 'Saving...';
-
+  
   const payload = {
     content: content.value,
     outline_content: outlineContent.value,
   };
-  
+
+  // Important: Clear the timer before saving to prevent duplicate saves
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+  }
+
   const savedJournal = await journalStore.updateJournal(currentJournal.value.journal_date, payload);
   
-  if (showStatus) statusText.value = savedJournal ? 'All changes saved!' : 'Error saving.';
+  if (showStatus) {
+      setTimeout(() => {
+        statusText.value = savedJournal ? 'All changes saved' : 'Error saving.';
+      }, 500); // Small delay to make status change noticeable
+  }
 };
 
 const moveToPhase = async (phase) => {
@@ -891,7 +968,6 @@ const toggleChatMode = () => {
 
 const sendMessage = async () => {
   if (!newMessage.value.trim() || !currentJournal.value || aiStore.isLoading) return;
-  
   // Save journal before sending to give AI the latest context
   if (currentPhase.value === 'scaffolding' || currentPhase.value === 'writing') {
     await saveJournal(false);
@@ -936,18 +1012,22 @@ function escapeRegExp(string) {
 }
 
 const phaseMap = { scaffolding: 1, writing: 2, finishing: 3, completed: 4 };
-const isPhaseActive = (phaseId) => phaseMap[currentPhase.value] >= phaseId;
-const getPhaseClass = (phaseId) => {
-    if (phaseMap[currentPhase.value] > phaseId) return 'bg-green-500 text-white';
-    if (phaseMap[currentPhase.value] === phaseId) return 'bg-indigo-600 text-white';
-    return 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400';
-};
-const getPhaseLineClass = (phaseId) => {
-    if (phaseMap[currentPhase.value] > phaseId) return 'bg-green-500';
-    return 'bg-gray-200 dark:bg-gray-700';
-};
-</script>
 
+const isPhaseActive = (phaseId) => phaseMap[currentPhase.value] >= phaseId;
+
+const getPhaseClass = (phaseId) => {
+    const phaseValue = phaseMap[currentPhase.value];
+    if (phaseValue > phaseId) return 'bg-green-500 text-white scale-100'; // Completed
+    if (phaseValue === phaseId) return 'bg-indigo-600 text-white scale-110 shadow-lg'; // Active
+    return 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 scale-100'; // Inactive
+};
+
+const getPhaseLineClass = (phaseId) => {
+    if (phaseMap[currentPhase.value] >= phaseId) return 'bg-green-500'; // Completed line
+    return 'bg-gray-200 dark:bg-gray-700'; // Inactive line
+};
+
+</script>
 ```
 
 
