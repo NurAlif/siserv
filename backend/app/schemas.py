@@ -99,14 +99,15 @@ class AIFeedbackRequest(BaseModel):
 
 class AIFeedbackItem(BaseModel):
     """Schema for a single piece of feedback from the AI."""
-    error_type: str = Field(..., description="e.g., 'Grammar: Tense', 'Vocabulary: Phrasing'")
+    category: str = Field(..., description="e.g., 'Grammar: Tense', 'Vocabulary: Phrasing'")
     incorrect_phrase: str
     suggestion: str
     explanation: str
 
 class AIFeedbackResponse(BaseModel):
     """The overall response schema for the AI feedback endpoint."""
-    feedback: List[AIFeedbackItem]
+    high_level_summary: str
+    feedback_items: List[AIFeedbackItem]
 
 class AIConceptualFeedbackResponse(BaseModel):
     """Schema for high-level conceptual feedback."""

@@ -14,13 +14,13 @@ export const useAiStore = defineStore('ai', {
     async getFeedback(date, text) {
       this.isLoading = true;
       this.error = null;
-      this.feedback = []; // Clear previous feedback before fetching new results
+      this.feedback = []; // Clear previous feedback
+      this.conceptualFeedback = null;
       try {
-        // According to the API docs, the endpoint is /api/ai/feedback/{journal_date}
         const response = await apiClient.post(`/ai/feedback/${date}`, { text });
-        
-        // The response body is expected to be an object like { "feedback": [...] }
-        this.feedback = response.data.feedback || [];
+        // The new response has a different structure
+        this.feedback = response.data.feedback_items || [];
+        this.conceptualFeedback = response.data.high_level_summary || null;
       } catch (err) {
         this.error = 'An error occurred while getting AI feedback. Please try again.';
         console.error(err);
@@ -49,9 +49,9 @@ export const useAiStore = defineStore('ai', {
       this.error = null;
       const journalStore = useJournalStore();
       
-      // Optimistically add the user's message
+      // Optimistically add the user's message for perceived speed
       const userMessage = {
-        id: `temp-${Date.now()}`, // A temporary ID for Vue's :key binding
+        id: `temp-${Date.now()}`,
         sender: 'user',
         message_type: 'conversation',
         message_text: message,
@@ -59,18 +59,17 @@ export const useAiStore = defineStore('ai', {
       journalStore.addChatMessageOptimistically(date, userMessage);
       
       try {
-        // This POST request triggers the backend logic
-        await apiClient.post(`/ai/chat/${date}`, { message });
-
-        // CRITICAL STEP: This fetches the updated journal, including
-        // any outline changes made by the AI agent on the backend.
-        await journalStore.fetchJournalByDate(date, true); // force refresh
+        // The API now returns the complete, updated journal object
+        const response = await apiClient.post(`/ai/chat/${date}`, { message });
+        
+        // **KEY CHANGE**: Update the entire journal state with the response from the API.
+        // This is more robust than fetching again.
+        journalStore.updateLocalJournal(response.data);
 
       } catch (err) {
         this.error = 'An error occurred during the chat. Please try again.';
         console.error(err);
-        // NOTE: In a production app, you might want to add logic here to remove
-        // the optimistic message if the API call fails.
+        // NOTE: In a production app, you might want to remove the optimistic message on failure.
       } finally {
         this.isLoading = false;
       }

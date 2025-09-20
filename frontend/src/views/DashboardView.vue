@@ -1,12 +1,12 @@
 <template>
   <main id="dashboard-view" class="fade-in">
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 class="text-xl font-bold">Welcome Back, {{ authStore.user?.username }}!</h2>
-          <p class="text-gray-500">Ready to practice your English today?</p>
+          <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100">Welcome Back, {{ authStore.user?.username }}!</h2>
+          <p class="text-gray-500 dark:text-gray-400">Ready to practice your English today?</p>
         </div>
-        <div class="flex items-center gap-3 bg-orange-100 text-orange-700 p-3 rounded-lg">
+        <div class="flex items-center gap-3 bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300 p-3 rounded-lg">
           <!-- Fire Icon -->
           <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" viewBox="0 0 256 256">
             <path d="M221.5,145.45C221.5,184.12,190,224,150,224s-72-39.88-72-78.55c0-20.93,12.35-46,29.9-71.55,14.28-20.81,28.2-38,33.43-45.11a8,8,0,0,1,13.34,0c5.23,7.07,19.15,24.3,33.43,45.11C209.15,99.44,221.5,124.52,221.5,145.45ZM152,80a16,16,0,1,0-16,16A16,16,0,0,0,152,80Z"></path>
@@ -27,7 +27,7 @@
     />
 
     <div class="flex justify-between items-center mb-4">
-      <h3 class="text-lg font-semibold">Your Journal Entries</h3>
+      <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">Your Journal Entries</h3>
       <router-link
         to="/writer"
         class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
@@ -40,9 +40,9 @@
 
     <!-- Loading and Error States -->
     <div v-if="journalStore.isLoading" class="text-center py-10">
-      <p class="text-gray-500">Loading your journals...</p>
+      <p class="text-gray-500 dark:text-gray-400">Loading your journals...</p>
     </div>
-    <div v-else-if="journalStore.error" class="bg-red-50 text-red-700 p-4 rounded-lg">
+    <div v-else-if="journalStore.error" class="bg-red-50 dark:bg-red-900/50 text-red-700 dark:text-red-300 p-4 rounded-lg">
       <p>{{ journalStore.error }}</p>
     </div>
 
@@ -54,9 +54,9 @@
          :journal="journal"
        />
     </div>
-    <div v-else class="text-center py-10 bg-white rounded-xl border border-gray-200">
-        <h4 class="font-semibold text-lg">No entries yet!</h4>
-        <p class="text-gray-500">Click "New Entry" to start your first journal.</p>
+    <div v-else class="text-center py-10 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+        <h4 class="font-semibold text-lg text-gray-800 dark:text-gray-200">No entries yet!</h4>
+        <p class="text-gray-500 dark:text-gray-400">Click "New Entry" to start your first journal.</p>
     </div>
   </main>
 </template>

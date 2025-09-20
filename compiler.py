@@ -101,7 +101,9 @@ def compile_codebase_for_prompting(root_dir, output_file, extensions):
 if __name__ == "__main__":
     # Customize these variables
     root_directory = "frontend"  # The current directory
+    root_directory1 = "backend"  # The current directory
     output_filename = "codebase_frontend.txt"
+    output_filename1 = "codebase_backend.txt"
     
     # List of common file extensions. You can modify this.
     # A complete list is also provided in a separate file.
@@ -110,3 +112,4 @@ if __name__ == "__main__":
     ]
 
     compile_codebase_for_prompting(root_directory, output_filename, file_extensions)
+    compile_codebase_for_prompting(root_directory1, output_filename1, file_extensions)

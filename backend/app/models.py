@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text, Date, ForeignKey, TIMESTAMP, Enum
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import text
 from .database import Base
@@ -34,6 +35,7 @@ class User(Base):
     
     journals = relationship("Journal", back_populates="owner")
     errors = relationship("UserError", back_populates="user")
+    context_profile = relationship("UserContextProfile", back_populates="owner", uselist=False, cascade="all, delete-orphan")
 
 class Journal(Base):
     __tablename__ = "journals"
@@ -44,9 +46,11 @@ class Journal(Base):
     content = Column(Text, nullable=True, default='')
     outline_content = Column(Text, nullable=True, default='')
     writing_phase = Column(Enum(JournalPhase), default=JournalPhase.scaffolding, nullable=False)
+    session_state = Column(JSONB, nullable=True) # New field for conversation state
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"), onupdate=datetime.utcnow)
     
+    # Corrected relationships
     owner = relationship("User", back_populates="journals")
     chat_messages = relationship("ChatMessage", back_populates="journal", cascade="all, delete-orphan")
 
@@ -60,6 +64,16 @@ class ChatMessage(Base):
     timestamp = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
 
     journal = relationship("Journal", back_populates="chat_messages")
+
+# --- New User Context Profile Model ---
+class UserContextProfile(Base):
+    __tablename__ = "user_context_profiles"
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    profile_data = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    last_updated = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"), onupdate=datetime.utcnow)
+
+    owner = relationship("User", back_populates="context_profile")
+
 
 # --- Learning and Progress Tracking Models ---
 

@@ -130,6 +130,19 @@ export const useJournalStore = defineStore('journal', {
       }
     },
 
+    updateLocalJournal(updatedJournal) {
+      if (!updatedJournal || !updatedJournal.journal_date) return;
+      
+      const index = this.journals.findIndex(j => j.journal_date === updatedJournal.journal_date);
+      if (index !== -1) {
+        // Use splice for reactivity
+        this.journals.splice(index, 1, updatedJournal);
+      } else {
+        // If it's a new journal not yet in the list (should be rare for updates)
+        this.journals.unshift(updatedJournal);
+      }
+    },
+
     // --- New Action: Directly set a journal's content ---
     // This allows other stores (like the AI store) to update content reactively
     setJournalContent(date, newContent) {

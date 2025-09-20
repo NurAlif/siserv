@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import date
 from typing import List
 
 from .. import database, schemas, models, security
+from ..services import context_agent
 
 router = APIRouter(
     prefix="/api/journals",
@@ -115,6 +116,7 @@ def update_journal(
 def update_journal_phase(
     journal_date: date,
     updated_phase: schemas.JournalPhaseUpdate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(security.get_current_user)
 ):
@@ -132,10 +134,23 @@ def update_journal_phase(
             detail=f"Journal entry for date {journal_date} not found."
         )
 
-    # CORRECTED LINE: Access .phase instead of .writing_phase
-    journal.writing_phase = updated_phase.phase
+    # --- FIX STARTS HERE ---
+
+    # 1. Add this line to update the phase from the request
+    journal.writing_phase = updated_phase.phase 
+
+    # 2. Add this line to save the change to the database
     db.commit()
+
+    # --- FIX ENDS HERE ---
+
+    # This part handles kicking off background tasks after a journal is completed
+    if journal.writing_phase == models.JournalPhase.completed:
+        background_tasks.add_task(
+            context_agent.process_journal, journal.id, current_user.id
+        )
+
     db.refresh(journal)
-    
+
     return journal
 
