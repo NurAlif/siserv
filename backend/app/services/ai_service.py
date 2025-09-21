@@ -100,9 +100,9 @@ Analyze the user's question in the context of their outline and draft, and provi
 ---
 """
 
-FINISHING_FEEDBACK_PROMPT_TEMPLATE = """
+EVALUATION_FEEDBACK_PROMPT_TEMPLATE = """
 You are Lingo, a meticulous and encouraging English writing coach.
-Your task is to analyze a complete journal entry and provide structured, actionable feedback to help the user polish their writing.
+Your task is to analyze a complete journal entry and provide a structured evaluation to help the user learn and improve.
 Your tone must be positive and empowering.
 
 **YOUR TASK:**
@@ -161,17 +161,17 @@ def get_writing_partner_response(user_message: str, outline: str, current_draft:
         print(f"An error occurred with the Gemini API during writing assistance: {e}")
         return "I'm sorry, I'm unable to help with that right now."
 
-def get_finishing_feedback(text: str) -> dict:
+def get_evaluation_feedback(text: str) -> dict:
     """
-    Generates final, structured feedback for the 'finishing' phase.
+    Generates final, structured feedback for the 'evaluation' phase.
     """
     try:
-        full_prompt = f"{FINISHING_FEEDBACK_PROMPT_TEMPLATE}\n\nHere is the user's journal entry to analyze:\n\n---\n{text}\n---"
+        full_prompt = f"{EVALUATION_FEEDBACK_PROMPT_TEMPLATE}\n\nHere is the user's journal entry to analyze:\n\n---\n{text}\n---"
         response = model.generate_content(full_prompt)
         cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
         return json.loads(cleaned_response)
     except Exception as e:
-        print(f"An error occurred with the Gemini API during finishing feedback: {e}")
+        print(f"An error occurred with the Gemini API during evaluation feedback: {e}")
         return {
             "high_level_summary": "There was an issue analyzing the text. Please try again.",
             "feedback_items": []

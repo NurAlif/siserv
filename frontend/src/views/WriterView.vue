@@ -91,10 +91,10 @@
             </div>
         </div>
 
-        <!-- Phase 3: Finishing -->
-        <div v-if="currentPhase === 'finishing'" class="p-6">
+        <!-- Phase 3: Evaluation -->
+        <div v-if="currentPhase === 'evaluation'" class="p-6">
           <div class="bg-rose-50 dark:bg-rose-900/50 p-4 rounded-lg mb-4">
-              <h3 class="font-bold text-rose-800 dark:text-rose-200">Phase 3: Polish your writing</h3>
+              <h3 class="font-bold text-rose-800 dark:text-rose-200">Phase 3: Review Your Evaluation</h3>
               <p class="text-sm text-rose-700 dark:text-rose-300 mt-1">Review the AI's suggestions below to improve your grammar, vocabulary, and style. Your original text is highlighted with suggestions.</p>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -221,12 +221,12 @@
       </div>
 
       <div v-if="currentPhase === 'writing'" class="flex justify-end">
-        <button @click="moveToPhase('finishing')" class="w-full sm:w-auto bg-teal-500 text-white font-semibold px-6 py-2 rounded-lg hover:bg-teal-600 transition-colors">
-            Finish & Get Final Feedback
+        <button @click="moveToPhase('evaluation')" class="w-full sm:w-auto bg-teal-500 text-white font-semibold px-6 py-2 rounded-lg hover:bg-teal-600 transition-colors">
+            Evaluate Writing
         </button>
       </div>
       
-      <div v-if="currentPhase === 'finishing'" class="flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div v-if="currentPhase === 'evaluation'" class="flex flex-col sm:flex-row justify-between items-center gap-4">
          <button @click="saveJournal()" :disabled="journalStore.isLoading" class="w-full sm:w-auto bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">
             {{ journalStore.isLoading ? 'Saving...' : 'Save Changes' }}
         </button>
@@ -283,7 +283,7 @@ const appliedSuggestions = ref([]);
 const phases = ref([
     { id: 1, name: 'Scaffolding' },
     { id: 2, name: 'Writing' },
-    { id: 3, name: 'Finishing' },
+    { id: 3, name: 'Evaluation' }, // Changed from Finishing
     { id: 4, name: 'Completed' },
 ]);
 
@@ -341,7 +341,8 @@ watch(
       outlineContent.value = newJournal.outline_content || '';
       appliedSuggestions.value = []; // Reset when journal changes
       
-      if(newJournal.writing_phase === 'finishing' && (!aiStore.feedback.length || aiStore.error)) {
+      // *** BUG FIX: Changed 'finishing' to 'evaluation' ***
+      if(newJournal.writing_phase === 'evaluation' && (!aiStore.feedback.length || aiStore.error)) {
         aiStore.getFeedback(newJournal.journal_date, newJournal.content);
       }
     }
@@ -400,7 +401,7 @@ const sendMessage = async () => {
 
 // --- Phase 3 Logic ---
 const highlightedContent = computed(() => {
-    if (currentPhase.value !== 'finishing' || !aiStore.feedback.length) {
+    if (currentPhase.value !== 'evaluation' || !aiStore.feedback.length) {
         return content.value;
     }
     
@@ -431,7 +432,7 @@ function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-const phaseMap = { scaffolding: 1, writing: 2, finishing: 3, completed: 4 };
+const phaseMap = { scaffolding: 1, writing: 2, evaluation: 3, completed: 4 };
 
 const isPhaseActive = (phaseId) => phaseMap[currentPhase.value] >= phaseId;
 

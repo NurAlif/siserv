@@ -2,7 +2,7 @@
   <div class="p-4 rounded-lg flex justify-between items-start gap-4" :class="[cardColorClasses.bg, { 'opacity-60': isApplied }]">
     <div class="flex-grow">
       <p class="font-semibold" :class="cardColorClasses.text">
-        {{ feedbackItem.error_type }}
+        {{ feedbackItem.category }} <!-- BUG FIX: Changed error_type to category -->
       </p>
       <p class="text-sm mt-2">
         Incorrect phrase: 
@@ -48,14 +48,15 @@ defineEmits(['apply-suggestion']);
 
 // Dynamically change card colors for better visual grouping of feedback
 const cardColorClasses = computed(() => {
-  const type = props.feedbackItem.error_type.toLowerCase();
-  if (type.includes('grammar')) {
+  // BUG FIX: Changed error_type to category
+  const category = props.feedbackItem.category.toLowerCase();
+  if (category.includes('grammar')) {
     return { bg: 'bg-blue-50 dark:bg-blue-900/50', text: 'text-blue-800 dark:text-blue-200' };
   }
-  if (type.includes('vocabulary') || type.includes('phrasing')) {
+  if (category.includes('vocabulary') || category.includes('phrasing')) {
     return { bg: 'bg-purple-50 dark:bg-purple-900/50', text: 'text-purple-800 dark:text-purple-200' };
   }
-  if (type.includes('cohesion') || type.includes('style')) {
+  if (category.includes('cohesion') || category.includes('style')) {
       return { bg: 'bg-yellow-50 dark:bg-yellow-900/50', text: 'text-yellow-800 dark:text-yellow-200'};
   }
   return { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-800 dark:text-gray-200' }; // Default color

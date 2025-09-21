@@ -20,7 +20,7 @@ def get_and_save_ai_feedback(
     current_user: models.User = Depends(security.get_current_user)
 ):
     """
-    Analyzes a journal entry's content for the 'finishing' phase, returns structured AI feedback,
+    Analyzes a journal entry's content for the 'evaluation' phase, returns structured AI feedback,
     and saves any learning points derived from the feedback to the database.
     """
     journal = db.query(models.Journal).filter(
@@ -34,7 +34,7 @@ def get_and_save_ai_feedback(
             detail=f"Journal entry for date {journal_date} not found."
         )
 
-    feedback_data = ai_service.get_finishing_feedback(request.text)
+    feedback_data = ai_service.get_evaluation_feedback(request.text)
 
     if not feedback_data or "feedback_items" not in feedback_data:
         raise HTTPException(
@@ -137,7 +137,6 @@ def chat_with_ai(
     
     if journal.writing_phase == models.JournalPhase.scaffolding:
         chat_history = [{"role": msg.sender.name, "content": msg.message_text} for msg in journal.chat_messages]
-        # PASS the current turn count from the database to the AI
         session_state = {
             "current_outline": journal.outline_content,
             "chat_history": chat_history,

@@ -277,6 +277,24 @@ onMounted(() => {
     @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300;
   }
 }
+
+@layer utilities {
+  /* Custom scrollbar styles for Webkit-based browsers (Chrome, Safari, Edge) */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-500;
+  }
+}
+
 ```
 
 
@@ -635,10 +653,10 @@ onMounted(() => {
             </div>
         </div>
 
-        <!-- Phase 3: Finishing -->
-        <div v-if="currentPhase === 'finishing'" class="p-6">
+        <!-- Phase 3: Evaluation -->
+        <div v-if="currentPhase === 'evaluation'" class="p-6">
           <div class="bg-rose-50 dark:bg-rose-900/50 p-4 rounded-lg mb-4">
-              <h3 class="font-bold text-rose-800 dark:text-rose-200">Phase 3: Polish your writing</h3>
+              <h3 class="font-bold text-rose-800 dark:text-rose-200">Phase 3: Review Your Evaluation</h3>
               <p class="text-sm text-rose-700 dark:text-rose-300 mt-1">Review the AI's suggestions below to improve your grammar, vocabulary, and style. Your original text is highlighted with suggestions.</p>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -765,12 +783,12 @@ onMounted(() => {
       </div>
 
       <div v-if="currentPhase === 'writing'" class="flex justify-end">
-        <button @click="moveToPhase('finishing')" class="w-full sm:w-auto bg-teal-500 text-white font-semibold px-6 py-2 rounded-lg hover:bg-teal-600 transition-colors">
-            Finish & Get Final Feedback
+        <button @click="moveToPhase('evaluation')" class="w-full sm:w-auto bg-teal-500 text-white font-semibold px-6 py-2 rounded-lg hover:bg-teal-600 transition-colors">
+            Evaluate Writing
         </button>
       </div>
       
-      <div v-if="currentPhase === 'finishing'" class="flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div v-if="currentPhase === 'evaluation'" class="flex flex-col sm:flex-row justify-between items-center gap-4">
          <button @click="saveJournal()" :disabled="journalStore.isLoading" class="w-full sm:w-auto bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">
             {{ journalStore.isLoading ? 'Saving...' : 'Save Changes' }}
         </button>
@@ -827,13 +845,9 @@ const appliedSuggestions = ref([]);
 const phases = ref([
     { id: 1, name: 'Scaffolding' },
     { id: 2, name: 'Writing' },
-    { id: 3, name: 'Finishing' },
+    { id: 3, name: 'Evaluation' }, // Changed from Finishing
     { id: 4, name: 'Completed' },
 ]);
-
-// --- FIX START: Debounce timer for auto-saving ---
-let debounceTimer = null;
-// --- FIX END ---
 
 const displayDate = computed(() => {
   if (currentJournal.value) {
@@ -883,20 +897,14 @@ const scrollToBottom = () => {
 
 watch(
   currentJournal,
-  (newJournal, oldJournal) => {
-    // Only update content from the journal object if it's different
-    // from the current local content. This prevents the watcher from
-    // overwriting what the user is currently typing.
-    if (newJournal && newJournal.content !== content.value) {
-      content.value = newJournal.content || '';
-    }
-    if (newJournal && newJournal.outline_content !== outlineContent.value) {
-      outlineContent.value = newJournal.outline_content || '';
-    }
-    
+  (newJournal) => {
     if (newJournal) {
+      content.value = newJournal.content || '';
+      outlineContent.value = newJournal.outline_content || '';
       appliedSuggestions.value = []; // Reset when journal changes
-      if(newJournal.writing_phase === 'finishing' && (!aiStore.feedback.length || aiStore.error)) {
+      
+      // *** BUG FIX: Changed 'finishing' to 'evaluation' ***
+      if(newJournal.writing_phase === 'evaluation' && (!aiStore.feedback.length || aiStore.error)) {
         aiStore.getFeedback(newJournal.journal_date, newJournal.content);
       }
     }
@@ -908,48 +916,23 @@ watch(() => currentJournal.value?.chat_messages, () => {
     scrollToBottom();
 }, { deep: true });
 
-// --- FIX START: Debounced auto-save ---
-watch(content, (newValue) => {
-    if (!currentJournal.value || currentJournal.value.content === newValue) {
-        return;
+// Auto-save content changes during the writing phase
+watch(content, (newValue, oldValue) => {
+    if (currentPhase.value === 'writing' && newValue !== oldValue) {
+        saveJournal();
     }
-
-    statusText.value = 'Typing...';
-    
-    if (debounceTimer) {
-        clearTimeout(debounceTimer);
-    }
-
-    debounceTimer = setTimeout(() => {
-        if (currentPhase.value === 'writing') {
-            saveJournal();
-        }
-    }, 3000); // 3-second delay
 });
-// --- FIX END ---
-
 
 const saveJournal = async (showStatus = true) => {
   if (!currentJournal.value) return;
   if (showStatus) statusText.value = 'Saving...';
-  
   const payload = {
     content: content.value,
     outline_content: outlineContent.value,
   };
-
-  // Important: Clear the timer before saving to prevent duplicate saves
-  if (debounceTimer) {
-    clearTimeout(debounceTimer);
-  }
-
   const savedJournal = await journalStore.updateJournal(currentJournal.value.journal_date, payload);
   
-  if (showStatus) {
-      setTimeout(() => {
-        statusText.value = savedJournal ? 'All changes saved' : 'Error saving.';
-      }, 500); // Small delay to make status change noticeable
-  }
+  if (showStatus) statusText.value = savedJournal ? 'All changes saved!' : 'Error saving.';
 };
 
 const moveToPhase = async (phase) => {
@@ -980,7 +963,7 @@ const sendMessage = async () => {
 
 // --- Phase 3 Logic ---
 const highlightedContent = computed(() => {
-    if (currentPhase.value !== 'finishing' || !aiStore.feedback.length) {
+    if (currentPhase.value !== 'evaluation' || !aiStore.feedback.length) {
         return content.value;
     }
     
@@ -1011,7 +994,7 @@ function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-const phaseMap = { scaffolding: 1, writing: 2, finishing: 3, completed: 4 };
+const phaseMap = { scaffolding: 1, writing: 2, evaluation: 3, completed: 4 };
 
 const isPhaseActive = (phaseId) => phaseMap[currentPhase.value] >= phaseId;
 
@@ -1028,6 +1011,7 @@ const getPhaseLineClass = (phaseId) => {
 };
 
 </script>
+
 ```
 
 
@@ -2002,7 +1986,7 @@ const topTopicName = computed(() => {
   <div class="p-4 rounded-lg flex justify-between items-start gap-4" :class="[cardColorClasses.bg, { 'opacity-60': isApplied }]">
     <div class="flex-grow">
       <p class="font-semibold" :class="cardColorClasses.text">
-        {{ feedbackItem.error_type }}
+        {{ feedbackItem.category }} <!-- BUG FIX: Changed error_type to category -->
       </p>
       <p class="text-sm mt-2">
         Incorrect phrase: 
@@ -2048,14 +2032,15 @@ defineEmits(['apply-suggestion']);
 
 // Dynamically change card colors for better visual grouping of feedback
 const cardColorClasses = computed(() => {
-  const type = props.feedbackItem.error_type.toLowerCase();
-  if (type.includes('grammar')) {
+  // BUG FIX: Changed error_type to category
+  const category = props.feedbackItem.category.toLowerCase();
+  if (category.includes('grammar')) {
     return { bg: 'bg-blue-50 dark:bg-blue-900/50', text: 'text-blue-800 dark:text-blue-200' };
   }
-  if (type.includes('vocabulary') || type.includes('phrasing')) {
+  if (category.includes('vocabulary') || category.includes('phrasing')) {
     return { bg: 'bg-purple-50 dark:bg-purple-900/50', text: 'text-purple-800 dark:text-purple-200' };
   }
-  if (type.includes('cohesion') || type.includes('style')) {
+  if (category.includes('cohesion') || category.includes('style')) {
       return { bg: 'bg-yellow-50 dark:bg-yellow-900/50', text: 'text-yellow-800 dark:text-yellow-200'};
   }
   return { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-800 dark:text-gray-200' }; // Default color

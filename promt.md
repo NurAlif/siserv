@@ -231,3 +231,8 @@ That's impressive! What are you most proud of in this project?
 i can use leftover materials and turn it into something usefull. it can became very hard to carry a lot of items without this. now i can go to the market for groceries for ease
 
 That's a great point! What other creative solutions did you consider before settling on the wheel design?
+
+
+Necessity, as they say, is the mother of invention, and today, I proved that adage true by building a reusable shopping bag from virtually nothing. My materials were surprisingly simple: two wheels I purchased inexpensively, some sturdy cardboard I found around the house, and an old luggage handle I had lying around. Using tape, I carefully reinforced the cardboard to ensure its strength and durability.
+
+The process involves collecting materials. there are limited budged and there are many left over materials lying around. so why not turn it into something usefull?

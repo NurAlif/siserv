@@ -56,8 +56,6 @@ class JournalBase(BaseModel):
     title: Optional[str] = None
     outline_content: Optional[str] = None
     content: Optional[str] = None
-    content: str
-    title: Optional[str] = None
 
 class JournalCreate(BaseModel):
     """Schema for creating a new journal entry."""
@@ -70,7 +68,7 @@ class JournalUpdate(BaseModel):
 class JournalPhase(str, enum.Enum):
     scaffolding = "scaffolding"
     writing = "writing"
-    finishing = "finishing"
+    evaluation = "evaluation" # Changed from finishing
     completed = "completed"
 
 class JournalPhaseUpdate(BaseModel):

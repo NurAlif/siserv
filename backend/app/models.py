@@ -20,7 +20,7 @@ class MessageType(enum.Enum):
 class JournalPhase(enum.Enum):
     scaffolding = "scaffolding"
     writing = "writing"
-    finishing = "finishing"
+    evaluation = "evaluation" # Changed from finishing
     completed = "completed"
 
 # --- Authentication and Journaling Models ---
@@ -113,4 +113,3 @@ class UserLearningHistory(Base):
     timestamp = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
 
     error_instance = relationship("UserError", back_populates="history")
-
