@@ -745,18 +745,22 @@ For each feedback item, include:
 """
 
 QUICK_CORRECTION_PROMPT_TEMPLATE = """
-You are an expert English grammar and spelling checker. Your task is to analyze a short message from a user and find the single most significant error.
+You are an automated English grammar and spelling checker. Your ONLY output must be a single, valid JSON object. Do not include any explanatory text, markdown, or any characters outside of the JSON structure.
+
+Your task is to meticulously analyze a short message from a user and identify the single most significant error.
 
 **RULES:**
-1.  Focus on only ONE error.
-2.  If you find an error, you MUST respond with a valid JSON object with FOUR keys:
+1.  Your analysis must be strict. Check for spelling errors, incorrect verb tenses, subject-verb agreement, and incorrect word usage.
+2.  Focus on only ONE error. If there are multiple, choose the most obvious one (spelling errors are high priority).
+3.  If you find an error, you MUST respond with a valid JSON object with FOUR keys:
     - `incorrect_phrase`: The exact text from the user's message that is incorrect.
     - `suggestion`: The corrected version of that phrase.
     - `explanation`: A very brief, one-sentence explanation of why it was wrong.
     - `status`: MUST be the string "correction_found".
 
-3.  If the user's message is grammatically correct and has no spelling errors, you MUST respond with a valid JSON object with only ONE key:
+4.  If the user's message is grammatically perfect and has no spelling errors, you MUST respond with a valid JSON object with only ONE key:
     - `status`: MUST be the string "no_errors".
+5.  Your entire response must be ONLY the JSON object.
 
 **EXAMPLE 1 (Error Found):**
 User's Message: "There is many clanlanges."
@@ -834,7 +838,14 @@ def get_evaluation_feedback(text: str) -> dict:
         full_prompt = f"{EVALUATION_FEEDBACK_PROMPT_TEMPLATE}\n\nHere is the user's journal entry to analyze:\n\n---\n{text}\n---"
         response = model.generate_content(full_prompt)
         cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
-        return json.loads(cleaned_response)
+        
+        parsed_data = json.loads(cleaned_response)
+
+        # Check for and correct the common AI typo for the summary field
+        if 'high_level_level_summary' in parsed_data:
+            parsed_data['high_level_summary'] = parsed_data.pop('high_level_level_summary')
+        
+        return parsed_data
     except Exception as e:
         print(f"An error occurred with the Gemini API during evaluation feedback: {e}")
         return {
@@ -846,9 +857,18 @@ def get_quick_correction(user_message: str) -> dict:
     """
     Analyzes a short user message and returns a single grammar/spelling correction.
     """
+    cleaned_response = ""
     try:
         full_prompt = QUICK_CORRECTION_PROMPT_TEMPLATE.format(user_message=user_message)
         response = model.generate_content(full_prompt)
+
+        # --- NEW: More robust check for a valid response ---
+        if not response.parts:
+            print("--- AI RESPONSE ERROR ---")
+            print(f"AI response was empty or blocked. Candidates: {response.candidates}")
+            print("-------------------------")
+            return {"status": "no_errors"}
+
         cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
         
         if not cleaned_response:
@@ -856,7 +876,12 @@ def get_quick_correction(user_message: str) -> dict:
             
         return json.loads(cleaned_response)
     except Exception as e:
-        print(f"An error occurred with the Gemini API during quick correction: {e}")
+        print(f"An error occurred during quick correction: {e}")
+        # --- NEW LOGGING ---
+        print(f"--- FAILED TO PARSE AI RESPONSE ---")
+        print(f"Raw response text: '{cleaned_response}'")
+        print(f"------------------------------------")
+        # --- END NEW LOGGING ---
         return {"status": "no_errors"}
 
 

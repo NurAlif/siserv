@@ -144,21 +144,21 @@ Your task is to meticulously analyze a short message from a user and identify th
 User's Message: "There is many clanlanges."
 Your JSON Response:
 ```json
-{{
+{
   "incorrect_phrase": "There is many clanlanges",
   "suggestion": "There are many languages",
   "explanation": "'Are' is used for plural nouns like 'languages', and 'languages' was misspelled.",
   "status": "correction_found"
-}}
+}
 ```
 
 **EXAMPLE 2 (No Error Found):**
 User's Message: "I went to the store yesterday."
 Your JSON Response:
 ```json
-{{
+{
   "status": "no_errors"
-}}
+}
 ```
 
 **Analyze the following message:**
@@ -216,7 +216,14 @@ def get_evaluation_feedback(text: str) -> dict:
         full_prompt = f"{EVALUATION_FEEDBACK_PROMPT_TEMPLATE}\n\nHere is the user's journal entry to analyze:\n\n---\n{text}\n---"
         response = model.generate_content(full_prompt)
         cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
-        return json.loads(cleaned_response)
+        
+        parsed_data = json.loads(cleaned_response)
+
+        # Check for and correct the common AI typo for the summary field
+        if 'high_level_level_summary' in parsed_data:
+            parsed_data['high_level_summary'] = parsed_data.pop('high_level_level_summary')
+        
+        return parsed_data
     except Exception as e:
         print(f"An error occurred with the Gemini API during evaluation feedback: {e}")
         return {

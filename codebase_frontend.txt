@@ -34,7 +34,8 @@ Codebase Structure Overview:
 │       ├── LoginView.vue
 │       ├── SignupView.vue
 │       ├── TopicDetailView.vue
-│       └── WriterView.vue
+│       ├── WriterView.vue
+│       └── admin
 ├── tailwind.config.js
 └── vite.config.js
 
