@@ -24,27 +24,19 @@
       </div>
 
       <!-- Charts -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Error Distribution Chart -->
-        <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-2">Class Error Distribution</h3>
-          <div class="relative h-80">
-            <ErrorDistributionChart :chart-data="adminStore.classAnalytics?.error_distribution" />
+          <div class="relative h-80 mb-16">
+            <ErrorDistributionChart title="Class Error Distribution" :chart-raw-data="adminStore.classAnalytics.error_distribution" />
           </div>
-        </div>
 
         <!-- Error Trend Chart -->
-        <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-2">Class Error Trend (Last 30 Days)</h3>
-          <div class="relative h-80">
-            <ErrorTrendChart :chart-data="adminStore.classAnalytics?.error_trend" />
+          <div class="relative h-80 mb-16">
+            <ErrorTrendChart title="Class Error Trend" :chart-raw-data="adminStore.classAnalytics.error_trend" />
           </div>
-        </div>
       </div>
-
       <!-- Student Table -->
       <div>
-        <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Students</h3>
         <StudentTable :students="adminStore.students" />
       </div>
     </div>

@@ -34,6 +34,31 @@
         <ErrorDistributionChart title="Student Error Distribution" :chart-raw-data="adminStore.studentDetails.error_distribution" />
         <ErrorTrendChart title="Student Error Trend" :chart-raw-data="adminStore.studentDetails.error_trend" />
       </div>
+
+      <!-- Student Journal List Section -->
+      <div class="mt-6">
+        <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Journal Entries</h3>
+        
+        <!-- Loading state for journals -->
+        <div v-if="adminStore.isLoadingJournals" class="text-center py-10">
+          <p class="text-gray-500 dark:text-gray-400">Loading journals...</p>
+        </div>
+
+        <!-- Journals List -->
+        <div v-else-if="adminStore.studentJournals.length > 0" class="space-y-4">
+          <AdminJournalCard
+            v-for="journal in adminStore.studentJournals"
+            :key="journal.id"
+            :journal="journal"
+          />
+        </div>
+
+        <!-- Empty state for journals -->
+        <div v-else class="text-center py-10 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+          <h4 class="font-semibold text-lg text-gray-800 dark:text-gray-200">No Journal Entries</h4>
+          <p class="text-gray-500 dark:text-gray-400">This student has not written any journals yet.</p>
+        </div>
+      </div>
     </div>
   </main>
 </template>
@@ -46,6 +71,7 @@ import { formatDistanceToNow } from 'date-fns';
 import AdminStatCard from '../../components/admin/AdminStatCard.vue';
 import ErrorDistributionChart from '../../components/admin/ErrorDistributionChart.vue';
 import ErrorTrendChart from '../../components/admin/ErrorTrendChart.vue';
+import AdminJournalCard from '../../components/admin/AdminJournalCard.vue';
 
 const route = useRoute();
 const adminStore = useAdminStore();
@@ -54,6 +80,7 @@ const studentId = route.params.id;
 const loadDetails = () => {
   if (studentId) {
     adminStore.fetchStudentDetails(studentId);
+    adminStore.fetchStudentJournals(studentId);
   }
 };
 

@@ -34,6 +34,7 @@ def get_all_students(db: Session = Depends(database.get_db)):
             username=user.username,
             email=user.email,
             created_at=user.created_at,
+            is_admin=user.is_admin,
             journal_count=journal_count,
             total_errors=total_errors or 0,
             last_active=last_active
@@ -81,6 +82,7 @@ def get_student_details(student_id: int, db: Session = Depends(database.get_db))
         "username": student.username,
         "email": student.email,
         "created_at": student.created_at,
+        "is_admin": student.is_admin,
         "journal_count": journal_count,
         "total_errors": total_errors or 0,
         "last_active": last_active,
@@ -119,3 +121,35 @@ def get_class_error_trend(db: Session = Depends(database.get_db)):
         models.UserError.last_occurred_at >= thirty_days_ago
     ).group_by(cast(models.UserError.last_occurred_at, SQLDate))\
     .order_by(cast(models.UserError.last_occurred_at, SQLDate)).all()
+
+# NEW ENDPOINT to get all journals for a student
+@router.get("/students/{student_id}/journals", response_model=List[schemas.JournalOut])
+def get_student_journals(student_id: int, db: Session = Depends(database.get_db)):
+    """
+    Retrieves all journal entries for a specific student.
+    """
+    student = db.query(models.User).filter(models.User.id == student_id, models.User.is_admin == False).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found.")
+
+    journals = db.query(models.Journal).filter(models.Journal.user_id == student_id).order_by(models.Journal.journal_date.desc()).all()
+    return journals
+
+# NEW ENDPOINT to get a single journal for a student
+@router.get("/students/{student_id}/journals/{journal_date}", response_model=schemas.JournalOut)
+def get_student_journal_by_date(student_id: int, journal_date: date, db: Session = Depends(database.get_db)):
+    """
+    Retrieves a specific journal entry by date for a specific student.
+    """
+    journal = db.query(models.Journal).filter(
+        models.Journal.user_id == student_id,
+        models.Journal.journal_date == journal_date
+    ).first()
+
+    if not journal:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Journal entry for date {journal_date} not found for student {student_id}."
+        )
+    
+    return journal

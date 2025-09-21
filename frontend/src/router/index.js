@@ -8,6 +8,7 @@ import LearningHubView from '../views/LearningHubView.vue';
 import TopicDetailView from '../views/TopicDetailView.vue';
 import AdminDashboardView from '../views/admin/AdminDashboardView.vue';
 import AdminStudentDetailView from '../views/admin/AdminStudentDetailView.vue';
+import AdminJournalDetailView from '../views/admin/AdminJournalDetailView.vue';
 
 const routes = [
   {
@@ -59,6 +60,13 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true },
     props: true,
   },
+  {
+    path: '/admin/student/:studentId/journal/:journalDate',
+    name: 'AdminJournalDetail',
+    component: AdminJournalDetailView,
+    meta: { requiresAuth: true, requiresAdmin: true },
+    props: true,
+  },
 ];
 
 const router = createRouter({
@@ -95,4 +103,3 @@ router.beforeEach(async (to, from, next) => {
 });
 
 export default router;
-
