@@ -116,6 +116,7 @@ class AIConceptualFeedbackResponse(BaseModel):
 class AIChatRequest(BaseModel):
     """Schema for the request body when sending a chat message."""
     message: str = Field(..., min_length=1)
+    enable_correction: bool = False
 
 class AIChatResponse(BaseModel):
     """Schema for the response from the AI chat endpoint."""

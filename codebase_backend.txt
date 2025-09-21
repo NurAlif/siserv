@@ -143,6 +143,7 @@ class AIConceptualFeedbackResponse(BaseModel):
 class AIChatRequest(BaseModel):
     """Schema for the request body when sending a chat message."""
     message: str = Field(..., min_length=1)
+    enable_correction: bool = False
 
 class AIChatResponse(BaseModel):
     """Schema for the response from the AI chat endpoint."""
@@ -743,6 +744,49 @@ For each feedback item, include:
 - Phrase suggestions constructively (e.g., "Consider saying..." instead of "This is wrong.").
 """
 
+QUICK_CORRECTION_PROMPT_TEMPLATE = """
+You are an expert English grammar and spelling checker. Your task is to analyze a short message from a user and find the single most significant error.
+
+**RULES:**
+1.  Focus on only ONE error.
+2.  If you find an error, you MUST respond with a valid JSON object with FOUR keys:
+    - `incorrect_phrase`: The exact text from the user's message that is incorrect.
+    - `suggestion`: The corrected version of that phrase.
+    - `explanation`: A very brief, one-sentence explanation of why it was wrong.
+    - `status`: MUST be the string "correction_found".
+
+3.  If the user's message is grammatically correct and has no spelling errors, you MUST respond with a valid JSON object with only ONE key:
+    - `status`: MUST be the string "no_errors".
+
+**EXAMPLE 1 (Error Found):**
+User's Message: "There is many clanlanges."
+Your JSON Response:
+```json
+{
+  "incorrect_phrase": "There is many clanlanges",
+  "suggestion": "There are many languages",
+  "explanation": "'Are' is used for plural nouns like 'languages', and 'languages' was misspelled.",
+  "status": "correction_found"
+}
+```
+
+**EXAMPLE 2 (No Error Found):**
+User's Message: "I went to the store yesterday."
+Your JSON Response:
+```json
+{
+  "status": "no_errors"
+}
+```
+
+**Analyze the following message:**
+
+User's Message:
+---
+{user_message}
+---
+"""
+
 
 def get_scaffolding_response(user_context: dict, session_state: dict) -> dict:
     """
@@ -797,6 +841,24 @@ def get_evaluation_feedback(text: str) -> dict:
             "high_level_summary": "There was an issue analyzing the text. Please try again.",
             "feedback_items": []
         }
+
+def get_quick_correction(user_message: str) -> dict:
+    """
+    Analyzes a short user message and returns a single grammar/spelling correction.
+    """
+    try:
+        full_prompt = QUICK_CORRECTION_PROMPT_TEMPLATE.format(user_message=user_message)
+        response = model.generate_content(full_prompt)
+        cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
+        
+        if not cleaned_response:
+            return {"status": "no_errors"}
+            
+        return json.loads(cleaned_response)
+    except Exception as e:
+        print(f"An error occurred with the Gemini API during quick correction: {e}")
+        return {"status": "no_errors"}
+
 
 ```
 
@@ -1351,8 +1413,8 @@ def chat_with_ai(
 ):
     """
     Handles a real-time conversation turn with the AI.
-    The AI's behavior and response format depend on the journal's current writing_phase.
-    Returns the entire updated journal object to ensure UI reactivity.
+    Optionally provides a quick correction if requested.
+    Returns the entire updated journal object to prevent race conditions.
     """
     journal = db.query(models.Journal).options(
         joinedload(models.Journal.chat_messages),
@@ -1368,7 +1430,7 @@ def chat_with_ai(
             detail=f"Journal entry for date {journal_date} not found."
         )
         
-    # 1. Save user's message
+    # 1. Add user's message to the session
     user_message = models.ChatMessage(
         journal_id=journal.id,
         sender=models.MessageSender.user,
@@ -1376,33 +1438,31 @@ def chat_with_ai(
         message_type=models.MessageType.conversation
     )
     db.add(user_message)
-    db.commit()
-    db.refresh(journal)
 
-    # 2. Orchestrate AI response based on phase
+    # 2. Get AI responses BEFORE committing anything.
+    temp_chat_history = [
+        {"role": msg.sender.name, "content": msg.message_text}
+        for msg in journal.chat_messages
+        if msg.message_type == models.MessageType.conversation
+    ]
+    temp_chat_history.append({"role": "user", "content": request.message})
+
+    # A) Get conversational response
     ai_message_text = "I'm not sure how to respond to that." # Default
-    
     if journal.writing_phase == models.JournalPhase.scaffolding:
-        chat_history = [{"role": msg.sender.name, "content": msg.message_text} for msg in journal.chat_messages]
         session_state = {
             "current_outline": journal.outline_content,
-            "chat_history": chat_history,
-            "topic_turn_count": journal.scaffolding_turn_count
+            "chat_history": temp_chat_history,
         }
         user_context = journal.owner.context_profile.profile_data if journal.owner.context_profile and journal.owner.context_profile.profile_data else {}
-        
         ai_response = ai_service.get_scaffolding_response(user_context, session_state)
-        
         action = ai_response.get("action")
         payload = ai_response.get("payload", {})
-
-        # UPDATE the journal's turn count with the new value from the AI's response
-        journal.scaffolding_turn_count = payload.get("new_topic_turn_count", 0)
 
         if action == "ADD_TO_OUTLINE":
             journal.outline_content = (journal.outline_content or "") + payload.get("text_to_add", "")
             ai_message_text = payload.get("follow_up_question", "I've added that. What's next?")
-        elif action in ["PROBE_TOPIC", "SUGGEST_BRANCH", "ASK_GENERAL_QUESTION", "ASK_QUESTION"]:
+        else:
             ai_message_text = payload.get("question", "What would you like to discuss?")
 
     elif journal.writing_phase == models.JournalPhase.writing:
@@ -1411,18 +1471,44 @@ def chat_with_ai(
             outline=journal.outline_content,
             current_draft=journal.content
         )
+    
+    # B) Get correction response and add feedback message (if enabled)
+    if request.enable_correction:
+        correction_data = ai_service.get_quick_correction(request.message)
+        
+        feedback_payload = {}
+        # Check not only for key existence but also for non-empty string values.
+        if (correction_data 
+            and 'incorrect_phrase' in correction_data and correction_data.get('incorrect_phrase')
+            and 'suggestion' in correction_data and correction_data.get('suggestion')):
+            feedback_payload = correction_data
+        # Otherwise, regardless of what the AI sent, we classify it as "no errors found".
+        # This prevents empty/broken feedback cards in the UI.
+        else:
+            feedback_payload = {"status": "no_errors"}
 
-    # 3. Save AI's response message
-    ai_message = models.ChatMessage(
+        feedback_message = models.ChatMessage(
+            journal_id=journal.id,
+            sender=models.MessageSender.ai,
+            message_text=json.dumps(feedback_payload),
+            message_type=models.MessageType.feedback
+        )
+        db.add(feedback_message)
+
+    # 3. Add AI's conversational message to the session
+    ai_conv_message = models.ChatMessage(
         journal_id=journal.id,
         sender=models.MessageSender.ai,
         message_text=ai_message_text,
         message_type=models.MessageType.conversation
     )
-    db.add(ai_message)
+    db.add(ai_conv_message)
+
+    # 4. Commit all new messages (user, feedback, conversation) at once
     db.commit()
     db.refresh(journal)
 
     return journal
+
 
 ```

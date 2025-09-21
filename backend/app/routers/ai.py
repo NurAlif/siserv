@@ -104,8 +104,8 @@ def chat_with_ai(
 ):
     """
     Handles a real-time conversation turn with the AI.
-    The AI's behavior and response format depend on the journal's current writing_phase.
-    Returns the entire updated journal object to ensure UI reactivity.
+    Optionally provides a quick correction if requested.
+    Returns the entire updated journal object to prevent race conditions.
     """
     journal = db.query(models.Journal).options(
         joinedload(models.Journal.chat_messages),
@@ -121,7 +121,7 @@ def chat_with_ai(
             detail=f"Journal entry for date {journal_date} not found."
         )
         
-    # 1. Save user's message
+    # 1. Add user's message to the session
     user_message = models.ChatMessage(
         journal_id=journal.id,
         sender=models.MessageSender.user,
@@ -129,33 +129,31 @@ def chat_with_ai(
         message_type=models.MessageType.conversation
     )
     db.add(user_message)
-    db.commit()
-    db.refresh(journal)
 
-    # 2. Orchestrate AI response based on phase
+    # 2. Get AI responses BEFORE committing anything.
+    temp_chat_history = [
+        {"role": msg.sender.name, "content": msg.message_text}
+        for msg in journal.chat_messages
+        if msg.message_type == models.MessageType.conversation
+    ]
+    temp_chat_history.append({"role": "user", "content": request.message})
+
+    # A) Get conversational response
     ai_message_text = "I'm not sure how to respond to that." # Default
-    
     if journal.writing_phase == models.JournalPhase.scaffolding:
-        chat_history = [{"role": msg.sender.name, "content": msg.message_text} for msg in journal.chat_messages]
         session_state = {
             "current_outline": journal.outline_content,
-            "chat_history": chat_history,
-            "topic_turn_count": journal.scaffolding_turn_count
+            "chat_history": temp_chat_history,
         }
         user_context = journal.owner.context_profile.profile_data if journal.owner.context_profile and journal.owner.context_profile.profile_data else {}
-        
         ai_response = ai_service.get_scaffolding_response(user_context, session_state)
-        
         action = ai_response.get("action")
         payload = ai_response.get("payload", {})
-
-        # UPDATE the journal's turn count with the new value from the AI's response
-        journal.scaffolding_turn_count = payload.get("new_topic_turn_count", 0)
 
         if action == "ADD_TO_OUTLINE":
             journal.outline_content = (journal.outline_content or "") + payload.get("text_to_add", "")
             ai_message_text = payload.get("follow_up_question", "I've added that. What's next?")
-        elif action in ["PROBE_TOPIC", "SUGGEST_BRANCH", "ASK_GENERAL_QUESTION", "ASK_QUESTION"]:
+        else:
             ai_message_text = payload.get("question", "What would you like to discuss?")
 
     elif journal.writing_phase == models.JournalPhase.writing:
@@ -164,16 +162,42 @@ def chat_with_ai(
             outline=journal.outline_content,
             current_draft=journal.content
         )
+    
+    # B) Get correction response and add feedback message (if enabled)
+    if request.enable_correction:
+        correction_data = ai_service.get_quick_correction(request.message)
+        
+        feedback_payload = {}
+        # Check not only for key existence but also for non-empty string values.
+        if (correction_data 
+            and 'incorrect_phrase' in correction_data and correction_data.get('incorrect_phrase')
+            and 'suggestion' in correction_data and correction_data.get('suggestion')):
+            feedback_payload = correction_data
+        # Otherwise, regardless of what the AI sent, we classify it as "no errors found".
+        # This prevents empty/broken feedback cards in the UI.
+        else:
+            feedback_payload = {"status": "no_errors"}
 
-    # 3. Save AI's response message
-    ai_message = models.ChatMessage(
+        feedback_message = models.ChatMessage(
+            journal_id=journal.id,
+            sender=models.MessageSender.ai,
+            message_text=json.dumps(feedback_payload),
+            message_type=models.MessageType.feedback
+        )
+        db.add(feedback_message)
+
+    # 3. Add AI's conversational message to the session
+    ai_conv_message = models.ChatMessage(
         journal_id=journal.id,
         sender=models.MessageSender.ai,
         message_text=ai_message_text,
         message_type=models.MessageType.conversation
     )
-    db.add(ai_message)
+    db.add(ai_conv_message)
+
+    # 4. Commit all new messages (user, feedback, conversation) at once
     db.commit()
     db.refresh(journal)
 
     return journal
+

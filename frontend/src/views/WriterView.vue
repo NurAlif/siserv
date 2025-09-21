@@ -74,11 +74,17 @@
         <div v-show="isChatActive && currentPhase === 'scaffolding'" class="p-6 border-t border-gray-200 dark:border-gray-700">
             <div class="w-full h-96 border border-gray-300 dark:border-gray-600 rounded-lg flex flex-col bg-gray-50 dark:bg-gray-900">
             <div ref="scaffoldingChatContainer" class="flex-grow p-4 overflow-y-auto space-y-4">
-                <div v-for="message in currentJournal?.chat_messages" :key="message.id" class="flex" :class="message.sender === 'user' ? 'justify-end' : 'justify-start'">
-                <div v-if="message.message_type === 'conversation'" class="p-3 rounded-lg max-w-xs break-words" :class="message.sender === 'user' ? 'bg-indigo-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'">
-                    <p class="text-sm">{{ message.message_text }}</p>
-                </div>
-                </div>
+                <template v-for="message in currentJournal?.chat_messages" :key="message.id">
+                    <div v-if="message.message_type === 'conversation'" class="flex" :class="message.sender === 'user' ? 'justify-end' : 'justify-start'">
+                        <div class="p-3 rounded-lg max-w-xs break-words" :class="message.sender === 'user' ? 'bg-indigo-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'">
+                            <p class="text-sm">{{ message.message_text }}</p>
+                        </div>
+                    </div>
+                    <div v-else-if="message.message_type === 'feedback'" class="flex justify-start">
+                        <ChatFeedbackCard :message="message" />
+                    </div>
+                </template>
+
                 <div v-if="aiStore.isLoading" class="flex justify-start">
                     <div class="bg-gray-200 dark:bg-gray-700 p-3 rounded-lg animate-pulse">
                         <p class="text-sm text-gray-400">...</p>
@@ -86,7 +92,19 @@
                 </div>
             </div>
             <div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                <input v-model="newMessage" @keyup.enter="sendMessage" :disabled="aiStore.isLoading || !currentJournal" type="text" :placeholder="chatPlaceholder" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none disabled:bg-gray-100 dark:disabled:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                <div class="relative">
+                    <input v-model="newMessage" @keyup.enter="sendMessage" :disabled="aiStore.isLoading || !currentJournal" type="text" :placeholder="chatPlaceholder" class="w-full p-2 pr-20 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none disabled:bg-gray-100 dark:disabled:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                    <div class="absolute inset-y-0 right-0 flex items-center pr-2">
+                        <label for="correction-toggle" class="flex items-center cursor-pointer">
+                            <span class="mr-2 text-xs text-gray-500 dark:text-gray-400">Correct</span>
+                            <div class="relative">
+                                <input type="checkbox" id="correction-toggle" class="sr-only" v-model="isCorrectionModeEnabled">
+                                <div class="block bg-gray-200 dark:bg-gray-600 w-10 h-6 rounded-full"></div>
+                                <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform"></div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
             </div>
             </div>
         </div>
@@ -178,17 +196,33 @@
           <div class="flex flex-col min-h-0" :class="{'hidden md:flex': mobileView !== 'partner'}">
             <!-- Chat Section (takes full height of this column) -->
             <div class="flex-grow w-full border border-gray-300 dark:border-gray-600 rounded-lg flex flex-col bg-gray-50 dark:bg-gray-900 overflow-hidden">
-                <div class="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2 flex-shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" class="text-indigo-500 dark:text-indigo-400" fill="currentColor" viewBox="0 0 256 256"><path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,212.3a16,16,0,0,0,20.55,18.85l37.81-12.6A104,104,0,1,0,128,24Zm0,192a88.1,88.1,0,0,1-45.43-13.25a8,8,0,0,0-9-1.33L40,211.52l9.9-32.68a8,8,0,0,0-1.12-8.52A88,88,0,1,1,128,216Z"></path></svg>
-                    <h4 class="font-semibold text-gray-800 dark:text-gray-200">Writing Partner</h4>
+                <div class="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
+                    <div class="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" class="text-indigo-500 dark:text-indigo-400" fill="currentColor" viewBox="0 0 256 256"><path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,212.3a16,16,0,0,0,20.55,18.85l37.81-12.6A104,104,0,1,0,128,24Zm0,192a88.1,88.1,0,0,1-45.43-13.25a8,8,0,0,0-9-1.33L40,211.52l9.9-32.68a8,8,0,0,0-1.12-8.52A88,88,0,1,1,128,216Z"></path></svg>
+                        <h4 class="font-semibold text-gray-800 dark:text-gray-200">Writing Partner</h4>
+                    </div>
+                    <!-- Correction Toggle for Writing Phase -->
+                    <label for="correction-toggle-writing" class="flex items-center cursor-pointer">
+                        <span class="mr-2 text-xs text-gray-500 dark:text-gray-400">Correct</span>
+                        <div class="relative">
+                            <input type="checkbox" id="correction-toggle-writing" class="sr-only" v-model="isCorrectionModeEnabled">
+                            <div class="block bg-gray-200 dark:bg-gray-600 w-10 h-6 rounded-full"></div>
+                            <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform"></div>
+                        </div>
+                    </label>
                 </div>
                 <div ref="chatContainer" class="flex-grow p-4 overflow-y-auto space-y-4">
-                    <!-- Chat Messages -->
-                      <div v-for="message in currentJournal?.chat_messages" :key="message.id" class="flex" :class="message.sender === 'user' ? 'justify-end' : 'justify-start'">
-                        <div v-if="message.message_type === 'conversation'" class="p-3 rounded-lg max-w-xs break-words" :class="message.sender === 'user' ? 'bg-indigo-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'">
-                            <p class="text-sm">{{ message.message_text }}</p>
+                    <template v-for="message in currentJournal?.chat_messages" :key="message.id">
+                        <div v-if="message.message_type === 'conversation'" class="flex" :class="message.sender === 'user' ? 'justify-end' : 'justify-start'">
+                            <div class="p-3 rounded-lg max-w-xs break-words" :class="message.sender === 'user' ? 'bg-indigo-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'">
+                                <p class="text-sm">{{ message.message_text }}</p>
+                            </div>
                         </div>
-                      </div>
+                        <div v-else-if="message.message_type === 'feedback'" class="flex justify-start">
+                            <ChatFeedbackCard :message="message" />
+                        </div>
+                    </template>
+
                       <div v-if="aiStore.isLoading" class="flex justify-start">
                           <div class="bg-gray-200 dark:bg-gray-700 p-3 rounded-lg animate-pulse">
                               <p class="text-sm text-gray-400">...</p>
@@ -260,6 +294,7 @@ import { useJournalStore } from '../stores/journalStore';
 import { useAiStore } from '../stores/aiStore';
 import { format } from 'date-fns';
 import AIFeedbackCard from '../components/AIFeedbackCard.vue';
+import ChatFeedbackCard from '../components/ChatFeedbackCard.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -269,21 +304,22 @@ const aiStore = useAiStore();
 const currentJournal = computed(() => journalStore.getJournalByDate(route.params.date));
 const currentPhase = computed(() => currentJournal.value?.writing_phase || 'scaffolding');
 
-// New state for mobile tab view
-const mobileView = ref('writer'); // 'writer' or 'partner'
+const mobileView = ref('writer'); 
+
+const isCorrectionModeEnabled = ref(true);
 
 const content = ref('');
 const outlineContent = ref('');
 const statusText = ref('Saved');
 const newMessage = ref('');
-const chatContainer = ref(null); // For writing phase chat
-const scaffoldingChatContainer = ref(null); // For scaffolding phase chat
-const isChatActive = ref(false); // Only for scaffolding now
+const chatContainer = ref(null);
+const scaffoldingChatContainer = ref(null);
+const isChatActive = ref(false);
 const appliedSuggestions = ref([]);
 const phases = ref([
     { id: 1, name: 'Scaffolding' },
     { id: 2, name: 'Writing' },
-    { id: 3, name: 'Evaluation' }, // Changed from Finishing
+    { id: 3, name: 'Evaluation' },
     { id: 4, name: 'Completed' },
 ]);
 
@@ -339,9 +375,8 @@ watch(
     if (newJournal) {
       content.value = newJournal.content || '';
       outlineContent.value = newJournal.outline_content || '';
-      appliedSuggestions.value = []; // Reset when journal changes
+      appliedSuggestions.value = []; 
       
-      // *** BUG FIX: Changed 'finishing' to 'evaluation' ***
       if(newJournal.writing_phase === 'evaluation' && (!aiStore.feedback.length || aiStore.error)) {
         aiStore.getFeedback(newJournal.journal_date, newJournal.content);
       }
@@ -354,7 +389,6 @@ watch(() => currentJournal.value?.chat_messages, () => {
     scrollToBottom();
 }, { deep: true });
 
-// Auto-save content changes during the writing phase
 watch(content, (newValue, oldValue) => {
     if (currentPhase.value === 'writing' && newValue !== oldValue) {
         saveJournal();
@@ -375,7 +409,7 @@ const saveJournal = async (showStatus = true) => {
 
 const moveToPhase = async (phase) => {
     if (!currentJournal.value) return;
-    isChatActive.value = false; // Close chat when moving phase
+    isChatActive.value = false;
     await saveJournal();
     await journalStore.updateJournalPhase(currentJournal.value.journal_date, phase);
 };
@@ -389,17 +423,23 @@ const toggleChatMode = () => {
 
 const sendMessage = async () => {
   if (!newMessage.value.trim() || !currentJournal.value || aiStore.isLoading) return;
-  // Save journal before sending to give AI the latest context
+  
+  // Save latest content before sending a message in relevant phases
   if (currentPhase.value === 'scaffolding' || currentPhase.value === 'writing') {
     await saveJournal(false);
   }
 
   const messageToSend = newMessage.value;
   newMessage.value = '';
-  await aiStore.chatWithAI(currentJournal.value.journal_date, messageToSend);
+
+  // Single API call that handles both conversation and correction
+  aiStore.chatWithAI(
+    currentJournal.value.journal_date,
+    messageToSend,
+    isCorrectionModeEnabled.value
+  );
 };
 
-// --- Phase 3 Logic ---
 const highlightedContent = computed(() => {
     if (currentPhase.value !== 'evaluation' || !aiStore.feedback.length) {
         return content.value;
@@ -438,14 +478,32 @@ const isPhaseActive = (phaseId) => phaseMap[currentPhase.value] >= phaseId;
 
 const getPhaseClass = (phaseId) => {
     const phaseValue = phaseMap[currentPhase.value];
-    if (phaseValue > phaseId) return 'bg-green-500 text-white scale-100'; // Completed
-    if (phaseValue === phaseId) return 'bg-indigo-600 text-white scale-110 shadow-lg'; // Active
-    return 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 scale-100'; // Inactive
+    if (phaseValue > phaseId) return 'bg-green-500 text-white scale-100';
+    if (phaseValue === phaseId) return 'bg-indigo-600 text-white scale-110 shadow-lg';
+    return 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 scale-100';
 };
 
 const getPhaseLineClass = (phaseId) => {
-    if (phaseMap[currentPhase.value] >= phaseId) return 'bg-green-500'; // Completed line
-    return 'bg-gray-200 dark:bg-gray-700'; // Inactive line
+    if (phaseMap[currentPhase.value] >= phaseId) return 'bg-green-500';
+    return 'bg-gray-200 dark:bg-gray-700';
 };
 
 </script>
+
+<style>
+/* Add styles for the toggle switch */
+#correction-toggle:checked ~ .dot,
+#correction-toggle-writing:checked ~ .dot {
+  transform: translateX(100%);
+  background-color: #4f46e5; /* indigo-600 */
+}
+#correction-toggle:checked ~ .block,
+#correction-toggle-writing:checked ~ .block {
+    background-color: #c7d2fe; /* indigo-200 */
+}
+.dark #correction-toggle:checked ~ .block,
+.dark #correction-toggle-writing:checked ~ .block {
+    background-color: #3730a3; /* indigo-800 */
+}
+</style>
+

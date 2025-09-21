@@ -122,6 +122,53 @@ For each feedback item, include:
 - Phrase suggestions constructively (e.g., "Consider saying..." instead of "This is wrong.").
 """
 
+QUICK_CORRECTION_PROMPT_TEMPLATE = """
+You are an automated English grammar and spelling checker. Your ONLY output must be a single, valid JSON object. Do not include any explanatory text, markdown, or any characters outside of the JSON structure.
+
+Your task is to meticulously analyze a short message from a user and identify the single most significant error.
+
+**RULES:**
+1.  Your analysis must be strict. Check for spelling errors, incorrect verb tenses, subject-verb agreement, and incorrect word usage.
+2.  Focus on only ONE error. If there are multiple, choose the most obvious one (spelling errors are high priority).
+3.  If you find an error, you MUST respond with a valid JSON object with FOUR keys:
+    - `incorrect_phrase`: The exact text from the user's message that is incorrect.
+    - `suggestion`: The corrected version of that phrase.
+    - `explanation`: A very brief, one-sentence explanation of why it was wrong.
+    - `status`: MUST be the string "correction_found".
+
+4.  If the user's message is grammatically perfect and has no spelling errors, you MUST respond with a valid JSON object with only ONE key:
+    - `status`: MUST be the string "no_errors".
+5.  Your entire response must be ONLY the JSON object.
+
+**EXAMPLE 1 (Error Found):**
+User's Message: "There is many clanlanges."
+Your JSON Response:
+```json
+{{
+  "incorrect_phrase": "There is many clanlanges",
+  "suggestion": "There are many languages",
+  "explanation": "'Are' is used for plural nouns like 'languages', and 'languages' was misspelled.",
+  "status": "correction_found"
+}}
+```
+
+**EXAMPLE 2 (No Error Found):**
+User's Message: "I went to the store yesterday."
+Your JSON Response:
+```json
+{{
+  "status": "no_errors"
+}}
+```
+
+**Analyze the following message:**
+
+User's Message:
+---
+{user_message}
+---
+"""
+
 
 def get_scaffolding_response(user_context: dict, session_state: dict) -> dict:
     """
@@ -176,3 +223,35 @@ def get_evaluation_feedback(text: str) -> dict:
             "high_level_summary": "There was an issue analyzing the text. Please try again.",
             "feedback_items": []
         }
+
+def get_quick_correction(user_message: str) -> dict:
+    """
+    Analyzes a short user message and returns a single grammar/spelling correction.
+    """
+    cleaned_response = ""
+    try:
+        full_prompt = QUICK_CORRECTION_PROMPT_TEMPLATE.format(user_message=user_message)
+        response = model.generate_content(full_prompt)
+
+        # --- NEW: More robust check for a valid response ---
+        if not response.parts:
+            print("--- AI RESPONSE ERROR ---")
+            print(f"AI response was empty or blocked. Candidates: {response.candidates}")
+            print("-------------------------")
+            return {"status": "no_errors"}
+
+        cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
+        
+        if not cleaned_response:
+            return {"status": "no_errors"}
+            
+        return json.loads(cleaned_response)
+    except Exception as e:
+        print(f"An error occurred during quick correction: {e}")
+        # --- NEW LOGGING ---
+        print(f"--- FAILED TO PARSE AI RESPONSE ---")
+        print(f"Raw response text: '{cleaned_response}'")
+        print(f"------------------------------------")
+        # --- END NEW LOGGING ---
+        return {"status": "no_errors"}
+
