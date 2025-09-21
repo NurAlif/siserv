@@ -6,6 +6,7 @@ Codebase Structure Overview:
     ├── main.py
     ├── models.py
     ├── routers
+    │   ├── admin.py
     │   ├── ai.py
     │   ├── auth.py
     │   ├── journals.py
@@ -48,6 +49,7 @@ class UserOut(UserBase):
     """Schema for returning user data to the client. Excludes the password."""
     id: int
     created_at: datetime
+    is_admin: bool # This field ensures the admin status is sent to the frontend
 
     class Config:
         from_attributes = True
@@ -168,6 +170,30 @@ class StreakOut(BaseModel):
     """Schema for returning the user's current streak."""
     streak_count: int
 
+# --- NEW Admin Schemas ---
+
+class AdminErrorDistributionItem(BaseModel):
+    """Schema for a single data point in the error distribution chart."""
+    topic_name: str
+    error_count: int
+
+class AdminErrorTrendPoint(BaseModel):
+    """Schema for a single data point in the error trend chart."""
+    date: date
+    error_count: int
+
+class AdminStudentSummary(UserOut):
+    """Schema for listing all students in the admin dashboard."""
+    journal_count: int
+    total_errors: int
+    last_active: Optional[datetime]
+    is_admin: bool = False # Override to provide a default, fixing the error.
+
+class AdminStudentDetail(AdminStudentSummary):
+    """Schema for the detailed view of a single student."""
+    error_distribution: List[AdminErrorDistributionItem]
+    error_trend: List[AdminErrorTrendPoint]
+
 # --- New Schemas for Learning Hub ---
 
 class TopicDetail(BaseModel):
@@ -193,6 +219,7 @@ class UserTopic(BaseModel):
 class UserTopicDetails(UserTopic):
     """Extends UserTopic to include the full list of errors."""
     errors: List[TopicDetail]
+
 
 ```
 
@@ -270,14 +297,24 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         
     return user
 
-
+def get_current_admin_user(current_user: models.User = Depends(get_current_user)):
+    """
+    Dependency to ensure the current user is an admin.
+    Raises an HTTPException if the user is not an admin.
+    """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to access this resource."
+        )
+    return current_user
 ```
 
 
 ### File: app/models.py
 
 ```
-from sqlalchemy import Column, Integer, String, Text, Date, ForeignKey, TIMESTAMP, Enum
+from sqlalchemy import Column, Integer, String, Text, Date, ForeignKey, TIMESTAMP, Enum, Boolean
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import text
@@ -310,6 +347,7 @@ class User(Base):
     username = Column(String(50), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
     hashed_password = Column(String(255), nullable=False)
+    is_admin = Column(Boolean, server_default='f', nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
     
     journals = relationship("Journal", back_populates="owner")
@@ -439,7 +477,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from . import models
 from .database import engine
-from .routers import auth, journals, ai, progress
+from .routers import auth, journals, ai, progress, admin
 
 # This line creates the database tables.
 models.Base.metadata.create_all(bind=engine)
@@ -470,7 +508,7 @@ app.include_router(auth.router)
 app.include_router(journals.router)
 app.include_router(ai.router)
 app.include_router(progress.router)
-
+app.include_router(admin.router)
 
 ```
 
@@ -766,21 +804,21 @@ Your task is to meticulously analyze a short message from a user and identify th
 User's Message: "There is many clanlanges."
 Your JSON Response:
 ```json
-{
+{{
   "incorrect_phrase": "There is many clanlanges",
   "suggestion": "There are many languages",
   "explanation": "'Are' is used for plural nouns like 'languages', and 'languages' was misspelled.",
   "status": "correction_found"
-}
+}}
 ```
 
 **EXAMPLE 2 (No Error Found):**
 User's Message: "I went to the store yesterday."
 Your JSON Response:
 ```json
-{
+{{
   "status": "no_errors"
-}
+}}
 ```
 
 **Analyze the following message:**
@@ -858,31 +896,31 @@ def get_quick_correction(user_message: str) -> dict:
     Analyzes a short user message and returns a single grammar/spelling correction.
     """
     cleaned_response = ""
-    try:
-        full_prompt = QUICK_CORRECTION_PROMPT_TEMPLATE.format(user_message=user_message)
-        response = model.generate_content(full_prompt)
-
-        # --- NEW: More robust check for a valid response ---
-        if not response.parts:
-            print("--- AI RESPONSE ERROR ---")
-            print(f"AI response was empty or blocked. Candidates: {response.candidates}")
-            print("-------------------------")
-            return {"status": "no_errors"}
-
-        cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
-        
-        if not cleaned_response:
-            return {"status": "no_errors"}
-            
-        return json.loads(cleaned_response)
-    except Exception as e:
-        print(f"An error occurred during quick correction: {e}")
-        # --- NEW LOGGING ---
-        print(f"--- FAILED TO PARSE AI RESPONSE ---")
-        print(f"Raw response text: '{cleaned_response}'")
-        print(f"------------------------------------")
-        # --- END NEW LOGGING ---
+    # try:
+    full_prompt = QUICK_CORRECTION_PROMPT_TEMPLATE.format(user_message=user_message)
+    response = model.generate_content(full_prompt)
+    print(response)
+    # --- NEW: More robust check for a valid response ---
+    if not response.parts:
+        print("--- AI RESPONSE ERROR ---")
+        print(f"AI response was empty or blocked. Candidates: {response.candidates}")
+        print("-------------------------")
         return {"status": "no_errors"}
+
+    cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
+    
+    if not cleaned_response:
+        return {"status": "no_errors"}
+        
+    return json.loads(cleaned_response)
+    # except Exception as e:
+    #     print(f"An error occurred during quick correction: {e}")
+    #     # --- NEW LOGGING ---
+    #     print(f"--- FAILED TO PARSE AI RESPONSE ---")
+    #     print(f"Raw response text: '{cleaned_response}'")
+    #     print(f"------------------------------------")
+    #     # --- END NEW LOGGING ---
+    #     return {"status": "no_errors"}
 
 
 ```
@@ -1135,6 +1173,134 @@ def read_users_me(current_user: models.User = Depends(security.get_current_user)
     Requires a valid JWT in the Authorization header.
     """
     return current_user
+
+```
+
+
+### File: app/routers/admin.py
+
+```
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from sqlalchemy import func, desc, cast, Date as SQLDate
+from typing import List
+from datetime import date, timedelta
+
+from .. import database, schemas, models, security
+
+router = APIRouter(
+    prefix="/api/admin",
+    tags=["Admin"],
+    dependencies=[Depends(security.get_current_admin_user)]
+)
+
+@router.get("/students", response_model=List[schemas.AdminStudentSummary])
+def get_all_students(db: Session = Depends(database.get_db)):
+    """
+    Retrieves a list of all non-admin users (students) with summary stats.
+    """
+    students_query = db.query(
+        models.User,
+        func.count(models.Journal.id).label("journal_count"),
+        func.max(models.Journal.updated_at).label("last_active")
+    ).outerjoin(models.Journal, models.User.id == models.Journal.user_id)\
+    .filter(models.User.is_admin == False)\
+    .group_by(models.User.id).all()
+
+    results = []
+    for user, journal_count, last_active in students_query:
+        total_errors = db.query(func.count(models.UserError.id)).filter(models.UserError.user_id == user.id).scalar()
+        
+        student_summary = schemas.AdminStudentSummary(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            created_at=user.created_at,
+            journal_count=journal_count,
+            total_errors=total_errors or 0,
+            last_active=last_active
+        )
+        results.append(student_summary)
+        
+    return results
+
+@router.get("/students/{student_id}", response_model=schemas.AdminStudentDetail)
+def get_student_details(student_id: int, db: Session = Depends(database.get_db)):
+    """
+    Retrieves detailed analytics for a specific student.
+    """
+    student = db.query(models.User).filter(models.User.id == student_id, models.User.is_admin == False).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found.")
+
+    # Base summary stats
+    journal_count = db.query(func.count(models.Journal.id)).filter(models.Journal.user_id == student_id).scalar()
+    total_errors = db.query(func.count(models.UserError.id)).filter(models.UserError.user_id == student_id).scalar()
+    last_active = db.query(func.max(models.Journal.updated_at)).filter(models.Journal.user_id == student_id).scalar()
+
+    # Error distribution by topic
+    error_distribution_query = db.query(
+        models.LearningTopic.topic_name,
+        func.count(models.UserError.id).label("error_count")
+    ).join(models.LearningTopic, models.UserError.topic_id == models.LearningTopic.id)\
+    .filter(models.UserError.user_id == student_id)\
+    .group_by(models.LearningTopic.topic_name)\
+    .order_by(desc("error_count")).all()
+    
+    # Error trend over the last 30 days
+    thirty_days_ago = date.today() - timedelta(days=30)
+    error_trend_query = db.query(
+        cast(models.UserError.last_occurred_at, SQLDate).label("date"),
+        func.count(models.UserError.id).label("error_count")
+    ).filter(
+        models.UserError.user_id == student_id,
+        models.UserError.last_occurred_at >= thirty_days_ago
+    ).group_by(cast(models.UserError.last_occurred_at, SQLDate))\
+    .order_by(cast(models.UserError.last_occurred_at, SQLDate)).all()
+
+    return {
+        "id": student.id,
+        "username": student.username,
+        "email": student.email,
+        "created_at": student.created_at,
+        "journal_count": journal_count,
+        "total_errors": total_errors or 0,
+        "last_active": last_active,
+        "error_distribution": error_distribution_query,
+        "error_trend": error_trend_query
+    }
+
+
+@router.get("/analytics/error-distribution", response_model=List[schemas.AdminErrorDistributionItem])
+def get_class_error_distribution(db: Session = Depends(database.get_db)):
+    """
+    Gets the aggregated distribution of errors by topic for the entire class.
+    """
+    return db.query(
+        models.LearningTopic.topic_name,
+        func.count(models.UserError.id).label("error_count")
+    ).join(models.LearningTopic, models.UserError.topic_id == models.LearningTopic.id)\
+    .join(models.User, models.UserError.user_id == models.User.id)\
+    .filter(models.User.is_admin == False)\
+    .group_by(models.LearningTopic.topic_name)\
+    .order_by(desc("error_count")).all()
+
+
+@router.get("/analytics/error-trend", response_model=List[schemas.AdminErrorTrendPoint])
+def get_class_error_trend(db: Session = Depends(database.get_db)):
+    """
+    Gets the trend of total errors per day for the entire class over the last 30 days.
+    """
+    thirty_days_ago = date.today() - timedelta(days=30)
+    return db.query(
+        cast(models.UserError.last_occurred_at, SQLDate).label("date"),
+        func.count(models.UserError.id).label("error_count")
+    ).join(models.User, models.UserError.user_id == models.User.id)\
+    .filter(
+        models.User.is_admin == False,
+        models.UserError.last_occurred_at >= thirty_days_ago
+    ).group_by(cast(models.UserError.last_occurred_at, SQLDate))\
+    .order_by(cast(models.UserError.last_occurred_at, SQLDate)).all()
 
 ```
 

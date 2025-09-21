@@ -10,8 +10,13 @@
            <h1 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400">LingoJourn</h1>
          </router-link>
          <!-- Navigation Link to Learning Hub -->
-         <nav class="ml-6">
+         <!-- <nav class="ml-6">
            <router-link to="/learning-hub" class="text-sm font-semibold text-gray-600 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors">Learning Hub</router-link>
+         </nav> -->
+         <nav class="ml-6 flex items-center gap-4">
+           <router-link to="/learning-hub" class="text-sm font-semibold text-gray-600 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors">Learning Hub</router-link>
+           <!-- Admin Link (Conditional) -->
+           <router-link v-if="authStore.isAdmin" to="/admin" class="text-sm font-semibold text-gray-600 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors">Admin</router-link>
          </nav>
       </div>
       <div id="user-profile" class="flex items-center gap-4">

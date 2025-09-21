@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from . import models
 from .database import engine
-from .routers import auth, journals, ai, progress
+from .routers import auth, journals, ai, progress, admin
 
 # This line creates the database tables.
 models.Base.metadata.create_all(bind=engine)
@@ -33,4 +33,4 @@ app.include_router(auth.router)
 app.include_router(journals.router)
 app.include_router(ai.router)
 app.include_router(progress.router)
-
+app.include_router(admin.router)

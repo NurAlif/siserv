@@ -144,21 +144,21 @@ Your task is to meticulously analyze a short message from a user and identify th
 User's Message: "There is many clanlanges."
 Your JSON Response:
 ```json
-{
+{{
   "incorrect_phrase": "There is many clanlanges",
   "suggestion": "There are many languages",
   "explanation": "'Are' is used for plural nouns like 'languages', and 'languages' was misspelled.",
   "status": "correction_found"
-}
+}}
 ```
 
 **EXAMPLE 2 (No Error Found):**
 User's Message: "I went to the store yesterday."
 Your JSON Response:
 ```json
-{
+{{
   "status": "no_errors"
-}
+}}
 ```
 
 **Analyze the following message:**
@@ -236,29 +236,29 @@ def get_quick_correction(user_message: str) -> dict:
     Analyzes a short user message and returns a single grammar/spelling correction.
     """
     cleaned_response = ""
-    try:
-        full_prompt = QUICK_CORRECTION_PROMPT_TEMPLATE.format(user_message=user_message)
-        response = model.generate_content(full_prompt)
-
-        # --- NEW: More robust check for a valid response ---
-        if not response.parts:
-            print("--- AI RESPONSE ERROR ---")
-            print(f"AI response was empty or blocked. Candidates: {response.candidates}")
-            print("-------------------------")
-            return {"status": "no_errors"}
-
-        cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
-        
-        if not cleaned_response:
-            return {"status": "no_errors"}
-            
-        return json.loads(cleaned_response)
-    except Exception as e:
-        print(f"An error occurred during quick correction: {e}")
-        # --- NEW LOGGING ---
-        print(f"--- FAILED TO PARSE AI RESPONSE ---")
-        print(f"Raw response text: '{cleaned_response}'")
-        print(f"------------------------------------")
-        # --- END NEW LOGGING ---
+    # try:
+    full_prompt = QUICK_CORRECTION_PROMPT_TEMPLATE.format(user_message=user_message)
+    response = model.generate_content(full_prompt)
+    print(response)
+    # --- NEW: More robust check for a valid response ---
+    if not response.parts:
+        print("--- AI RESPONSE ERROR ---")
+        print(f"AI response was empty or blocked. Candidates: {response.candidates}")
+        print("-------------------------")
         return {"status": "no_errors"}
+
+    cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
+    
+    if not cleaned_response:
+        return {"status": "no_errors"}
+        
+    return json.loads(cleaned_response)
+    # except Exception as e:
+    #     print(f"An error occurred during quick correction: {e}")
+    #     # --- NEW LOGGING ---
+    #     print(f"--- FAILED TO PARSE AI RESPONSE ---")
+    #     print(f"Raw response text: '{cleaned_response}'")
+    #     print(f"------------------------------------")
+    #     # --- END NEW LOGGING ---
+    #     return {"status": "no_errors"}
 

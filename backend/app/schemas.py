@@ -21,6 +21,7 @@ class UserOut(UserBase):
     """Schema for returning user data to the client. Excludes the password."""
     id: int
     created_at: datetime
+    is_admin: bool # This field ensures the admin status is sent to the frontend
 
     class Config:
         from_attributes = True
@@ -141,6 +142,30 @@ class StreakOut(BaseModel):
     """Schema for returning the user's current streak."""
     streak_count: int
 
+# --- NEW Admin Schemas ---
+
+class AdminErrorDistributionItem(BaseModel):
+    """Schema for a single data point in the error distribution chart."""
+    topic_name: str
+    error_count: int
+
+class AdminErrorTrendPoint(BaseModel):
+    """Schema for a single data point in the error trend chart."""
+    date: date
+    error_count: int
+
+class AdminStudentSummary(UserOut):
+    """Schema for listing all students in the admin dashboard."""
+    journal_count: int
+    total_errors: int
+    last_active: Optional[datetime]
+    is_admin: bool = False # Override to provide a default, fixing the error.
+
+class AdminStudentDetail(AdminStudentSummary):
+    """Schema for the detailed view of a single student."""
+    error_distribution: List[AdminErrorDistributionItem]
+    error_trend: List[AdminErrorTrendPoint]
+
 # --- New Schemas for Learning Hub ---
 
 class TopicDetail(BaseModel):
@@ -166,3 +191,4 @@ class UserTopic(BaseModel):
 class UserTopicDetails(UserTopic):
     """Extends UserTopic to include the full list of errors."""
     errors: List[TopicDetail]
+

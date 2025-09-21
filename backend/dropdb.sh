@@ -25,3 +25,5 @@ sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE lingojourn_db TO oftg
 UPDATE users SET role = 'teacher' WHERE username = 'prof_davis';
 
 sudo psql -d lingojourn_db -U oftg -h localhost
+
+UPDATE users SET is_admin = TRUE WHERE username = 'a';

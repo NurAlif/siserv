@@ -11,6 +11,7 @@ export const useAuthStore = defineStore('auth', {
   }),
   getters: {
     isAuthenticated: (state) => !!state.token && !!state.user,
+    isAdmin: (state) => !!state.user && state.user.is_admin,
   },
   actions: {
     async signup(credentials) {
