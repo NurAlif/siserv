@@ -31,6 +31,15 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)
             detail="Username is already taken."
         )
 
+    # --- MODIFIED SECTION START ---
+    db_user_studentid = db.query(models.User).filter(models.User.student_id == user.student_id).first()
+    if db_user_studentid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Student ID is already registered."
+        )
+    # --- MODIFIED SECTION END ---
+
     # Hash the password before storing
     hashed_password = security.get_password_hash(user.password)
     
@@ -38,6 +47,11 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)
     new_user = models.User(
         username=user.username,
         email=user.email,
+        # --- MODIFIED SECTION START ---
+        realname=user.realname,
+        student_id=user.student_id,
+        group=user.group,
+        # --- MODIFIED SECTION END ---
         hashed_password=hashed_password
     )
     db.add(new_user)

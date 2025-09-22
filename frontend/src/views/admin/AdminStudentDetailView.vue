@@ -8,7 +8,6 @@
       </router-link>
     </div>
     
-    <!-- Loading and Error States -->
     <div v-if="adminStore.isLoading" class="text-center py-10">
       <p class="text-gray-500 dark:text-gray-400">Loading student details...</p>
     </div>
@@ -18,9 +17,12 @@
 
     <div v-else-if="adminStore.studentDetails" class="space-y-6">
       <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ adminStore.studentDetails.username }}</h2>
-        <p class="text-gray-500 dark:text-gray-400 mt-1">{{ adminStore.studentDetails.email }}</p>
-      </div>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ adminStore.studentDetails.realname }}</h2>
+        <p class="text-gray-500 dark:text-gray-400 mt-1">
+            Username: {{ adminStore.studentDetails.username }} | Student ID: {{ adminStore.studentDetails.student_id }} | Group: {{adminStore.studentDetails.group}}
+        </p>
+        <p class="text-gray-500 dark:text-gray-400">{{ adminStore.studentDetails.email }}</p>
+        </div>
 
       <!-- Stat Cards -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -6,6 +6,30 @@
         <p class="text-gray-500 dark:text-gray-400">Join LingoJourn to start your English learning journey</p>
       </div>
       <form @submit.prevent="handleSignup" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="realname" class="text-sm font-medium text-gray-700 dark:text-gray-300">Real Name</label>
+            <input
+              v-model="realname"
+              type="text"
+              id="realname"
+              required
+              class="w-full px-3 py-2 mt-1 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              placeholder="John Doe"
+            />
+          </div>
+          <div>
+            <label for="student_id" class="text-sm font-medium text-gray-700 dark:text-gray-300">Student ID</label>
+            <input
+              v-model="student_id"
+              type="text"
+              id="student_id"
+              required
+              class="w-full px-3 py-2 mt-1 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              placeholder="Your ID"
+            />
+          </div>
+        </div>
         <div>
           <label for="username" class="text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
           <input
@@ -54,7 +78,7 @@
         </button>
       </form>
        <p class="text-center text-sm text-gray-600 dark:text-gray-400">
-        Already have an account? 
+        Already have an account?
         <router-link to="/login" class="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">
           Log In
         </router-link>
@@ -68,14 +92,34 @@ import { ref } from 'vue';
 import { useAuthStore } from '../stores/authStore';
 
 const authStore = useAuthStore();
+// --- MODIFIED SECTION START ---
+const realname = ref('');
+const student_id = ref('');
+// --- MODIFIED SECTION END ---
 const username = ref('');
 const email = ref('');
 const password = ref('');
 const successMessage = ref('');
 
+const getGroupFromPort = () => {
+  const port = window.location.port;
+  if (port === '7779') {
+    return 'CG';
+  } else if (port === '7778') {
+    return 'EG';
+  }
+  return 'TEST'; // Default to 'TEST' if not on a specified port
+};
+
 const handleSignup = async () => {
   successMessage.value = '';
+  const group = getGroupFromPort(); 
   await authStore.signup({ 
+    // --- MODIFIED SECTION START ---
+    realname: realname.value,
+    student_id: student_id.value,
+    group: group,
+    // --- MODIFIED SECTION END ---
     username: username.value, 
     email: email.value, 
     password: password.value 
@@ -84,6 +128,10 @@ const handleSignup = async () => {
   if (!authStore.error) {
     successMessage.value = 'Account created successfully! You can now log in.';
     // Clear form fields
+    // --- MODIFIED SECTION START ---
+    realname.value = '';
+    student_id.value = '';
+    // --- MODIFIED SECTION END ---
     username.value = '';
     email.value = '';
     password.value = '';

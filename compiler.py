@@ -52,7 +52,7 @@ def compile_codebase_for_prompting(root_dir, output_file, extensions):
     
     # Define the list of directories to exclude
     directories_to_exclude = [
-        '.git', '__pycache__', 'node_modules', 'dist', 'build', 'venv', '.idea',
+        '.git', '__pycache__', 'node_modules', 'dist', 'dist-eg','dist-cg' , 'build', 'venv', '.idea',
         '__init__.pyc', 'compiled_codebase.txt' # Exclude the output file itself
     ]
 

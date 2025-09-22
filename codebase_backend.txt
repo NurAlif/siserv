@@ -40,10 +40,20 @@ class UserBase(BaseModel):
     """Base schema for user data, containing common fields."""
     email: EmailStr
     username: str
+    # --- MODIFIED SECTION START ---
+    realname: Optional[str] = None
+    student_id: Optional[str] = None
+    group: Optional[str] = None
+    # --- MODIFIED SECTION END ---
 
 class UserCreate(UserBase):
     """Schema for creating a new user. Includes the password."""
     password: str
+    # --- MODIFIED SECTION START ---
+    realname: str
+    student_id: str
+    group: str
+    # --- MODIFIED SECTION END ---
 
 class UserOut(UserBase):
     """Schema for returning user data to the client. Excludes the password."""
@@ -219,8 +229,6 @@ class UserTopic(BaseModel):
 class UserTopicDetails(UserTopic):
     """Extends UserTopic to include the full list of errors."""
     errors: List[TopicDetail]
-
-
 ```
 
 
@@ -346,6 +354,11 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
+    # --- MODIFIED SECTION START ---
+    realname = Column(String(100), nullable=True)
+    student_id = Column(String(50), unique=True, nullable=True, index=True)
+    group = Column(String(50), nullable=True)
+    # --- MODIFIED SECTION END ---
     hashed_password = Column(String(255), nullable=False)
     is_admin = Column(Boolean, server_default='f', nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
@@ -428,9 +441,7 @@ class UserLearningHistory(Base):
     error_id = Column(Integer, ForeignKey("user_errors.id", ondelete="CASCADE"), nullable=False)
     learning_point_id = Column(Integer, ForeignKey("learning_points.id"), nullable=False)
     timestamp = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
-
     error_instance = relationship("UserError", back_populates="history")
-
 ```
 
 
@@ -1125,6 +1136,15 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)
             detail="Username is already taken."
         )
 
+    # --- MODIFIED SECTION START ---
+    db_user_studentid = db.query(models.User).filter(models.User.student_id == user.student_id).first()
+    if db_user_studentid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Student ID is already registered."
+        )
+    # --- MODIFIED SECTION END ---
+
     # Hash the password before storing
     hashed_password = security.get_password_hash(user.password)
     
@@ -1132,6 +1152,11 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)
     new_user = models.User(
         username=user.username,
         email=user.email,
+        # --- MODIFIED SECTION START ---
+        realname=user.realname,
+        student_id=user.student_id,
+        group=user.group,
+        # --- MODIFIED SECTION END ---
         hashed_password=hashed_password
     )
     db.add(new_user)
@@ -1173,7 +1198,6 @@ def read_users_me(current_user: models.User = Depends(security.get_current_user)
     Requires a valid JWT in the Authorization header.
     """
     return current_user
-
 ```
 
 
@@ -1215,7 +1239,13 @@ def get_all_students(db: Session = Depends(database.get_db)):
             id=user.id,
             username=user.username,
             email=user.email,
+            # --- MODIFIED SECTION START ---
+            realname=user.realname,
+            student_id=user.student_id,
+            group=user.group,
+            # --- MODIFIED SECTION END ---
             created_at=user.created_at,
+            is_admin=user.is_admin,
             journal_count=journal_count,
             total_errors=total_errors or 0,
             last_active=last_active
@@ -1262,7 +1292,13 @@ def get_student_details(student_id: int, db: Session = Depends(database.get_db))
         "id": student.id,
         "username": student.username,
         "email": student.email,
+        # --- MODIFIED SECTION START ---
+        "realname": student.realname,
+        "student_id": student.student_id,
+        "group": student.group,
+        # --- MODIFIED SECTION END ---
         "created_at": student.created_at,
+        "is_admin": student.is_admin,
         "journal_count": journal_count,
         "total_errors": total_errors or 0,
         "last_active": last_active,
@@ -1302,6 +1338,37 @@ def get_class_error_trend(db: Session = Depends(database.get_db)):
     ).group_by(cast(models.UserError.last_occurred_at, SQLDate))\
     .order_by(cast(models.UserError.last_occurred_at, SQLDate)).all()
 
+# NEW ENDPOINT to get all journals for a student
+@router.get("/students/{student_id}/journals", response_model=List[schemas.JournalOut])
+def get_student_journals(student_id: int, db: Session = Depends(database.get_db)):
+    """
+    Retrieves all journal entries for a specific student.
+    """
+    student = db.query(models.User).filter(models.User.id == student_id, models.User.is_admin == False).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found.")
+
+    journals = db.query(models.Journal).filter(models.Journal.user_id == student_id).order_by(models.Journal.journal_date.desc()).all()
+    return journals
+
+# NEW ENDPOINT to get a single journal for a student
+@router.get("/students/{student_id}/journals/{journal_date}", response_model=schemas.JournalOut)
+def get_student_journal_by_date(student_id: int, journal_date: date, db: Session = Depends(database.get_db)):
+    """
+    Retrieves a specific journal entry by date for a specific student.
+    """
+    journal = db.query(models.Journal).filter(
+        models.Journal.user_id == student_id,
+        models.Journal.journal_date == journal_date
+    ).first()
+
+    if not journal:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Journal entry for date {journal_date} not found for student {student_id}."
+        )
+    
+    return journal
 ```
 
 

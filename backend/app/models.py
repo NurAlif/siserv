@@ -30,6 +30,11 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
+    # --- MODIFIED SECTION START ---
+    realname = Column(String(100), nullable=True)
+    student_id = Column(String(50), unique=True, nullable=True, index=True)
+    group = Column(String(50), nullable=True)
+    # --- MODIFIED SECTION END ---
     hashed_password = Column(String(255), nullable=False)
     is_admin = Column(Boolean, server_default='f', nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
@@ -112,5 +117,4 @@ class UserLearningHistory(Base):
     error_id = Column(Integer, ForeignKey("user_errors.id", ondelete="CASCADE"), nullable=False)
     learning_point_id = Column(Integer, ForeignKey("learning_points.id"), nullable=False)
     timestamp = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
-
     error_instance = relationship("UserError", back_populates="history")

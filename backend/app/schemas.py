@@ -12,10 +12,20 @@ class UserBase(BaseModel):
     """Base schema for user data, containing common fields."""
     email: EmailStr
     username: str
+    # --- MODIFIED SECTION START ---
+    realname: Optional[str] = None
+    student_id: Optional[str] = None
+    group: Optional[str] = None
+    # --- MODIFIED SECTION END ---
 
 class UserCreate(UserBase):
     """Schema for creating a new user. Includes the password."""
     password: str
+    # --- MODIFIED SECTION START ---
+    realname: str
+    student_id: str
+    group: str
+    # --- MODIFIED SECTION END ---
 
 class UserOut(UserBase):
     """Schema for returning user data to the client. Excludes the password."""
@@ -191,4 +201,3 @@ class UserTopic(BaseModel):
 class UserTopicDetails(UserTopic):
     """Extends UserTopic to include the full list of errors."""
     errors: List[TopicDetail]
-

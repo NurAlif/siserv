@@ -16,6 +16,7 @@ Codebase Structure Overview:
 │   │   ├── ProgressSummaryCard.vue
 │   │   ├── TopicCard.vue
 │   │   └── admin
+│   │       ├── AdminJournalCard.vue
 │   │       ├── AdminStatCard.vue
 │   │       ├── ErrorDistributionChart.vue
 │   │       ├── ErrorTrendChart.vue
@@ -43,14 +44,36 @@ Codebase Structure Overview:
 │       ├── WriterView.vue
 │       └── admin
 │           ├── AdminDashboardView.vue
+│           ├── AdminJournalDetailView.vue
 │           └── AdminStudentDetailView.vue
 ├── tailwind.config.js
+├── vite.config.cg.js
+├── vite.config.eg.js
 └── vite.config.js
 
 
 ==================================================
 
 Compiled Code Contents:
+
+
+### File: vite.config.cg.js
+
+```
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [vue()],
+  server: {
+    port: 7779,
+    host: '0.0.0.0', // Add this line
+    allowedHosts: ['ai-ndhu-lab', '134.208.6.129']
+  },
+});
+
+```
 
 
 ### File: postcss.config.js
@@ -77,7 +100,7 @@ import vue from '@vitejs/plugin-vue';
 export default defineConfig({
   plugins: [vue()],
   server: {
-    port: 3000, // You can change the port if needed
+    port: 3000,
     host: '0.0.0.0', // Add this line
     allowedHosts: ['ai-ndhu-lab', '134.208.6.129']
   },
@@ -144,6 +167,25 @@ module.exports = {
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
+
+```
+
+
+### File: vite.config.eg.js
+
+```
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [vue()],
+  server: {
+    port: 7778,
+    host: '0.0.0.0', // Add this line
+    allowedHosts: ['ai-ndhu-lab', '134.208.6.129']
+  },
+});
 
 ```
 
@@ -394,6 +436,30 @@ watch(() => route.params.topic_id, (newId) => {
         <p class="text-gray-500 dark:text-gray-400">Join LingoJourn to start your English learning journey</p>
       </div>
       <form @submit.prevent="handleSignup" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="realname" class="text-sm font-medium text-gray-700 dark:text-gray-300">Real Name</label>
+            <input
+              v-model="realname"
+              type="text"
+              id="realname"
+              required
+              class="w-full px-3 py-2 mt-1 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              placeholder="John Doe"
+            />
+          </div>
+          <div>
+            <label for="student_id" class="text-sm font-medium text-gray-700 dark:text-gray-300">Student ID</label>
+            <input
+              v-model="student_id"
+              type="text"
+              id="student_id"
+              required
+              class="w-full px-3 py-2 mt-1 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              placeholder="Your ID"
+            />
+          </div>
+        </div>
         <div>
           <label for="username" class="text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
           <input
@@ -442,7 +508,7 @@ watch(() => route.params.topic_id, (newId) => {
         </button>
       </form>
        <p class="text-center text-sm text-gray-600 dark:text-gray-400">
-        Already have an account? 
+        Already have an account?
         <router-link to="/login" class="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">
           Log In
         </router-link>
@@ -456,14 +522,34 @@ import { ref } from 'vue';
 import { useAuthStore } from '../stores/authStore';
 
 const authStore = useAuthStore();
+// --- MODIFIED SECTION START ---
+const realname = ref('');
+const student_id = ref('');
+// --- MODIFIED SECTION END ---
 const username = ref('');
 const email = ref('');
 const password = ref('');
 const successMessage = ref('');
 
+const getGroupFromPort = () => {
+  const port = window.location.port;
+  if (port === '7779') {
+    return 'CG';
+  } else if (port === '7778') {
+    return 'EG';
+  }
+  return 'TEST'; // Default to 'TEST' if not on a specified port
+};
+
 const handleSignup = async () => {
   successMessage.value = '';
+  const group = getGroupFromPort(); 
   await authStore.signup({ 
+    // --- MODIFIED SECTION START ---
+    realname: realname.value,
+    student_id: student_id.value,
+    group: group,
+    // --- MODIFIED SECTION END ---
     username: username.value, 
     email: email.value, 
     password: password.value 
@@ -472,13 +558,16 @@ const handleSignup = async () => {
   if (!authStore.error) {
     successMessage.value = 'Account created successfully! You can now log in.';
     // Clear form fields
+    // --- MODIFIED SECTION START ---
+    realname.value = '';
+    student_id.value = '';
+    // --- MODIFIED SECTION END ---
     username.value = '';
     email.value = '';
     password.value = '';
   }
 };
 </script>
-
 ```
 
 
@@ -1206,6 +1295,81 @@ const handleLogin = () => {
 ```
 
 
+### File: src/views/admin/AdminJournalDetailView.vue
+
+```
+<template>
+  <main id="admin-journal-detail-view" class="fade-in">
+    <!-- Header -->
+    <div class="mb-6">
+      <router-link :to="`/admin/student/${studentId}`" class="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100 font-medium flex items-center gap-2 mb-4">
+         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z"></path></svg>
+        Back to Student Details
+      </router-link>
+    </div>
+    
+    <!-- Loading and Error States -->
+    <div v-if="adminStore.isLoading" class="text-center py-10">
+      <p class="text-gray-500 dark:text-gray-400">Loading journal...</p>
+    </div>
+    <div v-else-if="adminStore.error" class="bg-red-50 dark:bg-red-900/50 text-red-700 dark:text-red-300 p-4 rounded-lg">
+      <p>{{ adminStore.error }}</p>
+    </div>
+
+    <div v-else-if="journal" class="space-y-6">
+       <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+        <div class="flex justify-between items-center">
+          <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ journal.title || 'Journal Entry' }}</h2>
+          <div class="text-sm text-gray-500 dark:text-gray-400">{{ formatDate(journal.journal_date) }}</div>
+        </div>
+        <div v-if="journal.writing_phase === 'completed'" class="mt-2 inline-block bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xs font-bold px-2 py-1 rounded-full">
+          Completed
+        </div>
+      </div>
+      
+      <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+        <h3 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">Outline</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{{ journal.outline_content || 'No outline was created.' }}</p>
+      </div>
+
+      <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+        <h3 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">Content</h3>
+        <p class="text-base text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">{{ journal.content }}</p>
+      </div>
+
+    </div>
+  </main>
+</template>
+
+<script setup>
+import { onMounted, computed } from 'vue';
+import { useRoute } from 'vue-router';
+import { useAdminStore } from '../../stores/adminStore';
+import { format, parseISO } from 'date-fns';
+
+const route = useRoute();
+const adminStore = useAdminStore();
+const studentId = route.params.studentId;
+const journalDate = route.params.journalDate;
+
+const journal = computed(() => adminStore.currentStudentJournal);
+
+onMounted(() => {
+  if (studentId && journalDate) {
+    adminStore.fetchSingleStudentJournal(studentId, journalDate);
+  }
+});
+
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  const date = parseISO(dateString);
+  return format(date, 'MMMM d, yyyy');
+};
+</script>
+
+```
+
+
 ### File: src/views/admin/AdminStudentDetailView.vue
 
 ```
@@ -1219,7 +1383,6 @@ const handleLogin = () => {
       </router-link>
     </div>
     
-    <!-- Loading and Error States -->
     <div v-if="adminStore.isLoading" class="text-center py-10">
       <p class="text-gray-500 dark:text-gray-400">Loading student details...</p>
     </div>
@@ -1229,9 +1392,12 @@ const handleLogin = () => {
 
     <div v-else-if="adminStore.studentDetails" class="space-y-6">
       <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ adminStore.studentDetails.username }}</h2>
-        <p class="text-gray-500 dark:text-gray-400 mt-1">{{ adminStore.studentDetails.email }}</p>
-      </div>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ adminStore.studentDetails.realname }}</h2>
+        <p class="text-gray-500 dark:text-gray-400 mt-1">
+            Username: {{ adminStore.studentDetails.username }} | Student ID: {{ adminStore.studentDetails.student_id }} | Group: {{adminStore.studentDetails.group}}
+        </p>
+        <p class="text-gray-500 dark:text-gray-400">{{ adminStore.studentDetails.email }}</p>
+        </div>
 
       <!-- Stat Cards -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1245,6 +1411,31 @@ const handleLogin = () => {
         <ErrorDistributionChart title="Student Error Distribution" :chart-raw-data="adminStore.studentDetails.error_distribution" />
         <ErrorTrendChart title="Student Error Trend" :chart-raw-data="adminStore.studentDetails.error_trend" />
       </div>
+
+      <!-- Student Journal List Section -->
+      <div class="mt-6">
+        <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Journal Entries</h3>
+        
+        <!-- Loading state for journals -->
+        <div v-if="adminStore.isLoadingJournals" class="text-center py-10">
+          <p class="text-gray-500 dark:text-gray-400">Loading journals...</p>
+        </div>
+
+        <!-- Journals List -->
+        <div v-else-if="adminStore.studentJournals.length > 0" class="space-y-4">
+          <AdminJournalCard
+            v-for="journal in adminStore.studentJournals"
+            :key="journal.id"
+            :journal="journal"
+          />
+        </div>
+
+        <!-- Empty state for journals -->
+        <div v-else class="text-center py-10 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+          <h4 class="font-semibold text-lg text-gray-800 dark:text-gray-200">No Journal Entries</h4>
+          <p class="text-gray-500 dark:text-gray-400">This student has not written any journals yet.</p>
+        </div>
+      </div>
     </div>
   </main>
 </template>
@@ -1257,6 +1448,7 @@ import { formatDistanceToNow } from 'date-fns';
 import AdminStatCard from '../../components/admin/AdminStatCard.vue';
 import ErrorDistributionChart from '../../components/admin/ErrorDistributionChart.vue';
 import ErrorTrendChart from '../../components/admin/ErrorTrendChart.vue';
+import AdminJournalCard from '../../components/admin/AdminJournalCard.vue';
 
 const route = useRoute();
 const adminStore = useAdminStore();
@@ -1265,6 +1457,7 @@ const studentId = route.params.id;
 const loadDetails = () => {
   if (studentId) {
     adminStore.fetchStudentDetails(studentId);
+    adminStore.fetchStudentJournals(studentId);
   }
 };
 
@@ -1314,27 +1507,19 @@ const formatDate = (dateString) => {
       </div>
 
       <!-- Charts -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Error Distribution Chart -->
-        <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-2">Class Error Distribution</h3>
-          <div class="relative h-80">
-            <ErrorDistributionChart :chart-data="adminStore.classAnalytics?.error_distribution" />
+          <div class="relative h-80 mb-16">
+            <ErrorDistributionChart title="Class Error Distribution" :chart-raw-data="adminStore.classAnalytics.error_distribution" />
           </div>
-        </div>
 
         <!-- Error Trend Chart -->
-        <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-2">Class Error Trend (Last 30 Days)</h3>
-          <div class="relative h-80">
-            <ErrorTrendChart :chart-data="adminStore.classAnalytics?.error_trend" />
+          <div class="relative h-80 mb-16">
+            <ErrorTrendChart title="Class Error Trend" :chart-raw-data="adminStore.classAnalytics.error_trend" />
           </div>
-        </div>
       </div>
-
       <!-- Student Table -->
       <div>
-        <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Students</h3>
         <StudentTable :students="adminStore.students" />
       </div>
     </div>
@@ -1390,13 +1575,15 @@ export const useAdminStore = defineStore('admin', {
   state: () => ({
     students: [],
     studentDetails: null,
-    classErrorDistribution: [],
-    classErrorTrend: [],
+    studentJournals: [],
+    currentStudentJournal: null,
+    classAnalytics: null, // This will hold all dashboard data
     isLoading: false,
+    isLoadingJournals: false,
     error: null,
   }),
   actions: {
-    async fetchStudents() {
+    async fetchAllStudents() { // Renamed from fetchStudents to match component call
       this.isLoading = true;
       this.error = null;
       try {
@@ -1428,13 +1615,31 @@ export const useAdminStore = defineStore('admin', {
     async fetchClassAnalytics() {
         this.isLoading = true;
         this.error = null;
+        this.classAnalytics = null;
         try {
-            const [distributionRes, trendRes] = await Promise.all([
-                apiClient.get('/admin/analytics/error-distribution'),
-                apiClient.get('/admin/analytics/error-trend')
-            ]);
-            this.classErrorDistribution = distributionRes.data;
-            this.classErrorTrend = trendRes.data;
+            // Fetch all data points for the dashboard
+            const distributionRes = await apiClient.get('/admin/analytics/error-distribution');
+            const trendRes = await apiClient.get('/admin/analytics/error-trend');
+            
+            // For stats, we can aggregate from the full student list
+            const studentsRes = await apiClient.get('/admin/students');
+            const studentsData = studentsRes.data;
+
+            const total_students = studentsData.length;
+            const total_journals = studentsData.reduce((sum, student) => sum + student.journal_count, 0);
+            const total_errors = studentsData.reduce((sum, student) => sum + student.total_errors, 0);
+            const avg_errors_per_journal = total_journals > 0 ? total_errors / total_journals : 0;
+            
+            // Combine all data into the classAnalytics object
+            this.classAnalytics = {
+              total_students,
+              total_journals,
+              total_errors,
+              avg_errors_per_journal,
+              error_distribution: distributionRes.data,
+              error_trend: trendRes.data,
+            };
+
         } catch (err) {
             this.error = 'Failed to load class analytics.';
             console.error(err);
@@ -1442,8 +1647,39 @@ export const useAdminStore = defineStore('admin', {
             this.isLoading = false;
         }
     },
+
+    async fetchStudentJournals(studentId) {
+      this.isLoadingJournals = true;
+      this.error = null;
+      this.studentJournals = []; 
+      try {
+        const response = await apiClient.get(`/admin/students/${studentId}/journals`);
+        this.studentJournals = response.data;
+      } catch (err) {
+        this.error = `Failed to load journals for student ${studentId}.`;
+        console.error(err);
+      } finally {
+        this.isLoadingJournals = false;
+      }
+    },
+    
+    async fetchSingleStudentJournal(studentId, journalDate) {
+      this.isLoading = true;
+      this.error = null;
+      this.currentStudentJournal = null;
+      try {
+        const response = await apiClient.get(`/admin/students/${studentId}/journals/${journalDate}`);
+        this.currentStudentJournal = response.data;
+      } catch (err) {
+        this.error = `Failed to load journal for date ${journalDate}.`;
+        console.error(err);
+      } finally {
+        this.isLoading = false;
+      }
+    },
   },
 });
+
 
 ```
 
@@ -1928,6 +2164,7 @@ import LearningHubView from '../views/LearningHubView.vue';
 import TopicDetailView from '../views/TopicDetailView.vue';
 import AdminDashboardView from '../views/admin/AdminDashboardView.vue';
 import AdminStudentDetailView from '../views/admin/AdminStudentDetailView.vue';
+import AdminJournalDetailView from '../views/admin/AdminJournalDetailView.vue';
 
 const routes = [
   {
@@ -1979,6 +2216,13 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true },
     props: true,
   },
+  {
+    path: '/admin/student/:studentId/journal/:journalDate',
+    name: 'AdminJournalDetail',
+    component: AdminJournalDetailView,
+    meta: { requiresAuth: true, requiresAdmin: true },
+    props: true,
+  },
 ];
 
 const router = createRouter({
@@ -2015,7 +2259,6 @@ router.beforeEach(async (to, from, next) => {
 });
 
 export default router;
-
 
 ```
 
@@ -2404,7 +2647,7 @@ const cardColorClasses = computed(() => {
     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
       <thead class="bg-gray-50 dark:bg-gray-700/50">
         <tr>
-          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
+          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Student Info</th>
           <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Journals</th>
           <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Errors</th>
           <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Last Active</th>
@@ -2414,7 +2657,8 @@ const cardColorClasses = computed(() => {
       <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
         <tr v-for="student in students" :key="student.id" class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
           <td class="px-6 py-4 whitespace-nowrap">
-            <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ student.username }}</div>
+            <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ student.realname }} ({{ student.username }}) [{{ student.group }}]</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">{{ student.student_id }}</div>
             <div class="text-sm text-gray-500 dark:text-gray-400">{{ student.email }}</div>
           </td>
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{{ student.journal_count }}</td>
@@ -2444,7 +2688,6 @@ const formatDate = (dateString) => {
   return formatDistanceToNow(new Date(dateString), { addSuffix: true });
 };
 </script>
-
 ```
 
 
@@ -2558,6 +2801,66 @@ defineProps({
     required: true,
   },
 });
+</script>
+
+```
+
+
+### File: src/components/admin/AdminJournalCard.vue
+
+```
+<template>
+  <router-link
+    :to="`/admin/student/${journal.user_id}/journal/${journal.journal_date}`"
+    class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors cursor-pointer flex items-start gap-4"
+    :class="{ 'border-green-400 dark:border-green-600': journal.writing_phase === 'completed' }"
+  >
+    <div class="flex-grow overflow-hidden">
+      <div class="flex items-center gap-2">
+        <h4 class="font-bold text-md text-gray-800 dark:text-gray-200 truncate">{{ journal.title || 'Journal Entry' }}</h4>
+        <div v-if="journal.writing_phase === 'completed'" class="flex-shrink-0 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xs font-bold px-2 py-0.5 rounded-full">
+          Completed
+        </div>
+      </div>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">{{ formatDate(journal.journal_date) }}</p>
+      <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{{ snippet }}</p>
+    </div>
+    <!-- Caret Icon -->
+    <div class="self-center">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="text-gray-400 dark:text-gray-500" viewBox="0 0 256 256"><path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"></path></svg>
+    </div>
+  </router-link>
+</template>
+
+<script setup>
+import { computed } from 'vue';
+import { format, parseISO } from 'date-fns';
+
+const props = defineProps({
+  journal: {
+    type: Object,
+    required: true,
+  },
+});
+
+// Create a snippet from the full content
+const snippet = computed(() => {
+  if (!props.journal.content) {
+    return 'No content yet...';
+  }
+  // Truncate the content to 120 characters
+  if (props.journal.content.length > 120) {
+    return props.journal.content.substring(0, 120) + '...';
+  }
+  return props.journal.content;
+});
+
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  // parseISO handles the 'YYYY-MM-DD' format
+  const date = parseISO(dateString);
+  return format(date, 'MMMM d, yyyy');
+};
 </script>
 
 ```

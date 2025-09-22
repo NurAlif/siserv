@@ -33,6 +33,11 @@ def get_all_students(db: Session = Depends(database.get_db)):
             id=user.id,
             username=user.username,
             email=user.email,
+            # --- MODIFIED SECTION START ---
+            realname=user.realname,
+            student_id=user.student_id,
+            group=user.group,
+            # --- MODIFIED SECTION END ---
             created_at=user.created_at,
             is_admin=user.is_admin,
             journal_count=journal_count,
@@ -81,6 +86,11 @@ def get_student_details(student_id: int, db: Session = Depends(database.get_db))
         "id": student.id,
         "username": student.username,
         "email": student.email,
+        # --- MODIFIED SECTION START ---
+        "realname": student.realname,
+        "student_id": student.student_id,
+        "group": student.group,
+        # --- MODIFIED SECTION END ---
         "created_at": student.created_at,
         "is_admin": student.is_admin,
         "journal_count": journal_count,
