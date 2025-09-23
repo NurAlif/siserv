@@ -9,6 +9,7 @@ import TopicDetailView from '../views/TopicDetailView.vue';
 import AdminDashboardView from '../views/admin/AdminDashboardView.vue';
 import AdminStudentDetailView from '../views/admin/AdminStudentDetailView.vue';
 import AdminJournalDetailView from '../views/admin/AdminJournalDetailView.vue';
+import AdminManageStudentsView from '../views/admin/AdminManageStudentsView.vue'; // New Import
 
 const routes = [
   {
@@ -66,6 +67,13 @@ const routes = [
     component: AdminJournalDetailView,
     meta: { requiresAuth: true, requiresAdmin: true },
     props: true,
+  },
+  // --- NEW ROUTE ---
+  {
+    path: '/admin/manage-students',
+    name: 'AdminManageStudents',
+    component: AdminManageStudentsView,
+    meta: { requiresAuth: true, requiresAdmin: true },
   },
 ];
 

@@ -40,20 +40,16 @@ class UserBase(BaseModel):
     """Base schema for user data, containing common fields."""
     email: EmailStr
     username: str
-    # --- MODIFIED SECTION START ---
     realname: Optional[str] = None
     student_id: Optional[str] = None
     group: Optional[str] = None
-    # --- MODIFIED SECTION END ---
 
 class UserCreate(UserBase):
     """Schema for creating a new user. Includes the password."""
     password: str
-    # --- MODIFIED SECTION START ---
     realname: str
     student_id: str
     group: str
-    # --- MODIFIED SECTION END ---
 
 class UserOut(UserBase):
     """Schema for returning user data to the client. Excludes the password."""
@@ -204,6 +200,21 @@ class AdminStudentDetail(AdminStudentSummary):
     error_distribution: List[AdminErrorDistributionItem]
     error_trend: List[AdminErrorTrendPoint]
 
+# --- NEW Admin Schemas for Whitelist ---
+class StudentWhitelistBase(BaseModel):
+    student_id: str
+    email: EmailStr
+
+class StudentWhitelistCreate(StudentWhitelistBase):
+    pass
+
+class StudentWhitelistOut(StudentWhitelistBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 # --- New Schemas for Learning Hub ---
 
 class TopicDetail(BaseModel):
@@ -229,6 +240,7 @@ class UserTopic(BaseModel):
 class UserTopicDetails(UserTopic):
     """Extends UserTopic to include the full list of errors."""
     errors: List[TopicDetail]
+
 ```
 
 
@@ -354,11 +366,9 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
-    # --- MODIFIED SECTION START ---
     realname = Column(String(100), nullable=True)
     student_id = Column(String(50), unique=True, nullable=True, index=True)
     group = Column(String(50), nullable=True)
-    # --- MODIFIED SECTION END ---
     hashed_password = Column(String(255), nullable=False)
     is_admin = Column(Boolean, server_default='f', nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
@@ -366,6 +376,15 @@ class User(Base):
     journals = relationship("Journal", back_populates="owner")
     errors = relationship("UserError", back_populates="user")
     context_profile = relationship("UserContextProfile", back_populates="owner", uselist=False, cascade="all, delete-orphan")
+
+# --- NEW Model for Student Whitelist ---
+class StudentWhitelist(Base):
+    __tablename__ = "student_whitelist"
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(String(50), unique=True, nullable=False, index=True)
+    email = Column(String(255), nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
+
 
 class Journal(Base):
     __tablename__ = "journals"
@@ -442,6 +461,7 @@ class UserLearningHistory(Base):
     learning_point_id = Column(Integer, ForeignKey("learning_points.id"), nullable=False)
     timestamp = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
     error_instance = relationship("UserError", back_populates="history")
+
 ```
 
 
@@ -1116,11 +1136,29 @@ router = APIRouter(
 @router.post("/signup", response_model=schemas.UserOut, status_code=status.HTTP_201_CREATED)
 def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
     """
-    Handles user registration.
+    Handles user registration with whitelist validation.
     - Hashes the password.
-    - Checks for existing user/email.
+    - Checks for existing user/email/student_id.
+    - Validates student_id and email against the StudentWhitelist.
     - Creates a new user in the database.
     """
+    # --- NEW: Whitelist Validation ---
+    whitelisted_student = db.query(models.StudentWhitelist).filter(models.StudentWhitelist.student_id == user.student_id).first()
+    
+    if not whitelisted_student:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Student ID is not approved for registration."
+        )
+
+    # Case-insensitive email comparison
+    if whitelisted_student.email.lower() != user.email.lower():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The provided email does not match the one registered for this Student ID."
+        )
+    # --- END NEW: Whitelist Validation ---
+
     # Check if a user with the same email or username already exists
     db_user_email = db.query(models.User).filter(models.User.email == user.email).first()
     if db_user_email:
@@ -1136,14 +1174,12 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)
             detail="Username is already taken."
         )
 
-    # --- MODIFIED SECTION START ---
     db_user_studentid = db.query(models.User).filter(models.User.student_id == user.student_id).first()
     if db_user_studentid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Student ID is already registered."
         )
-    # --- MODIFIED SECTION END ---
 
     # Hash the password before storing
     hashed_password = security.get_password_hash(user.password)
@@ -1152,11 +1188,9 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)
     new_user = models.User(
         username=user.username,
         email=user.email,
-        # --- MODIFIED SECTION START ---
         realname=user.realname,
         student_id=user.student_id,
         group=user.group,
-        # --- MODIFIED SECTION END ---
         hashed_password=hashed_password
     )
     db.add(new_user)
@@ -1198,13 +1232,14 @@ def read_users_me(current_user: models.User = Depends(security.get_current_user)
     Requires a valid JWT in the Authorization header.
     """
     return current_user
+
 ```
 
 
 ### File: app/routers/admin.py
 
 ```
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, cast, Date as SQLDate
 from typing import List
@@ -1239,11 +1274,9 @@ def get_all_students(db: Session = Depends(database.get_db)):
             id=user.id,
             username=user.username,
             email=user.email,
-            # --- MODIFIED SECTION START ---
             realname=user.realname,
             student_id=user.student_id,
             group=user.group,
-            # --- MODIFIED SECTION END ---
             created_at=user.created_at,
             is_admin=user.is_admin,
             journal_count=journal_count,
@@ -1292,11 +1325,9 @@ def get_student_details(student_id: int, db: Session = Depends(database.get_db))
         "id": student.id,
         "username": student.username,
         "email": student.email,
-        # --- MODIFIED SECTION START ---
         "realname": student.realname,
         "student_id": student.student_id,
         "group": student.group,
-        # --- MODIFIED SECTION END ---
         "created_at": student.created_at,
         "is_admin": student.is_admin,
         "journal_count": journal_count,
@@ -1369,6 +1400,53 @@ def get_student_journal_by_date(student_id: int, journal_date: date, db: Session
         )
     
     return journal
+
+# --- NEW Endpoints for Student Whitelist Management ---
+
+@router.post("/whitelist", response_model=schemas.StudentWhitelistOut, status_code=status.HTTP_201_CREATED)
+def add_student_to_whitelist(
+    student_data: schemas.StudentWhitelistCreate, 
+    db: Session = Depends(database.get_db)
+):
+    """
+    Adds a student's ID and email to the registration whitelist.
+    """
+    existing_student = db.query(models.StudentWhitelist).filter(models.StudentWhitelist.student_id == student_data.student_id).first()
+    if existing_student:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A student with this ID is already on the whitelist."
+        )
+    
+    new_student = models.StudentWhitelist(**student_data.model_dump())
+    db.add(new_student)
+    db.commit()
+    db.refresh(new_student)
+    return new_student
+
+@router.get("/whitelist", response_model=List[schemas.StudentWhitelistOut])
+def get_student_whitelist(db: Session = Depends(database.get_db)):
+    """
+    Retrieves the entire student registration whitelist.
+    """
+    return db.query(models.StudentWhitelist).order_by(models.StudentWhitelist.student_id).all()
+
+@router.delete("/whitelist/{student_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_student_from_whitelist(student_id: str, db: Session = Depends(database.get_db)):
+    """
+    Removes a student from the registration whitelist by their student ID.
+    """
+    student_to_delete = db.query(models.StudentWhitelist).filter(models.StudentWhitelist.student_id == student_id).first()
+    if not student_to_delete:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Student with ID '{student_id}' not found on the whitelist."
+        )
+    
+    db.delete(student_to_delete)
+    db.commit()
+    return 
+
 ```
 
 

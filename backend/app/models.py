@@ -30,11 +30,9 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
-    # --- MODIFIED SECTION START ---
     realname = Column(String(100), nullable=True)
     student_id = Column(String(50), unique=True, nullable=True, index=True)
     group = Column(String(50), nullable=True)
-    # --- MODIFIED SECTION END ---
     hashed_password = Column(String(255), nullable=False)
     is_admin = Column(Boolean, server_default='f', nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
@@ -42,6 +40,15 @@ class User(Base):
     journals = relationship("Journal", back_populates="owner")
     errors = relationship("UserError", back_populates="user")
     context_profile = relationship("UserContextProfile", back_populates="owner", uselist=False, cascade="all, delete-orphan")
+
+# --- NEW Model for Student Whitelist ---
+class StudentWhitelist(Base):
+    __tablename__ = "student_whitelist"
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(String(50), unique=True, nullable=False, index=True)
+    email = Column(String(255), nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
+
 
 class Journal(Base):
     __tablename__ = "journals"

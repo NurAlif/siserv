@@ -108,7 +108,15 @@ const getGroupFromPort = () => {
   } else if (port === '7778') {
     return 'EG';
   }
-  return 'TEST'; // Default to 'TEST' if not on a specified port
+  else{
+    const hostname = window.location.hostname;
+    if (hostname === 'ti.parasyst.com') {
+      return 'CG';
+    } else if (hostname === 'it.parasyst.com') {
+      return 'EG';
+    }
+    return 'TEST';
+  }
 };
 
 const handleSignup = async () => {

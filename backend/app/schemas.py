@@ -12,20 +12,16 @@ class UserBase(BaseModel):
     """Base schema for user data, containing common fields."""
     email: EmailStr
     username: str
-    # --- MODIFIED SECTION START ---
     realname: Optional[str] = None
     student_id: Optional[str] = None
     group: Optional[str] = None
-    # --- MODIFIED SECTION END ---
 
 class UserCreate(UserBase):
     """Schema for creating a new user. Includes the password."""
     password: str
-    # --- MODIFIED SECTION START ---
     realname: str
     student_id: str
     group: str
-    # --- MODIFIED SECTION END ---
 
 class UserOut(UserBase):
     """Schema for returning user data to the client. Excludes the password."""
@@ -175,6 +171,21 @@ class AdminStudentDetail(AdminStudentSummary):
     """Schema for the detailed view of a single student."""
     error_distribution: List[AdminErrorDistributionItem]
     error_trend: List[AdminErrorTrendPoint]
+
+# --- NEW Admin Schemas for Whitelist ---
+class StudentWhitelistBase(BaseModel):
+    student_id: str
+    email: EmailStr
+
+class StudentWhitelistCreate(StudentWhitelistBase):
+    pass
+
+class StudentWhitelistOut(StudentWhitelistBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 # --- New Schemas for Learning Hub ---
 

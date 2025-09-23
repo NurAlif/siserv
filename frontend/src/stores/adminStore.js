@@ -11,9 +11,11 @@ export const useAdminStore = defineStore('admin', {
     isLoading: false,
     isLoadingJournals: false,
     error: null,
+    whitelist: [], // New state for student whitelist
+    isLoadingWhitelist: false, // New loading state
   }),
   actions: {
-    async fetchAllStudents() { // Renamed from fetchStudents to match component call
+    async fetchAllStudents() {
       this.isLoading = true;
       this.error = null;
       try {
@@ -107,6 +109,49 @@ export const useAdminStore = defineStore('admin', {
         this.isLoading = false;
       }
     },
+
+    // --- NEW ACTIONS for Whitelist Management ---
+    async fetchWhitelist() {
+      this.isLoadingWhitelist = true;
+      this.error = null;
+      try {
+        const response = await apiClient.get('/admin/whitelist');
+        this.whitelist = response.data;
+      } catch (err) {
+        this.error = 'Failed to load student whitelist.';
+        console.error(err);
+      } finally {
+        this.isLoadingWhitelist = false;
+      }
+    },
+
+    async addStudentToWhitelist(studentData) {
+      // Clear previous errors before a new attempt
+      this.error = null;
+      try {
+        const response = await apiClient.post('/admin/whitelist', studentData);
+        this.whitelist.push(response.data);
+        // Sort the list after adding
+        this.whitelist.sort((a, b) => a.student_id.localeCompare(b.student_id));
+        return { success: true };
+      } catch (err) {
+        this.error = err.response?.data?.detail || 'Failed to add student.';
+        console.error(err);
+        return { success: false, error: this.error };
+      }
+    },
+
+    async removeStudentFromWhitelist(studentId) {
+      this.error = null;
+      try {
+        await apiClient.delete(`/admin/whitelist/${studentId}`);
+        this.whitelist = this.whitelist.filter(s => s.student_id !== studentId);
+        return { success: true };
+      } catch (err) {
+        this.error = err.response?.data?.detail || 'Failed to remove student.';
+        console.error(err);
+        return { success: false, error: this.error };
+      }
+    },
   },
 });
-

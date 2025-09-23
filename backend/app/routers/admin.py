@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, cast, Date as SQLDate
 from typing import List
@@ -33,11 +33,9 @@ def get_all_students(db: Session = Depends(database.get_db)):
             id=user.id,
             username=user.username,
             email=user.email,
-            # --- MODIFIED SECTION START ---
             realname=user.realname,
             student_id=user.student_id,
             group=user.group,
-            # --- MODIFIED SECTION END ---
             created_at=user.created_at,
             is_admin=user.is_admin,
             journal_count=journal_count,
@@ -86,11 +84,9 @@ def get_student_details(student_id: int, db: Session = Depends(database.get_db))
         "id": student.id,
         "username": student.username,
         "email": student.email,
-        # --- MODIFIED SECTION START ---
         "realname": student.realname,
         "student_id": student.student_id,
         "group": student.group,
-        # --- MODIFIED SECTION END ---
         "created_at": student.created_at,
         "is_admin": student.is_admin,
         "journal_count": journal_count,
@@ -163,3 +159,49 @@ def get_student_journal_by_date(student_id: int, journal_date: date, db: Session
         )
     
     return journal
+
+# --- NEW Endpoints for Student Whitelist Management ---
+
+@router.post("/whitelist", response_model=schemas.StudentWhitelistOut, status_code=status.HTTP_201_CREATED)
+def add_student_to_whitelist(
+    student_data: schemas.StudentWhitelistCreate, 
+    db: Session = Depends(database.get_db)
+):
+    """
+    Adds a student's ID and email to the registration whitelist.
+    """
+    existing_student = db.query(models.StudentWhitelist).filter(models.StudentWhitelist.student_id == student_data.student_id).first()
+    if existing_student:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A student with this ID is already on the whitelist."
+        )
+    
+    new_student = models.StudentWhitelist(**student_data.model_dump())
+    db.add(new_student)
+    db.commit()
+    db.refresh(new_student)
+    return new_student
+
+@router.get("/whitelist", response_model=List[schemas.StudentWhitelistOut])
+def get_student_whitelist(db: Session = Depends(database.get_db)):
+    """
+    Retrieves the entire student registration whitelist.
+    """
+    return db.query(models.StudentWhitelist).order_by(models.StudentWhitelist.student_id).all()
+
+@router.delete("/whitelist/{student_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_student_from_whitelist(student_id: str, db: Session = Depends(database.get_db)):
+    """
+    Removes a student from the registration whitelist by their student ID.
+    """
+    student_to_delete = db.query(models.StudentWhitelist).filter(models.StudentWhitelist.student_id == student_id).first()
+    if not student_to_delete:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Student with ID '{student_id}' not found on the whitelist."
+        )
+    
+    db.delete(student_to_delete)
+    db.commit()
+    return 
