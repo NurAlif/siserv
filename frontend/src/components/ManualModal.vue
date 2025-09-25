@@ -22,8 +22,10 @@
 </template>
 
 <script setup>
+import { watch, onUnmounted } from 'vue';
+
 // This component receives 'show', 'title', and 'content' as properties from its parent.
-defineProps({
+const props = defineProps({
   show: Boolean,
   title: String,
   content: String,
@@ -36,6 +38,20 @@ const emit = defineEmits(['close']);
 const close = () => {
   emit('close');
 };
+
+// This watcher adds/removes a class to the body to prevent background scrolling when the modal is open.
+watch(() => props.show, (isShowing) => {
+  if (isShowing) {
+    document.body.classList.add('modal-open');
+  } else {
+    document.body.classList.remove('modal-open');
+  }
+});
+
+// This ensures that if the component is ever removed from the DOM unexpectedly, the class is cleaned up.
+onUnmounted(() => {
+  document.body.classList.remove('modal-open');
+});
 </script>
 
 <style>
@@ -53,4 +69,7 @@ const close = () => {
 .prose strong { @apply font-semibold; }
 .prose a { @apply text-indigo-600 dark:text-indigo-400 hover:underline; }
 .prose hr { @apply my-6 border-gray-200 dark:border-gray-700; }
+/* This new style will make images in the manual responsive and visually appealing. */
+.prose img { @apply rounded-lg shadow-md my-4 max-w-full h-auto; }
 </style>
+

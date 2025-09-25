@@ -8,8 +8,8 @@
     "buildcg": "vite build --outDir dist-cg --config vite.config.cg.js",
     "buildeg": "vite build --outDir dist-eg --config vite.config.eg.js",
     "preview": "vite preview",
-    "startcg": "npm run buildcg && serve dist-cg -p 7779",
-    "starteg": "npm run buildeg && serve dist-eg -p 7778",
+    "startcg": "npm run buildcg && serve -s dist-cg -p 7779",
+    "starteg": "npm run buildeg && serve -s dist-eg -p 7778",
     "startall": "npm run starteg & npm run startcg"
   },
   "dependencies": {

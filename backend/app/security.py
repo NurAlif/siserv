@@ -60,7 +60,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     )
     
     token_data = verify_access_token(token, credentials_exception)
-    
     user = db.query(models.User).filter(models.User.id == token_data.id).first()
     
     if user is None:
@@ -78,4 +77,5 @@ def get_current_admin_user(current_user: models.User = Depends(get_current_user)
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to access this resource."
         )
+    
     return current_user

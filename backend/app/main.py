@@ -1,8 +1,10 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from . import models
 from .database import engine
 from .routers import auth, journals, ai, progress, admin
+import os
 
 # This line creates the database tables.
 models.Base.metadata.create_all(bind=engine)
@@ -15,13 +17,30 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For development, ["*"] allows all origins. For production, you should restrict this to your frontend's domain, e.g., ["https://www.lingojourn.com"].
+    allow_origins=["https://it.parasyst.com", "https://ti.parasyst.com", "https://ipa.parasyst.com"],  # For development, ["*"] allows all origins. For production, you should restrict this to your frontend's domain, e.g., ["https://www.lingojourn.com"].
     allow_credentials=True,
     allow_methods=["*"],  # Allows all HTTP methods (GET, POST, PUT, etc.).
     allow_headers=["*"],  # Allows all headers (including Authorization).
 )
 # --- End of CORS Configuration ---
 
+# --- Static Files Configuration ---
+# This section sets up a directory to serve static files like images.
+
+# Create a path to the 'static' directory.
+# os.path.dirname(__file__) gets the directory of the current file (main.py).
+# We then join it with 'static' to create a full path.
+static_files_dir = os.path.join(os.path.dirname(__file__), "static")
+
+# Create the directory if it doesn't exist to prevent errors on first run.
+os.makedirs(static_files_dir, exist_ok=True)
+
+# Mount the 'static' directory to the '/static' URL path.
+# Any file inside 'app/static/' will be accessible from '/static/'.
+# For example, a file at 'app/static/images/logo.png' will be available at
+# 'http://your-api-url/static/images/logo.png'
+app.mount("/static", StaticFiles(directory=static_files_dir), name="static")
+# --- End of Static Files Configuration ---
 
 @app.get("/")
 def read_root():

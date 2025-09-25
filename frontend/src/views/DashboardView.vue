@@ -20,11 +20,11 @@
     </div>
 
     <!-- New Progress Summary Card -->
-    <ProgressSummaryCard 
+    <!-- <ProgressSummaryCard 
       :summary="progressStore.summary"
       :is-loading="progressStore.isLoading"
       :error="progressStore.error"
-    />
+    /> -->
 
     <div class="flex justify-between items-center mb-4">
       <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">Your Journal Entries</h3>
@@ -67,7 +67,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useJournalStore } from '../stores/journalStore';
 import { useProgressStore } from '../stores/progressStore'; // Import progress store
 import JournalCard from '../components/JournalCard.vue';
-import ProgressSummaryCard from '../components/ProgressSummaryCard.vue'; // Import new component
+// import ProgressSummaryCard from '../components/ProgressSummaryCard.vue'; // Import new component
 
 const authStore = useAuthStore();
 const journalStore = useJournalStore();
@@ -76,7 +76,7 @@ const progressStore = useProgressStore(); // Instantiate progress store
 // Fetch data when the component is first mounted
 onMounted(() => {
   journalStore.fetchJournals();
-  progressStore.fetchProgressSummary();
+  // progressStore.fetchProgressSummary();
   progressStore.fetchStreak(); // Fetch streak data
 });
 </script>

@@ -27,3 +27,5 @@ UPDATE users SET role = 'teacher' WHERE username = 'prof_davis';
 sudo psql -d lingojourn_db -U oftg -h localhost
 
 UPDATE users SET is_admin = TRUE WHERE username = 'a';
+
+sudo psql -U oftg -d lingojourn_db -f students.sql -h localhost

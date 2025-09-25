@@ -13,9 +13,11 @@ Codebase Structure Overview:
     │   └── progress.py
     ├── schemas.py
     ├── security.py
-    └── services
-        ├── ai_service.py
-        └── context_agent.py
+    ├── services
+    │   ├── ai_service.py
+    │   └── context_agent.py
+    └── static
+        └── images
 
 
 ==================================================
@@ -309,7 +311,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     )
     
     token_data = verify_access_token(token, credentials_exception)
-    
     user = db.query(models.User).filter(models.User.id == token_data.id).first()
     
     if user is None:
@@ -327,6 +328,7 @@ def get_current_admin_user(current_user: models.User = Depends(get_current_user)
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to access this resource."
         )
+    
     return current_user
 ```
 
@@ -505,10 +507,12 @@ def get_db():
 
 ```
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from . import models
 from .database import engine
 from .routers import auth, journals, ai, progress, admin
+import os
 
 # This line creates the database tables.
 models.Base.metadata.create_all(bind=engine)
@@ -521,13 +525,30 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For development, ["*"] allows all origins. For production, you should restrict this to your frontend's domain, e.g., ["https://www.lingojourn.com"].
+    allow_origins=["https://it.parasyst.com", "https://ti.parasyst.com", "https://ipa.parasyst.com"],  # For development, ["*"] allows all origins. For production, you should restrict this to your frontend's domain, e.g., ["https://www.lingojourn.com"].
     allow_credentials=True,
     allow_methods=["*"],  # Allows all HTTP methods (GET, POST, PUT, etc.).
     allow_headers=["*"],  # Allows all headers (including Authorization).
 )
 # --- End of CORS Configuration ---
 
+# --- Static Files Configuration ---
+# This section sets up a directory to serve static files like images.
+
+# Create a path to the 'static' directory.
+# os.path.dirname(__file__) gets the directory of the current file (main.py).
+# We then join it with 'static' to create a full path.
+static_files_dir = os.path.join(os.path.dirname(__file__), "static")
+
+# Create the directory if it doesn't exist to prevent errors on first run.
+os.makedirs(static_files_dir, exist_ok=True)
+
+# Mount the 'static' directory to the '/static' URL path.
+# Any file inside 'app/static/' will be accessible from '/static/'.
+# For example, a file at 'app/static/images/logo.png' will be available at
+# 'http://your-api-url/static/images/logo.png'
+app.mount("/static", StaticFiles(directory=static_files_dir), name="static")
+# --- End of Static Files Configuration ---
 
 @app.get("/")
 def read_root():
@@ -737,6 +758,8 @@ Your entire response MUST be a single, valid JSON object.
 - ALWAYS respond in the specified JSON format.
 - Use the `user_context` to make your questions personal. For example, if their recurring theme is 'exam stress', you could ask, "How did that affect your studies today?"
 - Be proactive. Your goal is to help build the outline.
+- Avoid to talk about user feeling. Try to lean or direct user to talk about their actions or physical stuff. You can talk about their reason or decision. Remember we want to know their thinking pattern.
+- If user dont know what they want to talk, you can direct them to talk about study. (users are students)
 """
 
 WRITING_PARTNER_PROMPT_TEMPLATE = """
@@ -772,6 +795,9 @@ Analyze the user's question in the context of their outline and draft, and provi
 4.  **If the user asks for general feedback on their draft (e.g., "How is it so far?"):**
     - Provide one positive comment and one constructive suggestion for improvement, focusing on high-level concepts like flow, detail, or clarity, not just grammar.
     - Example: "This is a very clear description of your morning. To make it even more engaging, maybe you could add a bit more about how you felt during the commute."
+
+**RULES:**
+  - Be specific of what user asked. don't explain to long.
 
 **CONTEXT FOR THIS REQUEST:**
 
@@ -811,6 +837,8 @@ For each feedback item, include:
 - ALWAYS respond in the specified JSON format.
 - Limit feedback to the 5-7 most important points to avoid overwhelming the user.
 - Phrase suggestions constructively (e.g., "Consider saying..." instead of "This is wrong.").
+- No need to be so strict. Only points out most meaningfull error or most meaningfull sugesstion.
+- Dont overlap the error. eg text is contained in other error.
 """
 
 QUICK_CORRECTION_PROMPT_TEMPLATE = """

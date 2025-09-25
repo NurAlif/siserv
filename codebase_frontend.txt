@@ -13,6 +13,7 @@ Codebase Structure Overview:
 │   │   ├── ChatFeedbackCard.vue
 │   │   ├── ErrorDetailCard.vue
 │   │   ├── JournalCard.vue
+│   │   ├── ManualModal.vue
 │   │   ├── ProgressSummaryCard.vue
 │   │   ├── TopicCard.vue
 │   │   └── admin
@@ -250,7 +251,7 @@ app.mount('#app');
   <div v-if="authStore.isAuthenticated" :class="containerClass">
     <header v-if="!isWriterView" class="flex justify-between items-center mb-6 flex-shrink-0">
       <div class="flex items-center gap-3">
-         <router-link to="/" class="flex items-center gap-3">
+         <router-link to="/" class="hidden sm:flex items-center gap-3">
            <div class="bg-indigo-600 p-2 rounded-lg">
               <!-- Book Icon -->
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" class="text-white" fill="currentColor" viewBox="0 0 256 256"><path d="M208,24H88A48.05,48.05,0,0,0,40,72V208a48.05,48.05,0,0,0,48,48H208a8,8,0,0,0,8-8V32A8,8,0,0,0,208,24ZM88,240a32,32,0,0,1,0-64H200V240ZM200,40v96H88a32,32,0,0,1,0-64h8V40Z"></path></svg>
@@ -261,7 +262,7 @@ app.mount('#app');
          <!-- <nav class="ml-6">
            <router-link to="/learning-hub" class="text-sm font-semibold text-gray-600 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors">Learning Hub</router-link>
          </nav> -->
-         <nav class="ml-6 flex items-center gap-4">
+         <nav class="flex items-center gap-4">
            <router-link to="/learning-hub" class="text-sm font-semibold text-gray-600 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors">Learning Hub</router-link>
            <!-- Admin Link (Conditional) -->
            <router-link v-if="authStore.isAdmin" to="/admin" class="text-sm font-semibold text-gray-600 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors">Admin</router-link>
@@ -332,6 +333,10 @@ onMounted(() => {
 
   body {
     @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300;
+  }
+
+  body.modal-open {
+    @apply overflow-hidden;
   }
 }
 
@@ -605,11 +610,11 @@ const handleSignup = async () => {
     </div>
 
     <!-- New Progress Summary Card -->
-    <ProgressSummaryCard 
+    <!-- <ProgressSummaryCard 
       :summary="progressStore.summary"
       :is-loading="progressStore.isLoading"
       :error="progressStore.error"
-    />
+    /> -->
 
     <div class="flex justify-between items-center mb-4">
       <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">Your Journal Entries</h3>
@@ -652,7 +657,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useJournalStore } from '../stores/journalStore';
 import { useProgressStore } from '../stores/progressStore'; // Import progress store
 import JournalCard from '../components/JournalCard.vue';
-import ProgressSummaryCard from '../components/ProgressSummaryCard.vue'; // Import new component
+// import ProgressSummaryCard from '../components/ProgressSummaryCard.vue'; // Import new component
 
 const authStore = useAuthStore();
 const journalStore = useJournalStore();
@@ -661,7 +666,7 @@ const progressStore = useProgressStore(); // Instantiate progress store
 // Fetch data when the component is first mounted
 onMounted(() => {
   journalStore.fetchJournals();
-  progressStore.fetchProgressSummary();
+  // progressStore.fetchProgressSummary();
   progressStore.fetchStreak(); // Fetch streak data
 });
 </script>
@@ -1278,28 +1283,101 @@ onMounted(() => {
           {{ authStore.isLoading ? 'Logging in...' : 'Log In' }}
         </button>
       </form>
-      <p class="text-center text-sm text-gray-600 dark:text-gray-400">
-        Don't have an account? 
-        <router-link to="/signup" class="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">
-          Sign Up
-        </router-link>
-      </p>
+      <div class="text-center text-sm text-gray-600 dark:text-gray-400">
+        <p>
+          Don't have an account? 
+          <router-link to="/signup" class="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">
+            Sign Up
+          </router-link>
+        </p>
+        <!-- Button to open the user manual -->
+        <p class="mt-4">
+            Need help? 
+            <button @click="showManualModal = true" class="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">
+                View User Manual
+            </button>
+        </p>
+      </div>
     </main>
+
+    <!-- Modal for the user manual -->
+    <ManualModal 
+        :show="showManualModal" 
+        title="LingoJourn User Manual"
+        :content="participantManualContent"
+        @close="showManualModal = false" 
+    />
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue';
 import { useAuthStore } from '../stores/authStore';
+import ManualModal from '../components/ManualModal.vue'; // Import the new modal component
 
 const authStore = useAuthStore();
 const username = ref('');
 const password = ref('');
 
+const showManualModal = ref(false); // State to control the modal's visibility
+
 const handleLogin = () => {
   authStore.login({ username: username.value, password: password.value });
 };
+
+// The content for the participant manual is stored here as an HTML string.
+// I've added images with loading="lazy" to illustrate key features.
+const participantManualContent = `
+<h1>LingoJourn User Manual</h1>
+<p>Welcome to LingoJourn, your personal AI-powered partner for improving your English through journaling! This guide will walk you through all the features of the app.</p>
+<hr />
+<h2>1. Getting Started</h2>
+<h3>Creating Your Account</h3>
+<p>To use LingoJourn, you must first create an account.</p>
+<ol>
+    <li>Click on the <strong>Sign Up</strong> link on the login page.</li>
+        <img src="https://ipa.parasyst.com/static/images/login.png" alt="login" loading="lazy">
+        <br/>
+    <li>Fill in your details: Real Name, Student ID, Username, Email, and a secure Password.</li>
+        <img src="https://ipa.parasyst.com/static/images/signup.png" alt="sign up" loading="lazy">
+        <br/>
+    <li><strong>Important</strong>: Your Student ID and Email must be pre-approved by your teacher/administrator to register successfully.</li>
+        <img src="https://ipa.parasyst.com/static/images/signup_login.png" alt="login" loading="lazy">
+        <br/>
+    <li>Once you sign up, you'll be redirected to the login page.</li>
+</ol>
+<h3>Logging In</h3>
+<p>Enter the Username and Password you created during signup to access your dashboard.</p>
+<hr />
+<h2>2. Your Dashboard</h2>
+<p>The dashboard is your central hub. Here you can see your writing streak, a snapshot of your learning progress, access past journals, or start a new entry.</p>
+  <img src="https://ipa.parasyst.com/static/images/dashboard.png" alt="Dashboard Overview" loading="lazy">
+  <br/>
+<hr />
+<h2>3. The Four-Phase Writing Process</h2>
+<p>Every journal entry follows a structured four-phase process designed to maximize your learning. It guides you from planning to a final, polished piece.</p>
+  <img src="https://placehold.co/600x120/e2e8f0/4a5568?text=1.+Scaffolding+→+2.+Writing+→+3.+Evaluation+→+4.+Completed" alt="Writing Phases" loading="lazy">
+  <br/>
+<h3>Phase 1: Scaffolding (Outline)</h3>
+<p>This is the planning stage. The goal is to create a simple outline for your journal entry. You can write freely or chat with your AI partner, Lingo, for ideas.</p>
+  <img src="https://ipa.parasyst.com/static/images/scaffolding.png" alt="scaffolding" loading="lazy">
+  <br/>
+<h3>Phase 2: Writing (Draft)</h3>
+<p>Now it's time to write your full journal entry using your outline as a guide. Your AI Writing Partner is available to help if you get stuck.</p>
+  <img src="https://ipa.parasyst.com/static/images/writing.png" alt="Writing" loading="lazy">
+  <br/>
+<h3>Phase 3: Evaluation (Feedback)</h3>
+<p>In this phase, Lingo analyzes your complete draft and provides detailed feedback on grammar, vocabulary, and phrasing. You can apply the suggestions with a single click.</p>
+  <img src="https://ipa.parasyst.com/static/images/Evaluation.png" alt="Evaluation" loading="lazy">
+  <br/>
+<h3>Phase 4: Completed</h3>
+<p>Congratulations! You've finished your journal entry. Your final text is saved, and all the learning points have been added to your <strong>Learning Hub</strong> for future review.</p>
+  <img src="https://ipa.parasyst.com/static/images/finished.png" alt="finished" loading="lazy">
+  <br/>
+<hr />
+`;
 </script>
+
 
 ```
 
@@ -1499,14 +1577,20 @@ const formatDate = (dateString) => {
           <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100">Admin Dashboard</h2>
           <p class="text-gray-500 dark:text-gray-400">Overview of class progress and statistics.</p>
         </div>
-        <!-- NEW BUTTON -->
-        <router-link
-          to="/admin/manage-students"
-          class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"></path></svg>
-          Manage Whitelist
-        </router-link>
+        <div class="flex items-center gap-3">
+          <!-- Button to open the admin manual -->
+          <button @click="showManualModal = true" class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-semibold px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M128,24a8,8,0,0,0-8,8V64a8,8,0,0,0,16,0V32A8,8,0,0,0,128,24Zm0,176a8,8,0,0,0-8,8v32a8,8,0,0,0,16,0V208A8,8,0,0,0,128,200Zm88-88H192a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16ZM40,120H64a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16Zm151.78-63.78a8,8,0,0,0-11.32,0L158.11,78.59a8,8,0,0,0,11.31,11.31l22.35-22.34a8,8,0,0,0,0-11.32ZM78.59,158.11,56.24,180.46a8,8,0,0,0,11.32,11.32l22.34-22.35a8,8,0,0,0-11.31-11.31Zm11.31-68.2L67.54,67.54a8,8,0,0,0-11.32,11.32l22.35,22.34a8,8,0,0,0,11.31-11.31ZM128,72a56,56,0,1,0,56,56A56.06,56.06,0,0,0,128,72Zm0,96a40,40,0,1,1,40-40A40,40,0,0,1,128,168Z"></path></svg>
+            Admin Manual
+          </button>
+          <router-link
+            to="/admin/manage-students"
+            class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"></path></svg>
+            Manage Whitelist
+          </router-link>
+        </div>
       </div>
     </div>
 
@@ -1544,24 +1628,72 @@ const formatDate = (dateString) => {
         <StudentTable :students="adminStore.students" />
       </div>
     </div>
+     <!-- Modal for the admin manual -->
+    <ManualModal 
+        :show="showManualModal" 
+        title="LingoJourn Administrator Manual"
+        :content="adminManualContent"
+        @close="showManualModal = false" 
+    />
   </main>
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useAdminStore } from '../../stores/adminStore';
 import AdminStatCard from '../../components/admin/AdminStatCard.vue';
 import ErrorDistributionChart from '../../components/admin/ErrorDistributionChart.vue';
 import ErrorTrendChart from '../../components/admin/ErrorTrendChart.vue';
 import StudentTable from '../../components/admin/StudentTable.vue';
+import ManualModal from '../../components/ManualModal.vue'; // Import the new modal component
 
 const adminStore = useAdminStore();
+const showManualModal = ref(false); // State to control the modal's visibility
 
 onMounted(() => {
   adminStore.fetchClassAnalytics();
   adminStore.fetchAllStudents();
 });
+
+// The content for the admin manual is stored here as an HTML string.
+// I've added an image with loading="lazy" to illustrate a key feature.
+const adminManualContent = `
+<h1>LingoJourn Administrator Manual</h1>
+<p>Welcome, Administrator! This guide provides an overview of the tools available to you for managing students and monitoring class-wide progress.</p>
+<hr>
+<h2>1. The Admin Dashboard</h2>
+<p>This is your main view, providing a high-level summary of your class's activity.</p>
+<h3>Key Analytics & Charts</h3>
+<p>The dashboard gives you a live look at class-wide statistics and charts showing common error types and performance trends over time. This helps you quickly identify topics the whole class may be struggling with.</p>
+  <img src="https://ipa.parasyst.com/static/images/admin_dashboard.png" alt="login" loading="lazy">
+  <br/>
+<h3>Student List</h3>
+<p>The table at the bottom of the dashboard lists all registered students with a summary of their activity. You can click "View" on any student to see their detailed profile.</p>
+  <img src="https://ipa.parasyst.com/static/images/students_admin.png" alt="login" loading="lazy">
+  <br/>
+<hr>
+<h2>2. Managing Student Access</h2>
+<p>You control who can register for LingoJourn via the student whitelist. From the Admin Dashboard, click the <strong>Manage Whitelist</strong> button.</p>
+<h3>Adding a Student</h3>
+<ol>
+    <li>On the "Manage Student Whitelist" page, enter the student's <strong>Student ID</strong> and <strong>Email Address</strong> into the form.</li>
+    <li>Click the "Add Student" button. The student will now be able to create an account.</li>
+</ol>
+<h3>Removing a Student</h3>
+<p>In the whitelist table, find the student you wish to remove and click the "Remove" button. This prevents them from registering (it does not delete an existing account).</p>
+<hr>
+<h2>3. Monitoring & Reviewing Student Work</h2>
+<p>To see how a specific student is doing, click "View" from the main student list on the dashboard. This will take you to their individual detail page, where you can see their personal analytics and a list of all their journal entries.</p>
+  <img src="https://ipa.parasyst.com/static/images/students_admin.png" alt="login" loading="lazy">
+  <br/>
+  <img src="https://ipa.parasyst.com/static/images/admin_journal_entry.png" alt="login" loading="lazy">
+  <br/>
+<p>Clicking on any journal entry allows you to read the student's final, corrected text, giving you direct insight into their writing process and progress.</p>
+  <img src="https://ipa.parasyst.com/static/images/journal_entry.png" alt="login" loading="lazy">
+  <br/>
+`;
 </script>
+
 
 ```
 
@@ -2519,31 +2651,23 @@ export default apiClient;
 
 ```
 <template>
-  <div v-if="feedbackData" class="border-l-4 p-3 rounded-r-lg max-w-xs break-words" :class="cardClasses">
+  <div v-if="feedbackData && feedbackData.status !== 'no_errors'" class="border-l-4 p-3 rounded-r-lg max-w-xs break-words" :class="cardClasses">
     
-    <!-- Case 1: A correction was found -->
-    <div v-if="feedbackData.status !== 'no_errors'">
-      <p class="text-xs font-bold mb-2" :class="textColor">Quick Correction!</p>
-      <div class="space-y-1 text-sm">
-        <p class="text-gray-800 dark:text-gray-200">
-          You wrote: 
-          <span class="line-through text-red-600 bg-red-100 dark:bg-red-900/50 dark:text-red-300 px-1 rounded">"{{ feedbackData.incorrect_phrase }}"</span>
-        </p>
-        <p class="text-gray-800 dark:text-gray-200">
-          A better way is: 
-          <span class="font-semibold text-green-700 bg-green-100 dark:bg-green-900/50 dark:text-green-300 px-1 rounded">"{{ feedbackData.suggestion }}"</span>
-        </p>
-        <p class="text-xs text-gray-700 dark:text-gray-300 mt-3 bg-white dark:bg-gray-700/50 p-2 rounded">
-          <strong>Why:</strong> {{ feedbackData.explanation }}
-        </p>
-      </div>
+    <p class="text-xs font-bold mb-2" :class="textColor">Quick Correction!</p>
+    <div class="space-y-1 text-sm">
+      <p class="text-gray-800 dark:text-gray-200">
+        You wrote: 
+        <span class="line-through text-red-600 bg-red-100 dark:bg-red-900/50 dark:text-red-300 px-1 rounded">"{{ feedbackData.incorrect_phrase }}"</span>
+      </p>
+      <p class="text-gray-800 dark:text-gray-200">
+        The correct way is: 
+        <span class="font-semibold text-green-700 bg-green-100 dark:bg-green-900/50 dark:text-green-300 px-1 rounded">"{{ feedbackData.suggestion }}"</span>
+      </p>
+      <p class="text-xs text-gray-700 dark:text-gray-300 mt-3 bg-white dark:bg-gray-700/50 p-2 rounded">
+        <strong>Why:</strong> {{ feedbackData.explanation }}
+      </p>
     </div>
 
-    <!-- Case 2: No errors were found -->
-    <div v-else class="flex items-center gap-2">
-       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0" :class="textColor" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm45.66-125.66a8,8,0,0,1,0,11.32L133.31,144l-22.34,22.34a8,8,0,0,1-11.32-11.32L122,132.69,99.66,110.34a8,8,0,0,1,11.32-11.32L132,121.31l22.34-22.34A8,8,0,0,1,173.66,90.34Z"></path></svg>
-      <p class="text-sm font-semibold" :class="textColor">Looking good! No corrections found.</p>
-    </div>
   </div>
 </template>
 
@@ -2568,24 +2692,16 @@ onMounted(() => {
   }
 });
 
-// Computed properties for dynamic styling based on feedback type
+// Since the component no longer renders for 'no_errors', we can simplify the computed properties.
 const cardClasses = computed(() => {
-  if (feedbackData.value?.status === 'no_errors') {
-    return 'bg-green-50 dark:bg-green-900/50 border-green-400 dark:border-green-600';
-  }
   return 'bg-teal-50 dark:bg-teal-900/50 border-teal-400 dark:border-teal-600';
 });
 
 const textColor = computed(() => {
-  if (feedbackData.value?.status === 'no_errors') {
-    return 'text-green-700 dark:text-green-200';
-  }
   return 'text-teal-700 dark:text-teal-200';
 });
 
 </script>
-
-
 ```
 
 
@@ -2850,6 +2966,88 @@ const cardColorClasses = computed(() => {
   return { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-800 dark:text-gray-200' }; // Default color
 });
 </script>
+
+```
+
+
+### File: src/components/ManualModal.vue
+
+```
+<template>
+  <!-- 
+    This is a reusable modal component. 
+    It appears as an overlay and can be closed by clicking the background or the 'X' button.
+  -->
+  <div v-if="show" class="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 transition-opacity duration-300" @click.self="close">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg w-full max-w-3xl max-h-[90vh] flex flex-col transform transition-transform duration-300 scale-95" :class="{ 'scale-100': show }">
+      <!-- Modal Header -->
+      <header class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ title }}</h2>
+        <button @click="close" title="Close manual" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" class="text-gray-600 dark:text-gray-300" fill="currentColor" viewBox="0 0 256 256"><path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"></path></svg>
+        </button>
+      </header>
+      <!-- Modal Content -->
+      <main class="flex-grow overflow-y-auto p-6 prose dark:prose-invert max-w-none custom-scrollbar">
+        <!-- The manual content will be injected here -->
+        <div v-html="content"></div>
+      </main>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { watch, onUnmounted } from 'vue';
+
+// This component receives 'show', 'title', and 'content' as properties from its parent.
+const props = defineProps({
+  show: Boolean,
+  title: String,
+  content: String,
+});
+
+// Defines a custom event 'close' that the parent component can listen for.
+const emit = defineEmits(['close']);
+
+// Emits the 'close' event when the modal should be closed.
+const close = () => {
+  emit('close');
+};
+
+// This watcher adds/removes a class to the body to prevent background scrolling when the modal is open.
+watch(() => props.show, (isShowing) => {
+  if (isShowing) {
+    document.body.classList.add('modal-open');
+  } else {
+    document.body.classList.remove('modal-open');
+  }
+});
+
+// This ensures that if the component is ever removed from the DOM unexpectedly, the class is cleaned up.
+onUnmounted(() => {
+  document.body.classList.remove('modal-open');
+});
+</script>
+
+<style>
+/* These are basic styles to make the HTML from the manual content look good.
+  They are scoped to the `.prose` class which is applied to the content area.
+*/
+.prose h1, .prose h2, .prose h3 { @apply font-bold mb-2; }
+.prose h1 { @apply text-2xl; }
+.prose h2 { @apply text-xl border-b border-gray-200 dark:border-gray-700 pb-2 mb-4; }
+.prose h3 { @apply text-lg; }
+.prose p { @apply mb-4 leading-relaxed; }
+.prose ul, .prose ol { @apply list-inside mb-4 pl-2; }
+.prose li { @apply mb-2; }
+.prose code { @apply bg-gray-100 dark:bg-gray-700 rounded px-1 py-0.5 text-sm font-mono text-indigo-600 dark:text-indigo-400; }
+.prose strong { @apply font-semibold; }
+.prose a { @apply text-indigo-600 dark:text-indigo-400 hover:underline; }
+.prose hr { @apply my-6 border-gray-200 dark:border-gray-700; }
+/* This new style will make images in the manual responsive and visually appealing. */
+.prose img { @apply rounded-lg shadow-md my-4 max-w-full h-auto; }
+</style>
+
 
 ```
 

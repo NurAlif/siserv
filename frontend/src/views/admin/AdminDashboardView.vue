@@ -86,57 +86,41 @@ onMounted(() => {
 });
 
 // The content for the admin manual is stored here as an HTML string.
+// I've added an image with loading="lazy" to illustrate a key feature.
 const adminManualContent = `
 <h1>LingoJourn Administrator Manual</h1>
 <p>Welcome, Administrator! This guide provides an overview of the tools available to you for managing students and monitoring class-wide progress.</p>
 <hr>
 <h2>1. The Admin Dashboard</h2>
 <p>This is your main view, providing a high-level summary of your class's activity.</p>
-<h3>Key Analytics</h3>
-<p>At the top, you'll find four key statistics:</p>
-<ul>
-    <li><strong>Total Students</strong>: The total number of registered non-admin users.</li>
-    <li><strong>Total Journal Entries</strong>: The sum of all journal entries created by all students.</li>
-    <li><strong>Total Errors Logged</strong>: The total number of unique errors identified by the AI across all entries.</li>
-    <li><strong>Avg Errors per Journal</strong>: The average number of errors found per completed journal entry.</li>
-</ul>
-<h3>Class-wide Charts</h3>
-<ul>
-    <li><strong>Class Error Distribution</strong>: This bar chart shows the most common error categories across the entire class. It helps you quickly identify the biggest challenges your students are facing collectively.</li>
-    <li><strong>Class Error Trend</strong>: This line chart shows the total number of errors made by the class each day over the last 30 days, helping you track progress over time.</li>
-</ul>
+<h3>Key Analytics & Charts</h3>
+<p>The dashboard gives you a live look at class-wide statistics and charts showing common error types and performance trends over time. This helps you quickly identify topics the whole class may be struggling with.</p>
+  <img src="https://ipa.parasyst.com/static/images/admin_dashboard.png" alt="login" loading="lazy">
+  <br/>
 <h3>Student List</h3>
 <p>The table at the bottom of the dashboard lists all registered students with a summary of their activity. You can click "View" on any student to see their detailed profile.</p>
+  <img src="https://ipa.parasyst.com/static/images/students_admin.png" alt="login" loading="lazy">
+  <br/>
 <hr>
 <h2>2. Managing Student Access</h2>
-<p>You control who can register for LingoJourn via the student whitelist.</p>
-<h3>Accessing the Whitelist</h3>
-<p>From the Admin Dashboard, click the <strong>Manage Whitelist</strong> button.</p>
+<p>You control who can register for LingoJourn via the student whitelist. From the Admin Dashboard, click the <strong>Manage Whitelist</strong> button.</p>
 <h3>Adding a Student</h3>
 <ol>
     <li>On the "Manage Student Whitelist" page, enter the student's <strong>Student ID</strong> and <strong>Email Address</strong> into the form.</li>
-    <li>Click the "Add Student" button.</li>
-    <li>The student will now be able to create an account using these exact credentials.</li>
+    <li>Click the "Add Student" button. The student will now be able to create an account.</li>
 </ol>
 <h3>Removing a Student</h3>
-<p>In the whitelist table, find the student you wish to remove and click the "Remove" button on the right. This prevents them from registering (it does not delete an existing account).</p>
+<p>In the whitelist table, find the student you wish to remove and click the "Remove" button. This prevents them from registering (it does not delete an existing account).</p>
 <hr>
-<h2>3. Monitoring Individual Students</h2>
-<p>To see how a specific student is doing, click "View" from the main student list on the dashboard.</p>
-<h3>Student Detail Page</h3>
-<p>This page provides:</p>
-<ul>
-    <li><strong>Summary Stats</strong>: The student's total journals, total errors, and last active date.</li>
-    <li><strong>Individual Charts</strong>: The same Error Distribution and Trend charts, but filtered to show data for <em>only this student</em>. This is useful for understanding their personal learning patterns.</li>
-    <li><strong>Journal List</strong>: A complete list of all journal entries created by the student.</li>
-</ul>
-<hr>
-<h2>4. Reviewing Student Work</h2>
-<p>From the Student Detail Page, you can review any of their journal entries.</p>
-<ol>
-    <li>Find the journal you want to read in the list.</li>
-    <li>Click on the journal card to open the <strong>Journal Detail View</strong>.</li>
-    <li>Here, you can read the student's <strong>Outline</strong> and their final, corrected <strong>Content</strong>. This gives you direct insight into their writing process and the final product.</li>
-</ol>
+<h2>3. Monitoring & Reviewing Student Work</h2>
+<p>To see how a specific student is doing, click "View" from the main student list on the dashboard. This will take you to their individual detail page, where you can see their personal analytics and a list of all their journal entries.</p>
+  <img src="https://ipa.parasyst.com/static/images/students_admin.png" alt="login" loading="lazy">
+  <br/>
+  <img src="https://ipa.parasyst.com/static/images/admin_journal_entry.png" alt="login" loading="lazy">
+  <br/>
+<p>Clicking on any journal entry allows you to read the student's final, corrected text, giving you direct insight into their writing process and progress.</p>
+  <img src="https://ipa.parasyst.com/static/images/journal_entry.png" alt="login" loading="lazy">
+  <br/>
 `;
 </script>
+

@@ -4,18 +4,18 @@
     <!-- ================================== -->
     <!--  1. NEW COMPACT & ANIMATED HEADER  -->
     <!-- ================================== -->
-    <div class="flex-shrink-0 p-3 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
+    <div class="flex-shrink-0 p-2 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
       <!-- Left Section: Navigation, Title, and Status -->
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2">
         <router-link to="/" title="Back to Dashboard" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z"></path></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z"></path></svg>
         </router-link>
         <div>
-          <h2 class="text-md font-bold text-gray-900 dark:text-gray-100 truncate">{{ currentJournal?.title || 'New Journal Entry' }}</h2>
-          <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+          <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{{ currentJournal?.title || 'New Journal Entry' }}</h2>
+          <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
             <span>{{ displayDate }}</span>
-            <span class="mx-2">·</span>
-            <span>Status: <strong>{{ statusText }}</strong></span>
+            <span class="mx-1">·</span>
+            <span class="hidden sm:inline">Status: <strong>{{ statusText }}</strong></span>
           </div>
         </div>
       </div>
@@ -25,11 +25,11 @@
         <template v-for="(phase, index) in phases" :key="phase.id">
           <div class="flex items-center">
             <!-- Connector Line (appears after the first item) -->
-            <div v-if="index > 0" class="w-8 h-1 rounded transition-colors" :class="getPhaseLineClass(phase.id)"></div>
+            <div v-if="index > 0" class="w-6 h-0.5 rounded transition-colors" :class="getPhaseLineClass(phase.id)"></div>
             <!-- Phase Circle with Tooltip -->
             <div class="group relative">
-              <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300" :class="getPhaseClass(phase.id)">
-                 <svg v-if="phase.id === 4" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"></path></svg>
+              <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300" :class="getPhaseClass(phase.id)">
+                 <svg v-if="phase.id === 4" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"></path></svg>
                  <span v-else>{{ phase.id }}</span>
               </div>
               <span class="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-max opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 text-white text-xs font-semibold rounded-md py-1 px-2 pointer-events-none z-10">
@@ -175,8 +175,8 @@
         
         <!-- Mobile View Switcher -->
         <div class="md:hidden flex-shrink-0 flex border border-gray-300 dark:border-gray-600 rounded-lg p-1 bg-gray-100 dark:bg-gray-900">
-            <button @click="mobileView = 'writer'" :class="[mobileView === 'writer' ? 'bg-indigo-600 text-white shadow' : 'text-gray-600 dark:text-gray-300', 'flex-1 p-2 rounded-md font-semibold text-sm transition-all duration-200 ease-in-out']">📝 Writer</button>
-            <button @click="mobileView = 'partner'" :class="[mobileView === 'partner' ? 'bg-indigo-600 text-white shadow' : 'text-gray-600 dark:text-gray-300', 'flex-1 p-2 rounded-md font-semibold text-sm transition-all duration-200 ease-in-out']">🤖 Partner</button>
+            <button @click="mobileView = 'writer'" :class="[mobileView === 'writer' ? 'bg-indigo-600 text-white shadow' : 'text-gray-600 dark:text-gray-300', 'flex-1 py-1.5 px-2 rounded-md font-semibold text-xs transition-all duration-200 ease-in-out']">📝 Writer</button>
+            <button @click="mobileView = 'partner'" :class="[mobileView === 'partner' ? 'bg-indigo-600 text-white shadow' : 'text-gray-600 dark:text-gray-300', 'flex-1 py-1.5 px-2 rounded-md font-semibold text-xs transition-all duration-200 ease-in-out']">🤖 Partner</button>
         </div>
         
         <!-- Main Grid for Desktop -->
@@ -506,4 +506,3 @@ const getPhaseLineClass = (phaseId) => {
     background-color: #3730a3; /* indigo-800 */
 }
 </style>
-

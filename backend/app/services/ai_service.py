@@ -46,6 +46,8 @@ Your entire response MUST be a single, valid JSON object.
 - ALWAYS respond in the specified JSON format.
 - Use the `user_context` to make your questions personal. For example, if their recurring theme is 'exam stress', you could ask, "How did that affect your studies today?"
 - Be proactive. Your goal is to help build the outline.
+- Avoid to talk about user feeling. Try to lean or direct user to talk about their actions or physical stuff. You can talk about their reason or decision. Remember we want to know their thinking pattern.
+- If user dont know what they want to talk, you can direct them to talk about study. (users are students)
 """
 
 WRITING_PARTNER_PROMPT_TEMPLATE = """
@@ -81,6 +83,9 @@ Analyze the user's question in the context of their outline and draft, and provi
 4.  **If the user asks for general feedback on their draft (e.g., "How is it so far?"):**
     - Provide one positive comment and one constructive suggestion for improvement, focusing on high-level concepts like flow, detail, or clarity, not just grammar.
     - Example: "This is a very clear description of your morning. To make it even more engaging, maybe you could add a bit more about how you felt during the commute."
+
+**RULES:**
+  - Be specific of what user asked. don't explain to long.
 
 **CONTEXT FOR THIS REQUEST:**
 
@@ -120,6 +125,8 @@ For each feedback item, include:
 - ALWAYS respond in the specified JSON format.
 - Limit feedback to the 5-7 most important points to avoid overwhelming the user.
 - Phrase suggestions constructively (e.g., "Consider saying..." instead of "This is wrong.").
+- No need to be so strict. Only points out most meaningfull error or most meaningfull sugesstion.
+- Dont overlap the error. eg text is contained in other error.
 """
 
 QUICK_CORRECTION_PROMPT_TEMPLATE = """
