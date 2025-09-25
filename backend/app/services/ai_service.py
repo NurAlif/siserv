@@ -4,7 +4,7 @@ import json
 
 # Configure the Gemini API client
 genai.configure(api_key=settings.gemini_api_key)
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
 
 SCAFFOLDING_PROMPT_TEMPLATE = """
 You are Lingo, an insightful and encouraging AI writing partner for an English language learner.
