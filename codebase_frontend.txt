@@ -940,7 +940,7 @@ const aiStore = useAiStore();
 const currentJournal = computed(() => journalStore.getJournalByDate(route.params.date));
 const currentPhase = computed(() => currentJournal.value?.writing_phase || 'scaffolding');
 
-const mobileView = ref('main'); // Can be 'main' or 'chat'
+const mobileView = ref('main');
 const isCorrectionModeEnabled = ref(true);
 
 const content = ref('');
@@ -949,6 +949,7 @@ const statusText = ref('Saved');
 const newMessage = ref('');
 const chatContainer = ref(null);
 const appliedSuggestions = ref([]);
+const saveTimeout = ref(null);
 
 const phases = ref([
     { id: 1, name: 'Scaffolding' },
@@ -1025,31 +1026,53 @@ watch(() => currentJournal.value?.chat_messages, () => {
 
 watch(content, (newValue, oldValue) => {
     if (currentPhase.value === 'writing' && newValue !== oldValue) {
-        saveJournal();
+        statusText.value = 'Saving...';
+        
+        // Clear the previous timeout to reset the timer.
+        if (saveTimeout.value) {
+            clearTimeout(saveTimeout.value);
+        }
+
+        // Set a new timeout to trigger the save after 5 seconds of inactivity.
+        saveTimeout.value = setTimeout(() => {
+            saveJournal(true);
+        }, 5000); // 5 seconds delay
     }
 });
 
+
 const saveJournal = async (showStatus = true) => {
   if (!currentJournal.value) return;
-  if (showStatus) statusText.value = 'Saving...';
+  // The 'Saving...' status is now set in the watcher.
   const payload = {
     content: content.value,
     outline_content: outlineContent.value,
   };
   const savedJournal = await journalStore.updateJournal(currentJournal.value.journal_date, payload);
   
-  if (showStatus) statusText.value = savedJournal ? 'All changes saved!' : 'Error saving.';
+  if (showStatus) {
+    statusText.value = savedJournal ? 'All changes saved!' : 'Error saving.';
+  }
 };
+
 
 const moveToPhase = async (phase) => {
     if (!currentJournal.value) return;
-    await saveJournal();
+    // Before moving phase, clear any pending save and save immediately.
+    if (saveTimeout.value) {
+        clearTimeout(saveTimeout.value);
+    }
+    await saveJournal(false); // Save without showing status, as phase change is the main event.
     await journalStore.updateJournalPhase(currentJournal.value.journal_date, phase);
 };
 
 const sendMessage = async () => {
   if (!newMessage.value.trim() || !currentJournal.value || aiStore.isLoading) return;
   
+  // Also ensure any pending saves are completed before sending a message.
+  if (saveTimeout.value) {
+      clearTimeout(saveTimeout.value);
+  }
   await saveJournal(false);
 
   const messageToSend = newMessage.value;
