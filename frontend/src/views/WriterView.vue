@@ -76,7 +76,8 @@
                 >
                   <path
                     d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"
-                  ></path></svg><span v-else>{{ phase.id }}</span>
+                  ></path></svg
+                ><span v-else>{{ phase.id }}</span>
               </div>
               <span
                 class="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-max opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 text-white text-xs font-semibold rounded-md py-1 px-2 pointer-events-none z-10"
@@ -99,30 +100,98 @@
         class="h-full flex flex-col p-6 sm:p-8 gap-6"
       >
         <!-- Phase Banners -->
-        <div
-          v-if="currentPhase === 'scaffolding' && isDescriptionVisible"
-          class="flex-shrink-0 bg-indigo-50 dark:bg-indigo-900/50 p-4 rounded-lg transition-all duration-300"
-        >
-          <h3 class="font-bold text-indigo-800 dark:text-indigo-200">
-            Phase 1: Let's build an outline!
-          </h3>
-          <p class="text-sm text-indigo-700 dark:text-indigo-300 mt-1">
-            Answer Lingo's questions or write your own key points below to
-            create a plan for your journal entry.
-          </p>
-        </div>
-        <div
-          v-if="currentPhase === 'writing' && isDescriptionVisible"
-          class="flex-shrink-0 bg-green-50 dark:bg-green-900/50 p-4 rounded-lg transition-all duration-300"
-        >
-          <h3 class="font-bold text-green-800 dark:text-green-200">
-            Phase 2: Write your draft
-          </h3>
-          <p class="text-sm text-green-700 dark:text-green-300 mt-1">
-            Use your outline to write your journal entry. Your writing partner,
-            Lingo, is here to help if you get stuck.
-          </p>
-        </div>
+        <transition name="banner-fade">
+          <div
+            v-if="currentPhase === 'scaffolding' && isDescriptionVisible"
+            class="relative flex-shrink-0 bg-indigo-50 dark:bg-indigo-900/50 p-4 rounded-lg"
+          >
+            <h3 class="font-bold text-indigo-800 dark:text-indigo-200">
+              Phase 1: Let's build an outline!
+            </h3>
+            <p
+              class="text-sm text-indigo-700 dark:text-indigo-300 mt-1 pr-8"
+            >
+              Answer Lingo's questions or write your own key points below to
+              create a plan for your journal entry.
+            </p>
+            <button
+              @click="togglePhaseDescription()"
+              class="absolute bottom-2 right-2 p-1 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-800/50 transition-colors"
+              title="Toggle description"
+            >
+              <svg
+                v-if="isDescriptionVisible"
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                fill="currentColor"
+                class="text-indigo-600 dark:text-indigo-300"
+                viewBox="0 0 256 256"
+              >
+                <path
+                  d="M213.66,165.66a8,8,0,0,1-11.32,0L128,91.31,53.66,165.66a8,8,0,0,1-11.32-11.32l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,213.66,165.66Z"
+                ></path></svg
+              ><svg
+                v-else
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                fill="currentColor"
+                class="text-indigo-600 dark:text-indigo-300"
+                viewBox="0 0 256 256"
+              >
+                <path
+                  d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80a8,8,0,0,1,11.32-11.32L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"
+                ></path>
+              </svg>
+            </button>
+          </div>
+        </transition>
+        <transition name="banner-fade">
+          <div
+            v-if="currentPhase === 'writing' && isDescriptionVisible"
+            class="relative flex-shrink-0 bg-green-50 dark:bg-green-900/50 p-4 rounded-lg"
+          >
+            <h3 class="font-bold text-green-800 dark:text-green-200">
+              Phase 2: Write your draft
+            </h3>
+            <p class="text-sm text-green-700 dark:text-green-300 mt-1 pr-8">
+              Use your outline to write your journal entry. Your writing
+              partner, Lingo, is here to help if you get stuck.
+            </p>
+            <button
+              @click="togglePhaseDescription()"
+              class="absolute bottom-2 right-2 p-1 rounded-full hover:bg-green-100 dark:hover:bg-green-800/50 transition-colors"
+              title="Toggle description"
+            >
+              <svg
+                v-if="isDescriptionVisible"
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                fill="currentColor"
+                class="text-green-600 dark:text-green-300"
+                viewBox="0 0 256 256"
+              >
+                <path
+                  d="M213.66,165.66a8,8,0,0,1-11.32,0L128,91.31,53.66,165.66a8,8,0,0,1-11.32-11.32l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,213.66,165.66Z"
+                ></path></svg
+              ><svg
+                v-else
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                fill="currentColor"
+                class="text-green-600 dark:text-green-300"
+                viewBox="0 0 256 256"
+              >
+                <path
+                  d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80a8,8,0,0,1,11.32-11.32L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"
+                ></path>
+              </svg>
+            </button>
+          </div>
+        </transition>
 
         <!-- Mobile View Switcher (Tabs) -->
         <div
@@ -312,19 +381,52 @@
       >
         <!-- Phase 3: Evaluation -->
         <div v-if="currentPhase === 'evaluation'" class="p-8">
-          <div
-            v-if="isDescriptionVisible"
-            class="bg-rose-50 dark:bg-rose-900/50 p-4 rounded-lg mb-4 transition-all duration-300"
-          >
-            <h3 class="font-bold text-rose-800 dark:text-rose-200">
-              Phase 3: Review Your Evaluation
-            </h3>
-            <p class="text-sm text-rose-700 dark:text-rose-300 mt-1">
-              Review the AI's suggestions below to improve your grammar,
-              vocabulary, and style. Your original text is highlighted with
-              suggestions.
-            </p>
-          </div>
+          <transition name="banner-fade">
+            <div
+              v-if="isDescriptionVisible"
+              class="relative bg-rose-50 dark:bg-rose-900/50 p-4 rounded-lg mb-4"
+            >
+              <h3 class="font-bold text-rose-800 dark:text-rose-200">
+                Phase 3: Review Your Evaluation
+              </h3>
+              <p class="text-sm text-rose-700 dark:text-rose-300 mt-1 pr-8">
+                Review the AI's suggestions below to improve your grammar,
+                vocabulary, and style. Your original text is highlighted with
+                suggestions.
+              </p>
+              <button
+                @click="togglePhaseDescription()"
+                class="absolute bottom-2 right-2 p-1 rounded-full hover:bg-rose-100 dark:hover:bg-rose-800/50 transition-colors"
+                title="Toggle description"
+              >
+                <svg
+                  v-if="isDescriptionVisible"
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  fill="currentColor"
+                  class="text-rose-600 dark:text-rose-300"
+                  viewBox="0 0 256 256"
+                >
+                  <path
+                    d="M213.66,165.66a8,8,0,0,1-11.32,0L128,91.31,53.66,165.66a8,8,0,0,1-11.32-11.32l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,213.66,165.66Z"
+                  ></path></svg
+                ><svg
+                  v-else
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  fill="currentColor"
+                  class="text-rose-600 dark:text-rose-300"
+                  viewBox="0 0 256 256"
+                >
+                  <path
+                    d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80a8,8,0,0,1,11.32-11.32L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"
+                  ></path>
+                </svg>
+              </button>
+            </div>
+          </transition>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="md:col-span-2">
               <h4 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -726,17 +828,20 @@ const phaseMap = {
 };
 
 const togglePhaseDescription = (phaseId) => {
-  // Only allow toggling for the current phase
-  if (phaseMap[currentPhase.value] === phaseId) {
-    if (isDescriptionVisible.value) {
-      isDescriptionVisible.value = false;
-      if (descriptionTimeout.value) {
-        clearTimeout(descriptionTimeout.value);
-      }
-    } else {
-      // If showing it again, also restart the auto-hide timer
-      startDescriptionTimer();
+  // If a phaseId is passed, only allow toggling for the current phase.
+  // If no phaseId is passed (from the button), it always toggles.
+  if (phaseId && phaseMap[currentPhase.value] !== phaseId) {
+    return;
+  }
+
+  if (isDescriptionVisible.value) {
+    isDescriptionVisible.value = false;
+    if (descriptionTimeout.value) {
+      clearTimeout(descriptionTimeout.value);
     }
+  } else {
+    // If showing it again, also restart the auto-hide timer
+    startDescriptionTimer();
   }
 };
 
@@ -765,6 +870,24 @@ const getPhaseLineClass = (phaseId) => {
 }
 .dark #correction-toggle:checked ~ .block {
   background-color: #3730a3; /* indigo-800 */
+}
+
+.banner-fade-enter-active,
+.banner-fade-leave-active {
+  transition: all 0.4s ease-in-out;
+  max-height: 100px;
+  overflow: hidden;
+}
+
+.banner-fade-enter-from,
+.banner-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-top: 0;
+  margin-bottom: 0;
 }
 </style>
 
