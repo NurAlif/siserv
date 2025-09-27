@@ -4,3 +4,4 @@ pycache/
 node_modules/
 .env
 venv/
+backend/app/static/uploads/
