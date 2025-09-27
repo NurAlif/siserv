@@ -1,0 +1,21 @@
+# Web Framework
+fastapi
+
+# ASGI Server
+uvicorn[standard]
+
+# Database ORM and Driver
+SQLAlchemy
+psycopg2-binary
+
+# Data Validation and Settings
+pydantic
+pydantic-settings
+
+# Authentication & Security
+passlib[bcrypt]
+python-jose[cryptography]
+python-multipart
+
+# Google Gemini AI API
+google-generativeai

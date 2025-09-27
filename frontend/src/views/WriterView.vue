@@ -76,8 +76,7 @@
                 >
                   <path
                     d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"
-                  ></path></svg
-                ><span v-else>{{ phase.id }}</span>
+                  ></path></svg><span v-else>{{ phase.id }}</span>
               </div>
               <span
                 class="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-max opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 text-white text-xs font-semibold rounded-md py-1 px-2 pointer-events-none z-10"
@@ -130,8 +129,7 @@
               >
                 <path
                   d="M213.66,165.66a8,8,0,0,1-11.32,0L128,91.31,53.66,165.66a8,8,0,0,1-11.32-11.32l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,213.66,165.66Z"
-                ></path></svg
-              ><svg
+                ></path></svg><svg
                 v-else
                 xmlns="http://www.w3.org/2000/svg"
                 width="16"
@@ -175,8 +173,7 @@
               >
                 <path
                   d="M213.66,165.66a8,8,0,0,1-11.32,0L128,91.31,53.66,165.66a8,8,0,0,1-11.32-11.32l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,213.66,165.66Z"
-                ></path></svg
-              ><svg
+                ></path></svg><svg
                 v-else
                 xmlns="http://www.w3.org/2000/svg"
                 width="16"
@@ -410,8 +407,7 @@
                 >
                   <path
                     d="M213.66,165.66a8,8,0,0,1-11.32,0L128,91.31,53.66,165.66a8,8,0,0,1-11.32-11.32l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,213.66,165.66Z"
-                  ></path></svg
-                ><svg
+                  ></path></svg><svg
                   v-else
                   xmlns="http://www.w3.org/2000/svg"
                   width="16"
@@ -691,7 +687,7 @@ const startDescriptionTimer = () => {
 
 watch(
   currentJournal,
-  (newJournal) => {
+  (newJournal, oldJournal) => {
     if (newJournal) {
       content.value = newJournal.content || '';
       outlineContent.value = newJournal.outline_content || '';
@@ -704,7 +700,11 @@ watch(
         aiStore.getFeedback(newJournal.journal_date, newJournal.content);
       }
       scrollToBottom();
-      startDescriptionTimer();
+
+      // Only restart the timer if the phase has changed or on initial load (oldJournal is undefined)
+      if (!oldJournal || newJournal.writing_phase !== oldJournal.writing_phase) {
+        startDescriptionTimer();
+      }
     }
   },
   { deep: true, immediate: true }
