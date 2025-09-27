@@ -31,20 +31,27 @@ export const useJournalStore = defineStore('journal', {
         this.isLoading = false;
       }
     },
-    async fetchJournalByDate(date) {
-        // Check if we already have it
+    async fetchJournalByDate(date, forceRefresh = false) {
+        // Check if we already have it and are not forcing a refresh
         const existing = this.getJournalByDate(date);
-        if (existing) {
+        if (existing && !forceRefresh) {
             return existing;
         }
 
         // If not, fetch it from the API
         this.isLoading = true;
         this.error = null;
-        try {
+       try {
             const response = await apiClient.get(`/journals/${date}`);
-            // Add the newly fetched journal to our list
-            this.journals.push(response.data);
+            
+            // If it already exists, update it. Otherwise, add it.
+            const index = this.journals.findIndex(j => j.journal_date === date);
+            if (index !== -1) {
+                // FIXED: Use splice to ensure reactivity
+                this.journals.splice(index, 1, response.data);
+            } else {
+                this.journals.push(response.data);
+            }
             return response.data;
         } catch (err) {
             this.error = 'Failed to load journal entry.';
@@ -73,12 +80,11 @@ export const useJournalStore = defineStore('journal', {
       }
     },
 
-    // --- New Action: Update a journal entry ---
-    async updateJournal(date, content) {
+    async updateJournal(date, payload) {
       this.isLoading = true;
       this.error = null;
       try {
-        const response = await apiClient.put(`/journals/${date}`, { content });
+        const response = await apiClient.put(`/journals/${date}`, payload);
         // Find and update the journal in our local list
         const index = this.journals.findIndex(j => j.journal_date === date);
         if (index !== -1) {
@@ -91,6 +97,49 @@ export const useJournalStore = defineStore('journal', {
         return null;
       } finally {
         this.isLoading = false;
+      }
+    },
+    
+    async updateJournalPhase(date, phase) {
+      this.isLoading = true;
+      this.error = null;
+      try {
+        const response = await apiClient.put(`/journals/${date}/phase`, { phase });
+        const index = this.journals.findIndex(j => j.journal_date === date);
+        if (index !== -1) {
+          this.journals[index] = response.data;
+        }
+        return response.data;
+      } catch (err) {
+        this.error = 'Failed to update journal phase.';
+        console.error(err);
+        return null;
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    addChatMessageOptimistically(date, message) {
+      const journal = this.getJournalByDate(date);
+      if (journal) {
+        // Ensure the chat_messages array exists before pushing to it.
+        if (!journal.chat_messages) {
+          journal.chat_messages = [];
+        }
+        journal.chat_messages.push(message);
+      }
+    },
+
+    updateLocalJournal(updatedJournal) {
+      if (!updatedJournal || !updatedJournal.journal_date) return;
+      
+      const index = this.journals.findIndex(j => j.journal_date === updatedJournal.journal_date);
+      if (index !== -1) {
+        // Use splice for reactivity
+        this.journals.splice(index, 1, updatedJournal);
+      } else {
+        // If it's a new journal not yet in the list (should be rare for updates)
+        this.journals.unshift(updatedJournal);
       }
     },
 

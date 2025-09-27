@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import date, datetime
+from sqlalchemy.orm import joinedload
+import json
 
 from .. import schemas, security, models, database
 from ..services import ai_service
@@ -18,10 +20,9 @@ def get_and_save_ai_feedback(
     current_user: models.User = Depends(security.get_current_user)
 ):
     """
-    Analyzes a journal entry's content, returns structured AI feedback,
-    and saves the learning points to the database to track user progress.
+    Analyzes a journal entry's content for the 'evaluation' phase, returns structured AI feedback,
+    and saves any learning points derived from the feedback to the database.
     """
-    # 1. Find the user's journal for the specified date
     journal = db.query(models.Journal).filter(
         models.Journal.user_id == current_user.id,
         models.Journal.journal_date == journal_date
@@ -33,32 +34,28 @@ def get_and_save_ai_feedback(
             detail=f"Journal entry for date {journal_date} not found."
         )
 
-    # 2. Call the AI service to get feedback
-    feedback_data = ai_service.get_ai_feedback_from_text(request.text)
+    feedback_data = ai_service.get_evaluation_feedback(request.text)
 
-    if feedback_data is None:
+    if not feedback_data or "feedback_items" not in feedback_data:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The AI service is currently unavailable."
+            detail="The AI service is currently unavailable or returned invalid data."
         )
 
-    # 3. Process and save the feedback to the database
-    for item in feedback_data:
-        feedback_item = schemas.AIFeedbackItem(**item)
-        
-        # Get or create the LearningTopic
-        topic = db.query(models.LearningTopic).filter(models.LearningTopic.topic_name == feedback_item.error_type).first()
+    # Save learning points logic
+    for item_data in feedback_data["feedback_items"]:
+        item = schemas.AIFeedbackItem(**item_data)
+        topic = db.query(models.LearningTopic).filter(models.LearningTopic.topic_name == item.category).first()
         if not topic:
-            topic = models.LearningTopic(topic_name=feedback_item.error_type)
+            topic = models.LearningTopic(topic_name=item.category)
             db.add(topic)
             db.commit()
             db.refresh(topic)
 
-        # Check for existing UserError to track repetitions
         user_error = db.query(models.UserError).filter(
             models.UserError.user_id == current_user.id,
             models.UserError.topic_id == topic.id,
-            models.UserError.incorrect_phrase == feedback_item.incorrect_phrase
+            models.UserError.incorrect_phrase == item.incorrect_phrase
         ).first()
         
         if user_error:
@@ -68,31 +65,27 @@ def get_and_save_ai_feedback(
             user_error = models.UserError(
                 user_id=current_user.id,
                 topic_id=topic.id,
-                incorrect_phrase=feedback_item.incorrect_phrase
+                incorrect_phrase=item.incorrect_phrase
             )
             db.add(user_error)
-        
-        # We commit here to ensure user_error gets an ID for the history record
         db.commit()
         db.refresh(user_error)
 
-        # Get or create the LearningPoint
         learning_point = db.query(models.LearningPoint).filter(
             models.LearningPoint.topic_id == topic.id,
-            models.LearningPoint.explanation_text == feedback_item.explanation
+            models.LearningPoint.explanation_text == item.explanation
         ).first()
 
         if not learning_point:
             learning_point = models.LearningPoint(
                 topic_id=topic.id,
-                explanation_text=feedback_item.explanation,
-                suggestion_text=feedback_item.suggestion
+                explanation_text=item.explanation,
+                suggestion_text=item.suggestion
             )
             db.add(learning_point)
             db.commit()
             db.refresh(learning_point)
 
-        # Create the history link
         history_record = models.UserLearningHistory(
             error_id=user_error.id,
             learning_point_id=learning_point.id
@@ -100,9 +93,9 @@ def get_and_save_ai_feedback(
         db.add(history_record)
         db.commit()
 
-    return {"feedback": feedback_data}
+    return feedback_data
 
-@router.post("/chat/{journal_date}", response_model=schemas.AIChatResponse)
+@router.post("/chat/{journal_date}", response_model=schemas.JournalOut)
 def chat_with_ai(
     journal_date: date,
     request: schemas.AIChatRequest,
@@ -110,11 +103,14 @@ def chat_with_ai(
     current_user: models.User = Depends(security.get_current_user)
 ):
     """
-    Handles the conversational chat with the AI. Appends user message and AI
-    response to the journal content for the specified date.
+    Handles a real-time conversation turn with the AI.
+    Optionally provides a quick correction if requested.
+    Returns the entire updated journal object to prevent race conditions.
     """
-    # 1. Find the user's journal for the specified date
-    journal = db.query(models.Journal).filter(
+    journal = db.query(models.Journal).options(
+        joinedload(models.Journal.chat_messages),
+        joinedload(models.Journal.owner).joinedload(models.User.context_profile)
+    ).filter(
         models.Journal.user_id == current_user.id,
         models.Journal.journal_date == journal_date
     ).first()
@@ -122,37 +118,86 @@ def chat_with_ai(
     if not journal:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Journal entry for date {journal_date} not found. Please create one before chatting."
+            detail=f"Journal entry for date {journal_date} not found."
         )
-
-    # 2. Append the user's new message to the journal content (conversation history)
-    user_message_formatted = f"\n\nUser: {request.message}"
-    
-    # Use current content as history. If content is None, initialize it.
-    conversation_history = journal.content if journal.content else ""
-    journal.content = conversation_history + user_message_formatted
-
-    # 3. Call the AI service to get a chat response
-    ai_reply = ai_service.get_ai_chat_response(
-        conversation_history=journal.content,
-        user_message=request.message
+        
+    # 1. Add user's message to the session
+    user_message = models.ChatMessage(
+        journal_id=journal.id,
+        sender=models.MessageSender.user,
+        message_text=request.message,
+        message_type=models.MessageType.conversation
     )
+    db.add(user_message)
 
-    if not ai_reply:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The AI service is currently unavailable for chat."
+    # 2. Get AI responses BEFORE committing anything.
+    temp_chat_history = [
+        {"role": msg.sender.name, "content": msg.message_text}
+        for msg in journal.chat_messages
+        if msg.message_type == models.MessageType.conversation
+    ]
+    temp_chat_history.append({"role": "user", "content": request.message})
+
+    # A) Get conversational response
+    ai_message_text = "I'm not sure how to respond to that." # Default
+    if journal.writing_phase == models.JournalPhase.scaffolding:
+        session_state = {
+            "current_outline": journal.outline_content,
+            "chat_history": temp_chat_history,
+        }
+        user_context = journal.owner.context_profile.profile_data if journal.owner.context_profile and journal.owner.context_profile.profile_data else {}
+        ai_response = ai_service.get_scaffolding_response(user_context, session_state)
+        action = ai_response.get("action")
+        payload = ai_response.get("payload", {})
+
+        if action == "ADD_TO_OUTLINE":
+            journal.outline_content = (journal.outline_content or "") + payload.get("text_to_add", "")
+            ai_message_text = payload.get("follow_up_question", "I've added that. What's next?")
+        else:
+            ai_message_text = payload.get("question", "What would you like to discuss?")
+
+    elif journal.writing_phase == models.JournalPhase.writing:
+        ai_message_text = ai_service.get_writing_partner_response(
+            user_message=request.message,
+            outline=journal.outline_content,
+            current_draft=journal.content
         )
+    
+    # B) Get correction response and add feedback message (if enabled)
+    if request.enable_correction:
+        correction_data = ai_service.get_quick_correction(request.message)
+        
+        feedback_payload = {}
+        # Check not only for key existence but also for non-empty string values.
+        if (correction_data 
+            and 'incorrect_phrase' in correction_data and correction_data.get('incorrect_phrase')
+            and 'suggestion' in correction_data and correction_data.get('suggestion')):
+            feedback_payload = correction_data
+        # Otherwise, regardless of what the AI sent, we classify it as "no errors found".
+        # This prevents empty/broken feedback cards in the UI.
+        else:
+            feedback_payload = {"status": "no_errors"}
 
-    # 4. Append the AI's response to the journal content
-    ai_response_formatted = f"\n\nLingo: {ai_reply}"
-    journal.content += ai_response_formatted
+        feedback_message = models.ChatMessage(
+            journal_id=journal.id,
+            sender=models.MessageSender.ai,
+            message_text=json.dumps(feedback_payload),
+            message_type=models.MessageType.feedback
+        )
+        db.add(feedback_message)
 
-    # 5. Save the updated journal to the database
+    # 3. Add AI's conversational message to the session
+    ai_conv_message = models.ChatMessage(
+        journal_id=journal.id,
+        sender=models.MessageSender.ai,
+        message_text=ai_message_text,
+        message_type=models.MessageType.conversation
+    )
+    db.add(ai_conv_message)
+
+    # 4. Commit all new messages (user, feedback, conversation) at once
     db.commit()
     db.refresh(journal)
 
-    return {
-        "ai_response": ai_reply,
-        "updated_journal_content": journal.content
-    }
+    return journal
+

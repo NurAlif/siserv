@@ -60,7 +60,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     )
     
     token_data = verify_access_token(token, credentials_exception)
-    
     user = db.query(models.User).filter(models.User.id == token_data.id).first()
     
     if user is None:
@@ -68,3 +67,15 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         
     return user
 
+def get_current_admin_user(current_user: models.User = Depends(get_current_user)):
+    """
+    Dependency to ensure the current user is an admin.
+    Raises an HTTPException if the user is not an admin.
+    """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to access this resource."
+        )
+    
+    return current_user

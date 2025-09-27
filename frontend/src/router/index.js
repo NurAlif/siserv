@@ -3,6 +3,13 @@ import { useAuthStore } from '../stores/authStore';
 import DashboardView from '../views/DashboardView.vue';
 import WriterView from '../views/WriterView.vue';
 import LoginView from '../views/LoginView.vue';
+import SignupView from '../views/SignupView.vue';
+import LearningHubView from '../views/LearningHubView.vue';
+import TopicDetailView from '../views/TopicDetailView.vue';
+import AdminDashboardView from '../views/admin/AdminDashboardView.vue';
+import AdminStudentDetailView from '../views/admin/AdminStudentDetailView.vue';
+import AdminJournalDetailView from '../views/admin/AdminJournalDetailView.vue';
+import AdminManageStudentsView from '../views/admin/AdminManageStudentsView.vue'; // New Import
 
 const routes = [
   {
@@ -23,6 +30,51 @@ const routes = [
     name: 'Login',
     component: LoginView,
   },
+  { 
+    path: '/signup', 
+    name: 'Signup', 
+    component: SignupView 
+  },
+  { 
+    path: '/learning-hub', 
+    name: 'LearningHub', 
+    component: LearningHubView, 
+    meta: { requiresAuth: true } 
+  },
+  { 
+    path: '/learning-hub/topic/:topic_id', 
+    name: 'TopicDetail', 
+    component: TopicDetailView, 
+    meta: { requiresAuth: true }, 
+    props: true 
+  },
+  {
+    path: '/admin',
+    name: 'AdminDashboard',
+    component: AdminDashboardView,
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: '/admin/student/:id',
+    name: 'AdminStudentDetail',
+    component: AdminStudentDetailView,
+    meta: { requiresAuth: true, requiresAdmin: true },
+    props: true,
+  },
+  {
+    path: '/admin/student/:studentId/journal/:journalDate',
+    name: 'AdminJournalDetail',
+    component: AdminJournalDetailView,
+    meta: { requiresAuth: true, requiresAdmin: true },
+    props: true,
+  },
+  // --- NEW ROUTE ---
+  {
+    path: '/admin/manage-students',
+    name: 'AdminManageStudents',
+    component: AdminManageStudentsView,
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
 ];
 
 const router = createRouter({
@@ -40,10 +92,14 @@ router.beforeEach(async (to, from, next) => {
   }
 
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
+  const requiresAdmin = to.matched.some(record => record.meta.requiresAdmin);
   
   if (requiresAuth && !authStore.isAuthenticated) {
     // If route requires auth and user is not authenticated, redirect to login
     next('/login');
+  } else if (requiresAdmin && !authStore.isAdmin) {
+    // If route requires admin and user is not admin, redirect to dashboard
+    next('/');
   } else if (to.path === '/login' && authStore.isAuthenticated) {
     // If user is authenticated and tries to visit login page, redirect to dashboard
     next('/');
@@ -55,4 +111,3 @@ router.beforeEach(async (to, from, next) => {
 });
 
 export default router;
-

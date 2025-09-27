@@ -11,11 +11,29 @@ router = APIRouter(
 @router.post("/signup", response_model=schemas.UserOut, status_code=status.HTTP_201_CREATED)
 def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
     """
-    Handles user registration.
+    Handles user registration with whitelist validation.
     - Hashes the password.
-    - Checks for existing user/email.
+    - Checks for existing user/email/student_id.
+    - Validates student_id and email against the StudentWhitelist.
     - Creates a new user in the database.
     """
+    # --- NEW: Whitelist Validation ---
+    whitelisted_student = db.query(models.StudentWhitelist).filter(models.StudentWhitelist.student_id == user.student_id).first()
+    
+    if not whitelisted_student:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Student ID is not approved for registration."
+        )
+
+    # Case-insensitive email comparison
+    if whitelisted_student.email.lower() != user.email.lower():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The provided email does not match the one registered for this Student ID."
+        )
+    # --- END NEW: Whitelist Validation ---
+
     # Check if a user with the same email or username already exists
     db_user_email = db.query(models.User).filter(models.User.email == user.email).first()
     if db_user_email:
@@ -31,6 +49,13 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)
             detail="Username is already taken."
         )
 
+    db_user_studentid = db.query(models.User).filter(models.User.student_id == user.student_id).first()
+    if db_user_studentid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Student ID is already registered."
+        )
+
     # Hash the password before storing
     hashed_password = security.get_password_hash(user.password)
     
@@ -38,6 +63,9 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)
     new_user = models.User(
         username=user.username,
         email=user.email,
+        realname=user.realname,
+        student_id=user.student_id,
+        group=user.group,
         hashed_password=hashed_password
     )
     db.add(new_user)

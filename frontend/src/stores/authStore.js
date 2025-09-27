@@ -11,8 +11,27 @@ export const useAuthStore = defineStore('auth', {
   }),
   getters: {
     isAuthenticated: (state) => !!state.token && !!state.user,
+    isAdmin: (state) => !!state.user && state.user.is_admin,
   },
   actions: {
+    async signup(credentials) {
+      this.isLoading = true;
+      this.error = null;
+      try {
+        await apiClient.post('/auth/signup', credentials);
+        // We don't log the user in automatically.
+        // They will be redirected to log in after successful signup.
+      } catch (err) {
+        if (err.response && err.response.data && err.response.data.detail) {
+             this.error = `Signup failed: ${err.response.data.detail}`;
+        } else {
+            this.error = 'An unknown error occurred during signup.';
+        }
+        console.error(err);
+      } finally {
+        this.isLoading = false;
+      }
+    },
     async login(credentials) {
       this.isLoading = true;
       this.error = null;

@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import date
 from typing import List
 
 from .. import database, schemas, models, security
+from ..services import context_agent
 
 router = APIRouter(
     prefix="/api/journals",
@@ -38,7 +39,8 @@ def create_journal(
     new_journal = models.Journal(
         user_id=current_user.id,
         journal_date=today,
-        content=journal.content
+        content=journal.content or "",
+        outline_content = "" # Ensure it's not null
     )
     db.add(new_journal)
     db.commit()
@@ -89,12 +91,10 @@ def update_journal(
     """
     Updates the content of a specific journal entry by date for the current user.
     """
-    journal_query = db.query(models.Journal).filter(
+    journal = db.query(models.Journal).filter(
         models.Journal.user_id == current_user.id,
         models.Journal.journal_date == journal_date
-    )
-
-    journal = journal_query.first()
+    ).first()
 
     if not journal:
         raise HTTPException(
@@ -103,8 +103,54 @@ def update_journal(
         )
     
     # Update the journal content
-    journal_query.update(updated_journal.dict(), synchronize_session=False)
+    journal.content = updated_journal.content
+    if updated_journal.outline_content is not None:
+        journal.outline_content = updated_journal.outline_content
+
     db.commit()
+    db.refresh(journal)
     
-    return journal_query.first()
+    return journal
+
+@router.put("/{journal_date}/phase", response_model=schemas.JournalOut)
+def update_journal_phase(
+    journal_date: date,
+    updated_phase: schemas.JournalPhaseUpdate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Updates the writing phase of a specific journal entry.
+    """
+    journal = db.query(models.Journal).filter(
+        models.Journal.user_id == current_user.id,
+        models.Journal.journal_date == journal_date
+    ).first()
+
+    if not journal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Journal entry for date {journal_date} not found."
+        )
+
+    # --- FIX STARTS HERE ---
+
+    # 1. Add this line to update the phase from the request
+    journal.writing_phase = updated_phase.phase 
+
+    # 2. Add this line to save the change to the database
+    db.commit()
+
+    # --- FIX ENDS HERE ---
+
+    # This part handles kicking off background tasks after a journal is completed
+    if journal.writing_phase == models.JournalPhase.completed:
+        background_tasks.add_task(
+            context_agent.process_journal, journal.id, current_user.id
+        )
+
+    db.refresh(journal)
+
+    return journal
 

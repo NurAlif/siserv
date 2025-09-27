@@ -3,7 +3,7 @@ import { useAuthStore } from '../stores/authStore';
 
 // Create an Axios instance with a base URL from environment variables
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8099/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://ipa.parasyst.com/api',
   headers: {
     'Content-Type': 'application/json',
   },

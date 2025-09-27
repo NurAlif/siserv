@@ -1,6 +1,6 @@
 pycache/
 *.py[cod]
 *$py.class
-
+node_modules/
 .env
 venv/
