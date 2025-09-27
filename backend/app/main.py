@@ -17,7 +17,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://it.parasyst.com", "https://ti.parasyst.com", "https://ipa.parasyst.com"],  # For development, ["*"] allows all origins. For production, you should restrict this to your frontend's domain, e.g., ["https://www.lingojourn.com"].
+    allow_origins=["https://it.parasyst.com", "https://ti.parasyst.com", "https://ipa.parasyst.com", "http://localhost:3000", "http://ai-ndhu-lab:3000"],  # For development, ["*"] allows all origins. For production, you should restrict this to your frontend's domain, e.g., ["https://www.lingojourn.com"].
     allow_credentials=True,
     allow_methods=["*"],  # Allows all HTTP methods (GET, POST, PUT, etc.).
     allow_headers=["*"],  # Allows all headers (including Authorization).
@@ -32,8 +32,9 @@ app.add_middleware(
 # We then join it with 'static' to create a full path.
 static_files_dir = os.path.join(os.path.dirname(__file__), "static")
 
-# Create the directory if it doesn't exist to prevent errors on first run.
+# Create the directories if they don't exist to prevent errors on first run.
 os.makedirs(static_files_dir, exist_ok=True)
+os.makedirs(os.path.join(static_files_dir, "uploads"), exist_ok=True) # Ensure uploads folder exists
 
 # Mount the 'static' directory to the '/static' URL path.
 # Any file inside 'app/static/' will be accessible from '/static/'.

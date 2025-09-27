@@ -1,15 +1,23 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, UploadFile, File
+from sqlalchemy.orm import Session, joinedload
 from datetime import date
 from typing import List
+import os
+import uuid
+import aiofiles
+
 
 from .. import database, schemas, models, security
-from ..services import context_agent
+from ..services import context_agent, ai_service
 
 router = APIRouter(
     prefix="/api/journals",
     tags=["Journals"]
 )
+
+# Directory for storing user-uploaded images
+UPLOAD_DIR = "app/static/uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.post("/", response_model=schemas.JournalOut, status_code=status.HTTP_201_CREATED)
 def create_journal(
@@ -68,7 +76,10 @@ def get_journal_by_date(
     """
     Retrieves a specific journal entry by date for the current user.
     """
-    journal = db.query(models.Journal).filter(
+    journal = db.query(models.Journal).options(
+        joinedload(models.Journal.images),
+        joinedload(models.Journal.chat_messages).joinedload(models.ChatMessage.image)
+    ).filter(
         models.Journal.user_id == current_user.id,
         models.Journal.journal_date == journal_date
     ).first()
@@ -91,10 +102,11 @@ def update_journal(
     """
     Updates the content of a specific journal entry by date for the current user.
     """
-    journal = db.query(models.Journal).filter(
+    journal_query = db.query(models.Journal).filter(
         models.Journal.user_id == current_user.id,
         models.Journal.journal_date == journal_date
-    ).first()
+    )
+    journal = journal_query.first()
 
     if not journal:
         raise HTTPException(
@@ -108,9 +120,13 @@ def update_journal(
         journal.outline_content = updated_journal.outline_content
 
     db.commit()
-    db.refresh(journal)
+    # After commit, refetch with relations for the response
+    updated_journal_response = journal_query.options(
+        joinedload(models.Journal.images),
+        joinedload(models.Journal.chat_messages).joinedload(models.ChatMessage.image)
+    ).first()
     
-    return journal
+    return updated_journal_response
 
 @router.put("/{journal_date}/phase", response_model=schemas.JournalOut)
 def update_journal_phase(
@@ -123,10 +139,11 @@ def update_journal_phase(
     """
     Updates the writing phase of a specific journal entry.
     """
-    journal = db.query(models.Journal).filter(
+    journal_query = db.query(models.Journal).filter(
         models.Journal.user_id == current_user.id,
         models.Journal.journal_date == journal_date
-    ).first()
+    )
+    journal = journal_query.first()
 
     if not journal:
         raise HTTPException(
@@ -134,23 +151,82 @@ def update_journal_phase(
             detail=f"Journal entry for date {journal_date} not found."
         )
 
-    # --- FIX STARTS HERE ---
-
-    # 1. Add this line to update the phase from the request
     journal.writing_phase = updated_phase.phase 
-
-    # 2. Add this line to save the change to the database
     db.commit()
 
-    # --- FIX ENDS HERE ---
-
-    # This part handles kicking off background tasks after a journal is completed
     if journal.writing_phase == models.JournalPhase.completed:
         background_tasks.add_task(
             context_agent.process_journal, journal.id, current_user.id
         )
 
-    db.refresh(journal)
+    # After commit, refetch with relations for the response
+    updated_journal_response = journal_query.options(
+        joinedload(models.Journal.images),
+        joinedload(models.Journal.chat_messages).joinedload(models.ChatMessage.image)
+    ).first()
 
-    return journal
+    return updated_journal_response
 
+@router.post("/{journal_date}/images", response_model=schemas.JournalOut)
+async def upload_journal_image(
+    journal_date: date,
+    file: UploadFile = File(...),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Uploads an image for a specific journal entry, generates an AI description,
+    and adds it as a chat message.
+    """
+    journal = db.query(models.Journal).filter(
+        models.Journal.user_id == current_user.id,
+        models.Journal.journal_date == journal_date
+    ).first()
+
+    if not journal:
+        raise HTTPException(status_code=404, detail="Journal entry not found.")
+    
+    if journal.writing_phase != models.JournalPhase.scaffolding:
+        raise HTTPException(status_code=400, detail="Images can only be added during the scaffolding phase.")
+
+    # 1. Save the file
+    # Sanitize filename
+    safe_filename = file.filename.replace("..", "").replace("/", "")
+    filename = f"{uuid.uuid4()}-{safe_filename}"
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    
+    image_bytes = await file.read()
+    async with aiofiles.open(file_path, 'wb') as out_file:
+        await out_file.write(image_bytes)
+    
+    # 2. Get AI description
+    description = ai_service.get_image_description(image_bytes)
+    
+    # 3. Save to DB
+    db_image = models.JournalImage(
+        journal_id=journal.id,
+        file_path=f"/static/uploads/{filename}", # URL path for frontend
+        ai_description=description
+    )
+    db.add(db_image)
+    db.commit()
+    db.refresh(db_image)
+    
+    # 4. Create a chat message for the image
+    db_message = models.ChatMessage(
+        journal_id=journal.id,
+        sender=models.MessageSender.user,
+        message_type=models.MessageType.image,
+        image_id=db_image.id,
+        message_text=description # Store description as text for context
+    )
+    db.add(db_message)
+    db.commit()
+    
+    # 5. Return the updated journal object
+    updated_journal = db.query(models.Journal).options(
+        joinedload(models.Journal.images),
+        joinedload(models.Journal.chat_messages).joinedload(models.ChatMessage.image)
+    ).filter(models.Journal.id == journal.id).first()
+    
+    return updated_journal

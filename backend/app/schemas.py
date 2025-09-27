@@ -18,7 +18,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     """Schema for creating a new user. Includes the password."""
-    password: str
+    password: str = Field(..., max_length=72)
     realname: str
     student_id: str
     group: str
@@ -43,7 +43,16 @@ class TokenData(BaseModel):
     """Schema representing the data embedded within a JWT."""
     id: Optional[str] = None
 
-# --- NEW ChatMessage Schemas ---
+# --- NEW JournalImage Schema ---
+class JournalImageOut(BaseModel):
+    id: int
+    file_path: str
+    ai_description: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+# --- ChatMessage Schemas ---
 class ChatMessageBase(BaseModel):
     sender: MessageSender
     message_text: str
@@ -52,6 +61,7 @@ class ChatMessageBase(BaseModel):
 class ChatMessageOut(ChatMessageBase):
     id: int
     timestamp: datetime
+    image: Optional[JournalImageOut] = None # Include image details
 
     class Config:
         from_attributes = True
@@ -92,6 +102,7 @@ class JournalOut(JournalBase):
     created_at: datetime
     updated_at: datetime
     chat_messages: List[ChatMessageOut] = []
+    images: List[JournalImageOut] = [] # Include all journal images
     
     class Config:
         from_attributes = True

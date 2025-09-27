@@ -13,9 +13,11 @@ pydantic
 pydantic-settings
 
 # Authentication & Security
-passlib[bcrypt]
+# passlib[bcrypt]
 python-jose[cryptography]
 python-multipart
+passlib 
+bcrypt==4.1.2
 
 # Google Gemini AI API
 google-generativeai

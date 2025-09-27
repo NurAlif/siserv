@@ -1,10 +1,26 @@
 import google.generativeai as genai
 from ..config import settings
 import json
+import io
+from PIL import Image
 
 # Configure the Gemini API client
 genai.configure(api_key=settings.gemini_api_key)
 model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
+
+# --- NEW FUNCTION for image description ---
+def get_image_description(image_bytes: bytes) -> str:
+    """
+    Generates a description for an image using the Gemini Vision model.
+    """
+    try:
+        image = Image.open(io.BytesIO(image_bytes))
+        prompt = "Briefly describe this image for a journal entry. Focus on objects, actions, and the overall mood. Keep it concise, like a caption."
+        response = model.generate_content([prompt, image])
+        return response.text.strip()
+    except Exception as e:
+        print(f"An error occurred with Gemini Vision API: {e}")
+        return "Could not generate a description for the image."
 
 SCAFFOLDING_PROMPT_TEMPLATE = """
 You are Lingo, an insightful and encouraging AI writing partner for an English language learner.
@@ -13,7 +29,7 @@ Your tone must be curious, encouraging, and concise (10-50 words).
 
 **CONTEXT PROVIDED (as a JSON object):**
 - `user_context`: A profile of the user's learning patterns and common topics. Use this to ask relevant questions.
-- `session_state`: The current journal outline and recent chat history.
+- `session_state`: The current journal outline and recent chat history. The chat history may contain image descriptions.
 
 **YOUR TASK:**
 Based on the full context and the user's latest message, choose ONE of the following actions.
@@ -21,23 +37,23 @@ Your entire response MUST be a single, valid JSON object.
 
 **AVAILABLE ACTIONS:**
 
-1.  **`ASK_QUESTION`**: Ask a friendly, open-ended question to prompt reflection. This is your default action.
+1.  **`ASK_QUESTION`**: Ask a friendly, open-ended question to prompt reflection. This is your default action. If the last message was an image description, ask a question about it.
     - **JSON Structure**:
       ```json
       {
         "action": "ASK_QUESTION",
-        "payload": { "question": "That sounds interesting. What was the most memorable part for you?" }
+        "payload": { "question": "That looks like a fun day. What happened right before this photo was taken?" }
       }
       ```
 
-2.  **`ADD_TO_OUTLINE`**: When a clear idea or point is established from the chat, use this to add it to the outline and ask a follow-up question.
+2.  **`ADD_TO_OUTLINE`**: When a clear idea or point is established from the chat (including from an image description), use this to add it to the outline and ask a follow-up question.
     - **JSON Structure**:
       ```json
       {
         "action": "ADD_TO_OUTLINE",
         "payload": {
-          "text_to_add": "\\n- Visited the new cafe on Main Street.",
-          "follow_up_question": "Great! I've added that. What happened at the cafe?"
+          "text_to_add": "\\n- Had coffee at the new cafe on Main Street.",
+          "follow_up_question": "Great! I've added that. How was the coffee?"
         }
       }
       ```
@@ -268,4 +284,3 @@ def get_quick_correction(user_message: str) -> dict:
     #     print(f"------------------------------------")
     #     # --- END NEW LOGGING ---
     #     return {"status": "no_errors"}
-

@@ -8,9 +8,9 @@
 
 -- Step 1: Add the admin user to the student whitelist.
 -- This ensures the student ID is considered "approved for registration".
-INSERT INTO student_whitelist (student_id, email, created_at)
-VALUES ('60606060', 'teacher@admin.admin', NOW())
-ON CONFLICT (student_id) DO NOTHING; -- Prevents errors if the student ID already exists in the whitelist
+-- INSERT INTO student_whitelist (student_id, email, created_at)
+-- VALUES ('60606060', 'teacher@admin.admin', NOW())
+-- ON CONFLICT (student_id) DO NOTHING; -- Prevents errors if the student ID already exists in the whitelist
 
 -- Step 2: Create the user record in the 'users' table.
 -- The password used here is 'teacherpass'. It has been pre-hashed using bcrypt.
@@ -19,11 +19,11 @@ ON CONFLICT (student_id) DO NOTHING; -- Prevents errors if the student ID alread
 INSERT INTO users (username, email, realname, student_id, "group", hashed_password, is_admin, created_at)
 VALUES (
     'teacher',
-    'teacher1@admin.admin',
+    'teacher@admin.admin',
     'Admin',
-    '606060601',
+    '000',
     'ADMIN', -- Assigning a specific group for admins
-    '$2b$12$D8s.G/tM6.n.eCm20k2AseV.b.O.QhYwK2s8.t.y.G.y', -- This is a bcrypt hash for 'teacherpass'
+    '$2b$12$W.Lt4/KosZ71oisvMBEcTeeOxBdGPGr61OuCEfZZL0lNccjiMhK.K', -- This is a bcrypt hash for 'teacherpass'
     true, -- This flag marks the user as an administrator
     NOW()
 )

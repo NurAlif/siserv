@@ -15,6 +15,7 @@ class MessageSender(enum.Enum):
 class MessageType(enum.Enum):
     conversation = "conversation"
     feedback = "feedback"
+    image = "image" # New message type for images
     
 # Define an Enum for the journal writing phase
 class JournalPhase(enum.Enum):
@@ -66,6 +67,19 @@ class Journal(Base):
     # Corrected relationships
     owner = relationship("User", back_populates="journals")
     chat_messages = relationship("ChatMessage", back_populates="journal", cascade="all, delete-orphan")
+    images = relationship("JournalImage", back_populates="journal", cascade="all, delete-orphan") # New relationship
+
+# --- NEW Journal Image Model ---
+class JournalImage(Base):
+    __tablename__ = "journal_images"
+    id = Column(Integer, primary_key=True, index=True)
+    journal_id = Column(Integer, ForeignKey("journals.id", ondelete="CASCADE"), nullable=False)
+    file_path = Column(String(512), nullable=False)
+    ai_description = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
+
+    journal = relationship("Journal", back_populates="images")
+
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
@@ -75,6 +89,10 @@ class ChatMessage(Base):
     message_text = Column(Text, nullable=False)
     message_type = Column(Enum(MessageType), default=MessageType.conversation, nullable=False)
     timestamp = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
+
+    # New relationship to an image
+    image_id = Column(Integer, ForeignKey("journal_images.id"), nullable=True)
+    image = relationship("JournalImage")
 
     journal = relationship("Journal", back_populates="chat_messages")
 
