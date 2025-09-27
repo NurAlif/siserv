@@ -49,7 +49,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     """Schema for creating a new user. Includes the password."""
-    password: str
+    password: str = Field(..., max_length=72)
     realname: str
     student_id: str
     group: str
@@ -526,7 +526,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://it.parasyst.com", "https://ti.parasyst.com", "https://ipa.parasyst.com"],  # For development, ["*"] allows all origins. For production, you should restrict this to your frontend's domain, e.g., ["https://www.lingojourn.com"].
+    allow_origins=["https://it.parasyst.com", "https://ti.parasyst.com", "https://ipa.parasyst.com", "http://localhost:3000", "http://ai-ndhu-lab:3000"],  # For development, ["*"] allows all origins. For production, you should restrict this to your frontend's domain, e.g., ["https://www.lingojourn.com"].
     allow_credentials=True,
     allow_methods=["*"],  # Allows all HTTP methods (GET, POST, PUT, etc.).
     allow_headers=["*"],  # Allows all headers (including Authorization).

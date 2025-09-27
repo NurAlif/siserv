@@ -3,6 +3,22 @@
     id="writer-view"
     class="fade-in flex flex-col h-full w-full bg-white dark:bg-gray-800"
   >
+    <!-- Hidden file input for image uploads -->
+    <input
+      ref="imageInput"
+      type="file"
+      @change="handleImageUpload"
+      multiple
+      accept="image/*"
+      class="hidden"
+    />
+    <!-- Fullscreen Image Carousel -->
+    <ImageCarousel
+      :show="isCarouselVisible"
+      :images="carouselImages"
+      :start-index="carouselStartIndex"
+      @close="isCarouselVisible = false"
+    />
     <!-- ================================== -->
     <!--  1. NEW COMPACT & ANIMATED HEADER  -->
     <!-- ================================== -->
@@ -110,8 +126,7 @@
             <p
               class="text-sm text-indigo-700 dark:text-indigo-300 mt-1 pr-8"
             >
-              Answer Lingo's questions or write your own key points below to
-              create a plan for your journal entry.
+              Answer Lingo's questions, write key points, or upload an image to get started.
             </p>
             <button
               @click="togglePhaseDescription()"
@@ -295,63 +310,65 @@
                     Lingo Chat
                   </h4>
                 </div>
-                <label for="correction-toggle" class="flex items-center cursor-pointer">
-                  <span class="mr-2 text-xs text-gray-500 dark:text-gray-400"
-                    >Correct</span
+                <!-- Controls: Camera button and correction toggle -->
+                <div class="flex items-center gap-3">
+                  <button
+                    @click="triggerImageUpload"
+                    :disabled="journalStore.isUploading || currentPhase !== 'scaffolding'"
+                    title="Add Image from Device"
+                    class="p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                  <div class="relative">
-                    <input
-                      type="checkbox"
-                      id="correction-toggle"
-                      class="sr-only"
-                      v-model="isCorrectionModeEnabled"
-                    />
-                    <div
-                      class="block bg-gray-200 dark:bg-gray-600 w-10 h-6 rounded-full"
-                    ></div>
-                    <div
-                      class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform"
-                    ></div>
-                  </div>
-                </label>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="text-gray-600 dark:text-gray-300" viewBox="0 0 256 256"><path d="M208,56H180.28L166.65,35.56A16,16,0,0,0,152.28,24H103.72a16,16,0,0,0-14.37,11.56L75.72,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm16,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8h32a8,8,0,0,0,7.18-4.44l13.63-20.44a.18.18,0,0,1,0-.05H152.28a.18.18,0,0,1,0,.05l13.63,20.44A8,8,0,0,0,173.09,72H208a8,8,0,0,1,8,8ZM128,88a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,88Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,168Z"></path></svg>
+                  </button>
+                  <label for="correction-toggle" class="flex items-center cursor-pointer">
+                    <span class="mr-2 text-xs text-gray-500 dark:text-gray-400">Correct</span>
+                    <div class="relative">
+                      <input
+                        type="checkbox"
+                        id="correction-toggle"
+                        class="sr-only"
+                        v-model="isCorrectionModeEnabled"
+                      />
+                      <div class="block bg-gray-200 dark:bg-gray-600 w-10 h-6 rounded-full"></div>
+                      <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform"></div>
+                    </div>
+                  </label>
+                </div>
               </div>
               <div
                 ref="chatContainer"
                 class="flex-grow p-4 overflow-y-auto space-y-4 custom-scrollbar"
               >
-                <template
-                  v-for="message in currentJournal?.chat_messages"
-                  :key="message.id"
-                >
-                  <div
-                    v-if="message.message_type === 'conversation'"
-                    class="flex"
-                    :class="
-                      message.sender === 'user' ? 'justify-end' : 'justify-start'
-                    "
-                  >
-                    <div
-                      class="p-3 rounded-lg max-w-xs break-words"
-                      :class="
-                        message.sender === 'user'
-                          ? 'bg-indigo-500 text-white'
-                          : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
-                      "
-                    >
+                <!-- Existing messages -->
+                <template v-for="message in currentJournal?.chat_messages" :key="message.id">
+                  <!-- Conversation Text Message -->
+                  <div v-if="message.message_type === 'conversation'" class="flex" :class="message.sender === 'user' ? 'justify-end' : 'justify-start'">
+                    <div class="p-3 rounded-lg max-w-xs break-words" :class="message.sender === 'user' ? 'bg-indigo-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'">
                       <p class="text-sm">{{ message.message_text }}</p>
                     </div>
                   </div>
-                  <div
-                    v-else-if="message.message_type === 'feedback'"
-                    class="flex justify-start"
-                  >
+                  <!-- Image Message -->
+                  <div v-else-if="message.message_type === 'image' && message.image" class="flex justify-start">
+                     <ImageChatMessage 
+                        :image="message.image" 
+                        :description="message.message_text"
+                        @image-clicked="openCarousel(message.image.id)" />
+                  </div>
+                  <!-- Feedback Message -->
+                  <div v-else-if="message.message_type === 'feedback'" class="flex justify-start">
                     <ChatFeedbackCard :message="message" />
                   </div>
                 </template>
+                 <!-- Loading Indicators -->
                 <div v-if="aiStore.isLoading" class="flex justify-start">
                   <div class="bg-gray-200 dark:bg-gray-700 p-3 rounded-lg animate-pulse">
                     <p class="text-sm text-gray-400">...</p>
                   </div>
+                </div>
+                <div v-if="journalStore.isUploading" class="flex justify-start">
+                    <div class="p-3 rounded-lg max-w-xs break-words bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 italic animate-pulse">
+                      <p class="text-sm">Uploading image...</p>
+                    </div>
                 </div>
               </div>
               <div
@@ -590,6 +607,8 @@ import { useAiStore } from '../stores/aiStore';
 import { format } from 'date-fns';
 import AIFeedbackCard from '../components/AIFeedbackCard.vue';
 import ChatFeedbackCard from '../components/ChatFeedbackCard.vue';
+import ImageChatMessage from '../components/ImageChatMessage.vue'; // New import
+import ImageCarousel from '../components/ImageCarousel.vue'; // New import
 
 const route = useRoute();
 const router = useRouter();
@@ -602,6 +621,12 @@ const currentJournal = computed(() =>
 const currentPhase = computed(
   () => currentJournal.value?.writing_phase || 'scaffolding'
 );
+
+// --- NEW STATE FOR IMAGES ---
+const imageInput = ref(null);
+const isCarouselVisible = ref(false);
+const carouselImages = ref([]);
+const carouselStartIndex = ref(0);
 
 const mobileView = ref('main');
 const isCorrectionModeEnabled = ref(true);
@@ -639,6 +664,29 @@ const chatPlaceholder = computed(() => {
   }
   return 'Type your message...';
 });
+
+// --- NEW IMAGE HANDLING METHODS ---
+const triggerImageUpload = () => {
+  imageInput.value?.click();
+};
+
+const handleImageUpload = async (event) => {
+  if (!event.target.files || !currentJournal.value) return;
+  const files = Array.from(event.target.files);
+  for (const file of files) {
+    await journalStore.uploadImage(currentJournal.value.journal_date, file);
+  }
+  // Clear the input value to allow uploading the same file again
+  event.target.value = '';
+};
+
+const openCarousel = (imageId) => {
+  if (!currentJournal.value?.images) return;
+  carouselImages.value = currentJournal.value.images;
+  const index = carouselImages.value.findIndex(img => img.id === imageId);
+  carouselStartIndex.value = index >= 0 ? index : 0;
+  isCarouselVisible.value = true;
+};
 
 const loadJournalData = async () => {
   const date = route.params.date;
@@ -701,7 +749,6 @@ watch(
       }
       scrollToBottom();
 
-      // Only restart the timer if the phase has changed or on initial load (oldJournal is undefined)
       if (!oldJournal || newJournal.writing_phase !== oldJournal.writing_phase) {
         startDescriptionTimer();
       }
@@ -711,32 +758,25 @@ watch(
 );
 
 watch(
-  () => currentJournal.value?.chat_messages,
+  () => currentJournal.value?.chat_messages.length,
   () => {
     scrollToBottom();
-  },
-  { deep: true }
+  }
 );
+
 
 watch(content, (newValue, oldValue) => {
   if (currentPhase.value === 'writing' && newValue !== oldValue) {
     statusText.value = 'Saving...';
-
-    // Clear the previous timeout to reset the timer.
-    if (saveTimeout.value) {
-      clearTimeout(saveTimeout.value);
-    }
-
-    // Set a new timeout to trigger the save after 5 seconds of inactivity.
+    if (saveTimeout.value) clearTimeout(saveTimeout.value);
     saveTimeout.value = setTimeout(() => {
       saveJournal(true);
-    }, 5000); // 5 seconds delay
+    }, 5000);
   }
 });
 
 const saveJournal = async (showStatus = true) => {
   if (!currentJournal.value) return;
-  // The 'Saving...' status is now set in the watcher.
   const payload = {
     content: content.value,
     outline_content: outlineContent.value,
@@ -745,7 +785,6 @@ const saveJournal = async (showStatus = true) => {
     currentJournal.value.journal_date,
     payload
   );
-
   if (showStatus) {
     statusText.value = savedJournal ? 'All changes saved!' : 'Error saving.';
   }
@@ -753,22 +792,14 @@ const saveJournal = async (showStatus = true) => {
 
 const moveToPhase = async (phase) => {
   if (!currentJournal.value) return;
-  // Before moving phase, clear any pending save and save immediately.
-  if (saveTimeout.value) {
-    clearTimeout(saveTimeout.value);
-  }
-  await saveJournal(false); // Save without showing status, as phase change is the main event.
+  if (saveTimeout.value) clearTimeout(saveTimeout.value);
+  await saveJournal(false);
   await journalStore.updateJournalPhase(currentJournal.value.journal_date, phase);
 };
 
 const sendMessage = async () => {
-  if (!newMessage.value.trim() || !currentJournal.value || aiStore.isLoading)
-    return;
-
-  // Also ensure any pending saves are completed before sending a message.
-  if (saveTimeout.value) {
-    clearTimeout(saveTimeout.value);
-  }
+  if (!newMessage.value.trim() || !currentJournal.value || aiStore.isLoading) return;
+  if (saveTimeout.value) clearTimeout(saveTimeout.value);
   await saveJournal(false);
 
   const messageToSend = newMessage.value;
@@ -785,12 +816,10 @@ const highlightedContent = computed(() => {
   if (currentPhase.value !== 'evaluation' || !aiStore.feedback.length) {
     return content.value;
   }
-
   let tempContent = content.value;
   const sortedFeedback = [...aiStore.feedback].sort(
     (a, b) => b.incorrect_phrase.length - a.incorrect_phrase.length
   );
-
   sortedFeedback.forEach((item) => {
     if (!appliedSuggestions.value.includes(item.incorrect_phrase)) {
       const regex = new RegExp(escapeRegExp(item.incorrect_phrase), 'g');
@@ -820,27 +849,14 @@ function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-const phaseMap = {
-  scaffolding: 1,
-  writing: 2,
-  evaluation: 3,
-  completed: 4,
-};
+const phaseMap = { scaffolding: 1, writing: 2, evaluation: 3, completed: 4 };
 
 const togglePhaseDescription = (phaseId) => {
-  // If a phaseId is passed, only allow toggling for the current phase.
-  // If no phaseId is passed (from the button), it always toggles.
-  if (phaseId && phaseMap[currentPhase.value] !== phaseId) {
-    return;
-  }
-
+  if (phaseId && phaseMap[currentPhase.value] !== phaseId) return;
   if (isDescriptionVisible.value) {
     isDescriptionVisible.value = false;
-    if (descriptionTimeout.value) {
-      clearTimeout(descriptionTimeout.value);
-    }
+    if (descriptionTimeout.value) clearTimeout(descriptionTimeout.value);
   } else {
-    // If showing it again, also restart the auto-hide timer
     startDescriptionTimer();
   }
 };
@@ -848,8 +864,7 @@ const togglePhaseDescription = (phaseId) => {
 const getPhaseClass = (phaseId) => {
   const phaseValue = phaseMap[currentPhase.value];
   if (phaseValue > phaseId) return 'bg-green-500 text-white scale-100';
-  if (phaseValue === phaseId)
-    return 'bg-indigo-600 text-white scale-110 shadow-lg';
+  if (phaseValue === phaseId) return 'bg-indigo-600 text-white scale-110 shadow-lg';
   return 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 scale-100';
 };
 
@@ -860,27 +875,22 @@ const getPhaseLineClass = (phaseId) => {
 </script>
 
 <style>
-/* Styles for the correction toggle switch */
 #correction-toggle:checked ~ .dot {
   transform: translateX(100%);
-  background-color: #4f46e5; /* indigo-600 */
+  background-color: #4f46e5;
 }
 #correction-toggle:checked ~ .block {
-  background-color: #c7d2fe; /* indigo-200 */
+  background-color: #c7d2fe;
 }
 .dark #correction-toggle:checked ~ .block {
-  background-color: #3730a3; /* indigo-800 */
+  background-color: #3730a3;
 }
-
-.banner-fade-enter-active,
-.banner-fade-leave-active {
+.banner-fade-enter-active, .banner-fade-leave-active {
   transition: all 0.4s ease-in-out;
-  max-height: 100px;
+  max-height: 120px;
   overflow: hidden;
 }
-
-.banner-fade-enter-from,
-.banner-fade-leave-to {
+.banner-fade-enter-from, .banner-fade-leave-to {
   opacity: 0;
   transform: translateY(-10px);
   max-height: 0;

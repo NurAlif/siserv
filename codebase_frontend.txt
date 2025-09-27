@@ -51,7 +51,8 @@ Codebase Structure Overview:
 ├── tailwind.config.js
 ├── vite.config.cg.js
 ├── vite.config.eg.js
-└── vite.config.js
+├── vite.config.js
+└── vite.config.test.js
 
 
 ==================================================
@@ -169,6 +170,25 @@ module.exports = {
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
+
+```
+
+
+### File: vite.config.test.js
+
+```
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [vue()],
+  server: {
+    port: 3000,
+    host: '0.0.0.0', // Add this line
+    allowedHosts: ['ai-ndhu-lab', '134.208.6.129', '100.105.36.57']
+  },
+});
 
 ```
 
@@ -736,7 +756,11 @@ onMounted(() => {
               :class="getPhaseLineClass(phase.id)"
             ></div>
             <!-- Phase Circle with Tooltip -->
-            <div class="group relative">
+            <div
+              @click="togglePhaseDescription(phase.id)"
+              class="group relative cursor-pointer"
+              title="Click to toggle phase description"
+            >
               <div
                 class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300"
                 :class="getPhaseClass(phase.id)"
@@ -774,102 +798,96 @@ onMounted(() => {
         class="h-full flex flex-col p-6 sm:p-8 gap-6"
       >
         <!-- Phase Banners -->
-        <div
-          v-if="currentPhase === 'scaffolding'"
-          class="relative flex-shrink-0 bg-indigo-50 dark:bg-indigo-900/50 p-4 rounded-lg"
-        >
-          <h3 class="font-bold text-indigo-800 dark:text-indigo-200">
-            Phase 1: Let's build an outline!
-          </h3>
+        <transition name="banner-fade">
           <div
-            class="overflow-hidden transition-all duration-300 ease-in-out"
-            :style="{ 'max-height': isDescriptionVisible ? '100px' : '0' }"
+            v-if="currentPhase === 'scaffolding' && isDescriptionVisible"
+            class="relative flex-shrink-0 bg-indigo-50 dark:bg-indigo-900/50 p-4 rounded-lg"
           >
+            <h3 class="font-bold text-indigo-800 dark:text-indigo-200">
+              Phase 1: Let's build an outline!
+            </h3>
             <p
               class="text-sm text-indigo-700 dark:text-indigo-300 mt-1 pr-8"
             >
               Answer Lingo's questions or write your own key points below to
               create a plan for your journal entry.
             </p>
+            <button
+              @click="togglePhaseDescription()"
+              class="absolute bottom-2 right-2 p-1 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-800/50 transition-colors"
+              title="Toggle description"
+            >
+              <svg
+                v-if="isDescriptionVisible"
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                fill="currentColor"
+                class="text-indigo-600 dark:text-indigo-300"
+                viewBox="0 0 256 256"
+              >
+                <path
+                  d="M213.66,165.66a8,8,0,0,1-11.32,0L128,91.31,53.66,165.66a8,8,0,0,1-11.32-11.32l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,213.66,165.66Z"
+                ></path></svg><svg
+                v-else
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                fill="currentColor"
+                class="text-indigo-600 dark:text-indigo-300"
+                viewBox="0 0 256 256"
+              >
+                <path
+                  d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80a8,8,0,0,1,11.32-11.32L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"
+                ></path>
+              </svg>
+            </button>
           </div>
-          <button
-            @click="isDescriptionVisible = !isDescriptionVisible"
-            class="absolute bottom-2 right-2 p-1 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-800/50 transition-colors"
-            title="Toggle description"
-          >
-            <svg
-              v-if="isDescriptionVisible"
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              fill="currentColor"
-              class="text-indigo-600 dark:text-indigo-300"
-              viewBox="0 0 256 256"
-            >
-              <path
-                d="M213.66,165.66a8,8,0,0,1-11.32,0L128,91.31,53.66,165.66a8,8,0,0,1-11.32-11.32l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,213.66,165.66Z"
-              ></path></svg><svg
-              v-else
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              fill="currentColor"
-              class="text-indigo-600 dark:text-indigo-300"
-              viewBox="0 0 256 256"
-            >
-              <path
-                d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80a8,8,0,0,1,11.32-11.32L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"
-              ></path>
-            </svg>
-          </button>
-        </div>
-        <div
-          v-if="currentPhase === 'writing'"
-          class="relative flex-shrink-0 bg-green-50 dark:bg-green-900/50 p-4 rounded-lg"
-        >
-          <h3 class="font-bold text-green-800 dark:text-green-200">
-            Phase 2: Write your draft
-          </h3>
+        </transition>
+        <transition name="banner-fade">
           <div
-            class="overflow-hidden transition-all duration-300 ease-in-out"
-            :style="{ 'max-height': isDescriptionVisible ? '100px' : '0' }"
+            v-if="currentPhase === 'writing' && isDescriptionVisible"
+            class="relative flex-shrink-0 bg-green-50 dark:bg-green-900/50 p-4 rounded-lg"
           >
+            <h3 class="font-bold text-green-800 dark:text-green-200">
+              Phase 2: Write your draft
+            </h3>
             <p class="text-sm text-green-700 dark:text-green-300 mt-1 pr-8">
               Use your outline to write your journal entry. Your writing
               partner, Lingo, is here to help if you get stuck.
             </p>
+            <button
+              @click="togglePhaseDescription()"
+              class="absolute bottom-2 right-2 p-1 rounded-full hover:bg-green-100 dark:hover:bg-green-800/50 transition-colors"
+              title="Toggle description"
+            >
+              <svg
+                v-if="isDescriptionVisible"
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                fill="currentColor"
+                class="text-green-600 dark:text-green-300"
+                viewBox="0 0 256 256"
+              >
+                <path
+                  d="M213.66,165.66a8,8,0,0,1-11.32,0L128,91.31,53.66,165.66a8,8,0,0,1-11.32-11.32l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,213.66,165.66Z"
+                ></path></svg><svg
+                v-else
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                fill="currentColor"
+                class="text-green-600 dark:text-green-300"
+                viewBox="0 0 256 256"
+              >
+                <path
+                  d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80a8,8,0,0,1,11.32-11.32L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"
+                ></path>
+              </svg>
+            </button>
           </div>
-          <button
-            @click="isDescriptionVisible = !isDescriptionVisible"
-            class="absolute bottom-2 right-2 p-1 rounded-full hover:bg-green-100 dark:hover:bg-green-800/50 transition-colors"
-            title="Toggle description"
-          >
-            <svg
-              v-if="isDescriptionVisible"
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              fill="currentColor"
-              class="text-green-600 dark:text-green-300"
-              viewBox="0 0 256 256"
-            >
-              <path
-                d="M213.66,165.66a8,8,0,0,1-11.32,0L128,91.31,53.66,165.66a8,8,0,0,1-11.32-11.32l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,213.66,165.66Z"
-              ></path></svg><svg
-              v-else
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              fill="currentColor"
-              class="text-green-600 dark:text-green-300"
-              viewBox="0 0 256 256"
-            >
-              <path
-                d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80a8,8,0,0,1,11.32-11.32L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"
-              ></path>
-            </svg>
-          </button>
-        </div>
+        </transition>
 
         <!-- Mobile View Switcher (Tabs) -->
         <div
@@ -1059,53 +1077,51 @@ onMounted(() => {
       >
         <!-- Phase 3: Evaluation -->
         <div v-if="currentPhase === 'evaluation'" class="p-8">
-          <div
-            class="relative bg-rose-50 dark:bg-rose-900/50 p-4 rounded-lg mb-4"
-          >
-            <h3 class="font-bold text-rose-800 dark:text-rose-200">
-              Phase 3: Review Your Evaluation
-            </h3>
+          <transition name="banner-fade">
             <div
-              class="overflow-hidden transition-all duration-300 ease-in-out"
-              :style="{ 'max-height': isDescriptionVisible ? '100px' : '0' }"
+              v-if="isDescriptionVisible"
+              class="relative bg-rose-50 dark:bg-rose-900/50 p-4 rounded-lg mb-4"
             >
+              <h3 class="font-bold text-rose-800 dark:text-rose-200">
+                Phase 3: Review Your Evaluation
+              </h3>
               <p class="text-sm text-rose-700 dark:text-rose-300 mt-1 pr-8">
                 Review the AI's suggestions below to improve your grammar,
                 vocabulary, and style. Your original text is highlighted with
                 suggestions.
               </p>
+              <button
+                @click="togglePhaseDescription()"
+                class="absolute bottom-2 right-2 p-1 rounded-full hover:bg-rose-100 dark:hover:bg-rose-800/50 transition-colors"
+                title="Toggle description"
+              >
+                <svg
+                  v-if="isDescriptionVisible"
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  fill="currentColor"
+                  class="text-rose-600 dark:text-rose-300"
+                  viewBox="0 0 256 256"
+                >
+                  <path
+                    d="M213.66,165.66a8,8,0,0,1-11.32,0L128,91.31,53.66,165.66a8,8,0,0,1-11.32-11.32l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,213.66,165.66Z"
+                  ></path></svg><svg
+                  v-else
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  fill="currentColor"
+                  class="text-rose-600 dark:text-rose-300"
+                  viewBox="0 0 256 256"
+                >
+                  <path
+                    d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80a8,8,0,0,1,11.32-11.32L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"
+                  ></path>
+                </svg>
+              </button>
             </div>
-            <button
-              @click="isDescriptionVisible = !isDescriptionVisible"
-              class="absolute bottom-2 right-2 p-1 rounded-full hover:bg-rose-100 dark:hover:bg-rose-800/50 transition-colors"
-              title="Toggle description"
-            >
-              <svg
-                v-if="isDescriptionVisible"
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                fill="currentColor"
-                class="text-rose-600 dark:text-rose-300"
-                viewBox="0 0 256 256"
-              >
-                <path
-                  d="M213.66,165.66a8,8,0,0,1-11.32,0L128,91.31,53.66,165.66a8,8,0,0,1-11.32-11.32l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,213.66,165.66Z"
-                ></path></svg><svg
-                v-else
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                fill="currentColor"
-                class="text-rose-600 dark:text-rose-300"
-                viewBox="0 0 256 256"
-              >
-                <path
-                  d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80a8,8,0,0,1,11.32-11.32L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"
-                ></path>
-              </svg>
-            </button>
-          </div>
+          </transition>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="md:col-span-2">
               <h4 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -1370,7 +1386,7 @@ const startDescriptionTimer = () => {
 
 watch(
   currentJournal,
-  (newJournal) => {
+  (newJournal, oldJournal) => {
     if (newJournal) {
       content.value = newJournal.content || '';
       outlineContent.value = newJournal.outline_content || '';
@@ -1383,7 +1399,11 @@ watch(
         aiStore.getFeedback(newJournal.journal_date, newJournal.content);
       }
       scrollToBottom();
-      startDescriptionTimer();
+
+      // Only restart the timer if the phase has changed or on initial load (oldJournal is undefined)
+      if (!oldJournal || newJournal.writing_phase !== oldJournal.writing_phase) {
+        startDescriptionTimer();
+      }
     }
   },
   { deep: true, immediate: true }
@@ -1506,6 +1526,24 @@ const phaseMap = {
   completed: 4,
 };
 
+const togglePhaseDescription = (phaseId) => {
+  // If a phaseId is passed, only allow toggling for the current phase.
+  // If no phaseId is passed (from the button), it always toggles.
+  if (phaseId && phaseMap[currentPhase.value] !== phaseId) {
+    return;
+  }
+
+  if (isDescriptionVisible.value) {
+    isDescriptionVisible.value = false;
+    if (descriptionTimeout.value) {
+      clearTimeout(descriptionTimeout.value);
+    }
+  } else {
+    // If showing it again, also restart the auto-hide timer
+    startDescriptionTimer();
+  }
+};
+
 const getPhaseClass = (phaseId) => {
   const phaseValue = phaseMap[currentPhase.value];
   if (phaseValue > phaseId) return 'bg-green-500 text-white scale-100';
@@ -1532,7 +1570,26 @@ const getPhaseLineClass = (phaseId) => {
 .dark #correction-toggle:checked ~ .block {
   background-color: #3730a3; /* indigo-800 */
 }
+
+.banner-fade-enter-active,
+.banner-fade-leave-active {
+  transition: all 0.4s ease-in-out;
+  max-height: 100px;
+  overflow: hidden;
+}
+
+.banner-fade-enter-from,
+.banner-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+}
 </style>
+
 
 ```
 
@@ -2968,7 +3025,7 @@ import { useAuthStore } from '../stores/authStore';
 
 // Create an Axios instance with a base URL from environment variables
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://ipa.parasyst.com/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://ai-ndhu-lab:7576/api',
   headers: {
     'Content-Type': 'application/json',
   },

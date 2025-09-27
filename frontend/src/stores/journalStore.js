@@ -8,6 +8,7 @@ export const useJournalStore = defineStore('journal', {
     journals: [],
     isLoading: false,
     error: null,
+    isUploading: false, // New state for image uploads
   }),
   getters: {
     getJournalByDate: (state) => (date) => {
@@ -62,7 +63,6 @@ export const useJournalStore = defineStore('journal', {
         }
     },
 
-    // --- New Action: Create a journal entry ---
     async createJournal(content) {
       this.isLoading = true;
       this.error = null;
@@ -86,10 +86,7 @@ export const useJournalStore = defineStore('journal', {
       try {
         const response = await apiClient.put(`/journals/${date}`, payload);
         // Find and update the journal in our local list
-        const index = this.journals.findIndex(j => j.journal_date === date);
-        if (index !== -1) {
-          this.journals[index] = response.data;
-        }
+        this.updateLocalJournal(response.data);
         return response.data;
       } catch (err) {
         this.error = 'Failed to update journal entry.';
@@ -105,10 +102,7 @@ export const useJournalStore = defineStore('journal', {
       this.error = null;
       try {
         const response = await apiClient.put(`/journals/${date}/phase`, { phase });
-        const index = this.journals.findIndex(j => j.journal_date === date);
-        if (index !== -1) {
-          this.journals[index] = response.data;
-        }
+        this.updateLocalJournal(response.data);
         return response.data;
       } catch (err) {
         this.error = 'Failed to update journal phase.';
@@ -119,10 +113,33 @@ export const useJournalStore = defineStore('journal', {
       }
     },
 
+    // --- NEW ACTION for image uploading ---
+    async uploadImage(date, file) {
+      this.isUploading = true;
+      this.error = null;
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await apiClient.post(`/journals/${date}/images`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        
+        // The response contains the updated journal, so we update our local state
+        this.updateLocalJournal(response.data);
+      } catch (err) {
+        this.error = err.response?.data?.detail || 'Failed to upload image.';
+        console.error(err);
+      } finally {
+        this.isUploading = false;
+      }
+    },
+
     addChatMessageOptimistically(date, message) {
       const journal = this.getJournalByDate(date);
       if (journal) {
-        // Ensure the chat_messages array exists before pushing to it.
         if (!journal.chat_messages) {
           journal.chat_messages = [];
         }
@@ -135,16 +152,12 @@ export const useJournalStore = defineStore('journal', {
       
       const index = this.journals.findIndex(j => j.journal_date === updatedJournal.journal_date);
       if (index !== -1) {
-        // Use splice for reactivity
         this.journals.splice(index, 1, updatedJournal);
       } else {
-        // If it's a new journal not yet in the list (should be rare for updates)
         this.journals.unshift(updatedJournal);
       }
     },
 
-    // --- New Action: Directly set a journal's content ---
-    // This allows other stores (like the AI store) to update content reactively
     setJournalContent(date, newContent) {
       const index = this.journals.findIndex(j => j.journal_date === date);
       if (index !== -1) {
@@ -154,10 +167,8 @@ export const useJournalStore = defineStore('journal', {
 
     formatDisplayDate(dateString) {
       if (!dateString) return '';
-      // parseISO handles the 'YYYY-MM-DD' format
       const date = parseISO(dateString);
       return format(date, 'MMMM d, yyyy');
     }
   },
 });
-

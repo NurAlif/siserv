@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "startcg": "npm run buildcg && serve -s dist-cg -p 7779",
     "starteg": "npm run buildeg && serve -s dist-eg -p 7778",
-    "startall": "npm run starteg & npm run startcg"
+    "startall": "npm run starteg & npm run startcg",
+    "startdev": "npm run start"
   },
   "dependencies": {
     "axios": "^1.7.2",
