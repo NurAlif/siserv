@@ -113,33 +113,10 @@ export const useJournalStore = defineStore('journal', {
       }
     },
 
-    // --- UPDATED ACTION for optimistic image uploading ---
     async uploadImage(date, file) {
       this.isUploading = true;
       this.error = null;
       
-      // --- Optimistic UI Start ---
-      const tempId = `temp-img-${Date.now()}`;
-      const localUrl = URL.createObjectURL(file); // Create a local URL for the image preview
-
-      const optimisticMessage = {
-        id: tempId,
-        sender: 'user',
-        message_type: 'image',
-        message_text: 'Uploading...', // Placeholder text
-        timestamp: new Date().toISOString(), // Use current time for sorting
-        image: {
-          id: tempId,
-          file_path: localUrl, // Use the local blob URL for immediate display
-          ai_description: 'Generating description...'
-        },
-        isOptimistic: true // Flag to identify this temporary message if needed
-      };
-      
-      // Add the optimistic message to the UI immediately
-      this.addChatMessageOptimistically(date, optimisticMessage);
-      // --- Optimistic UI End ---
-
       try {
         const formData = new FormData();
         formData.append('file', file);
@@ -150,21 +127,16 @@ export const useJournalStore = defineStore('journal', {
           },
         });
         
-        // The response contains the updated journal, which replaces the optimistic one.
+        // The response contains the updated journal.
         this.updateLocalJournal(response.data);
+        return response.data; // Return the updated journal to the component
 
       } catch (err) {
         this.error = err.response?.data?.detail || 'Failed to upload image.';
         console.error(err);
-        // If upload fails, remove the optimistic message from the chat
-        const journal = this.getJournalByDate(date);
-        if (journal) {
-          journal.chat_messages = journal.chat_messages.filter(m => m.id !== tempId);
-        }
+        return null;
       } finally {
         this.isUploading = false;
-        // Clean up the created blob URL to prevent memory leaks
-        URL.revokeObjectURL(localUrl);
       }
     },
 

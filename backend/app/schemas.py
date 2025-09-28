@@ -48,6 +48,7 @@ class JournalImageOut(BaseModel):
     id: int
     file_path: str
     ai_description: Optional[str] = None
+    user_caption: Optional[str] = None # New field for user's caption
 
     class Config:
         from_attributes = True
@@ -135,6 +136,7 @@ class AIChatRequest(BaseModel):
     """Schema for the request body when sending a chat message."""
     message: str = Field(..., min_length=1)
     enable_correction: bool = False
+    image_id: Optional[int] = None # ID of the image this message is captioning
 
 class AIChatResponse(BaseModel):
     """Schema for the response from the AI chat endpoint."""

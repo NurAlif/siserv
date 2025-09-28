@@ -44,7 +44,7 @@ export const useAiStore = defineStore('ai', {
       }
     },
 
-    async chatWithAI(date, message, enableCorrection) {
+    async chatWithAI(date, message, enableCorrection, imageId = null) {
       this.isLoading = true;
       this.error = null;
       const journalStore = useJournalStore();
@@ -60,7 +60,11 @@ export const useAiStore = defineStore('ai', {
       
       try {
         // The API now returns the complete, updated journal object
-        const payload = { message, enable_correction: enableCorrection };
+        const payload = { 
+          message, 
+          enable_correction: enableCorrection,
+          image_id: imageId // Pass the image ID to the backend
+        };
         const response = await apiClient.post(`/ai/chat/${date}`, payload);
         
         // **KEY CHANGE**: Update the entire journal state with the response from the API.
@@ -77,4 +81,3 @@ export const useAiStore = defineStore('ai', {
     },
   },
 });
-

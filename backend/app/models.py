@@ -68,7 +68,7 @@ class Journal(Base):
     owner = relationship("User", back_populates="journals")
     # FIX: Added order_by to ensure chat messages are always sorted chronologically by their timestamp.
     chat_messages = relationship("ChatMessage", back_populates="journal", cascade="all, delete-orphan", order_by="ChatMessage.timestamp")
-    images = relationship("JournalImage", back_populates="journal", cascade="all, delete-orphan") # New relationship
+    images = relationship("JournalImage", back_populates="journal", cascade="all, delete-orphan", order_by="JournalImage.id") # New relationship
 
 # --- NEW Journal Image Model ---
 class JournalImage(Base):
@@ -77,6 +77,7 @@ class JournalImage(Base):
     journal_id = Column(Integer, ForeignKey("journals.id", ondelete="CASCADE"), nullable=False)
     file_path = Column(String(512), nullable=False)
     ai_description = Column(Text, nullable=True)
+    user_caption = Column(Text, nullable=True) # New field for user's caption
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
 
     journal = relationship("Journal", back_populates="images")
@@ -144,3 +145,4 @@ class UserLearningHistory(Base):
     learning_point_id = Column(Integer, ForeignKey("learning_points.id"), nullable=False)
     timestamp = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
     error_instance = relationship("UserError", back_populates="history")
+

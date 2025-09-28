@@ -175,8 +175,8 @@ async def upload_journal_image(
     current_user: models.User = Depends(security.get_current_user)
 ):
     """
-    Uploads an image for a specific journal entry, generates an AI description,
-    and adds it as a chat message.
+    Uploads an image for a specific journal entry and generates an AI description.
+    This endpoint no longer creates a chat message directly.
     """
     journal = db.query(models.Journal).filter(
         models.Journal.user_id == current_user.id,
@@ -190,7 +190,6 @@ async def upload_journal_image(
         raise HTTPException(status_code=400, detail="Images can only be added during the scaffolding phase.")
 
     # 1. Save the file
-    # Sanitize filename
     safe_filename = file.filename.replace("..", "").replace("/", "")
     filename = f"{uuid.uuid4()}-{safe_filename}"
     file_path = os.path.join(UPLOAD_DIR, filename)
@@ -210,20 +209,8 @@ async def upload_journal_image(
     )
     db.add(db_image)
     db.commit()
-    db.refresh(db_image)
     
-    # 4. Create a chat message for the image
-    db_message = models.ChatMessage(
-        journal_id=journal.id,
-        sender=models.MessageSender.user,
-        message_type=models.MessageType.image,
-        image_id=db_image.id,
-        message_text=description # Store description as text for context
-    )
-    db.add(db_message)
-    db.commit()
-    
-    # 5. Return the updated journal object
+    # 4. Return the updated journal object
     updated_journal = db.query(models.Journal).options(
         joinedload(models.Journal.images),
         joinedload(models.Journal.chat_messages).joinedload(models.ChatMessage.image)

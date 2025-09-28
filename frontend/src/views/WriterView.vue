@@ -8,7 +8,6 @@
       ref="imageInput"
       type="file"
       @change="handleImageUpload"
-      multiple
       accept="image/*"
       class="hidden"
     />
@@ -434,6 +433,17 @@
                   </div>
                 </div>
               </div>
+              <!-- NEW: Captioning Prompt -->
+              <div v-if="captioningImage" class="p-2 border-t border-gray-200 dark:border-gray-700 bg-indigo-50 dark:bg-indigo-900/50 flex items-center gap-3 transition-all flex-shrink-0">
+                <img :src="getImageUrl(captioningImage.file_path)" alt="caption preview" class="w-12 h-12 object-cover rounded-md">
+                <div class="flex-grow">
+                  <p class="text-sm font-semibold text-indigo-800 dark:text-indigo-200">Image added!</p>
+                  <p class="text-xs text-indigo-700 dark:text-indigo-300">Type your caption in the box below and press send.</p>
+                </div>
+                <button @click="captioningImage = null" title="Cancel caption" class="p-1.5 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-800">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="text-indigo-600 dark:text-indigo-300" viewBox="0 0 256 256"><path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"></path></svg>
+                </button>
+              </div>
               <div
                 class="p-2 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-shrink-0"
               >
@@ -453,7 +463,7 @@
                   </span>
                   <button
                     @click="sendMessage"
-                    :disabled="isChatDisabled || !newMessage.trim()"
+                    :disabled="!newMessage.trim()"
                     class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full transition-colors bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-gray-300 dark:disabled:bg-gray-500 disabled:cursor-not-allowed"
                   >
                     <svg
@@ -739,6 +749,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useJournalStore } from '../stores/journalStore';
 import { useAiStore } from '../stores/aiStore';
 import { format } from 'date-fns';
+import apiClient from '../services/api'; // Import apiClient
 import AIFeedbackCard from '../components/AIFeedbackCard.vue';
 import ChatFeedbackCard from '../components/ChatFeedbackCard.vue';
 import ImageChatMessage from '../components/ImageChatMessage.vue';
@@ -768,6 +779,7 @@ const imageInput = ref(null);
 const isCarouselVisible = ref(false);
 const carouselImages = ref([]);
 const carouselStartIndex = ref(0);
+const captioningImage = ref(null); // Will hold { id, file_path } for the image being captioned
 
 const mobileView = ref('main');
 const isCorrectionModeEnabled = ref(true);
@@ -848,6 +860,9 @@ const isChatDisabled = computed(() => {
 });
 
 const chatPlaceholder = computed(() => {
+  if (captioningImage.value) {
+    return 'Add a caption for your new image...';
+  }
   if (chatTurnCount.value >= MAX_CHAT_TURNS) {
     return 'Chat turn limit reached.';
   }
@@ -867,11 +882,23 @@ const triggerImageUpload = () => {
 
 const handleImageUpload = async (event) => {
   if (!event.target.files || !currentJournal.value) return;
-  const files = Array.from(event.target.files);
-  for (const file of files) {
-    await journalStore.uploadImage(currentJournal.value.journal_date, file);
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const updatedJournal = await journalStore.uploadImage(currentJournal.value.journal_date, file);
+  event.target.value = ''; // Reset file input to allow re-uploading the same file
+
+  if (updatedJournal && updatedJournal.images.length > 0) {
+    const newImage = updatedJournal.images[updatedJournal.images.length - 1];
+    captioningImage.value = { id: newImage.id, file_path: newImage.file_path };
   }
-  event.target.value = '';
+};
+
+const getImageUrl = (filePath) => {
+    if (!filePath) return '';
+    if (filePath.startsWith('blob:')) return filePath;
+    const baseUrl = (apiClient.defaults.baseURL || '').replace('/api', '');
+    return `${baseUrl}${filePath}`;
 };
 
 const openCarousel = (imageId) => {
@@ -1011,8 +1038,14 @@ const moveToPhase = async (phase) => {
 };
 
 const sendMessage = async () => {
-  if (!newMessage.value.trim() || isChatDisabled.value) return;
-  if (saveTimeout.value) clearTimeout(saveTimeout.value);
+  if (!newMessage.value.trim()) return;
+  
+  const imageIdForMessage = captioningImage.value ? captioningImage.value.id : null;
+  
+  if (imageIdForMessage) {
+    captioningImage.value = null; // Clear captioning state immediately
+  }
+
   await saveJournal(false);
 
   const messageToSend = newMessage.value;
@@ -1021,7 +1054,8 @@ const sendMessage = async () => {
   aiStore.chatWithAI(
     currentJournal.value.journal_date,
     messageToSend,
-    isCorrectionModeEnabled.value
+    isCorrectionModeEnabled.value,
+    imageIdForMessage
   );
 };
 
@@ -1175,4 +1209,3 @@ const getPhaseLineClass = (phaseId) => {
     border-color: transparent #374151 transparent transparent; /* Tailwind's gray-700 */
 }
 </style>
-

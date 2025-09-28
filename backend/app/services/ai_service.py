@@ -31,16 +31,19 @@ Your role is to help the user build a journal outline by asking personalized, So
 Your tone must be curious, encouraging, and concise (10-50 words).
 
 **CONTEXT PROVIDED (as a JSON object):**
-- `user_context`: A profile of the user's learning patterns and common topics. Use this to ask relevant questions.
-- `session_state`: The current journal outline and recent chat history. The chat history may contain image descriptions.
+- `user_context`: A profile of the user's learning patterns and common topics.
+- `session_state`: The current journal outline and recent chat history.
+- `image_description` (if an image is provided): A brief, AI-generated description of the image.
+- `user_caption`: The user's own caption for the image.
 
 **YOUR TASK:**
-Based on the full context and the user's latest message, choose ONE of the following actions.
+Based on the full context (including the image if provided), choose ONE of the following actions.
 Your entire response MUST be a single, valid JSON object.
 
 **AVAILABLE ACTIONS:**
 
-1.  **`ASK_QUESTION`**: Ask a friendly, open-ended question to prompt reflection. This is your default action. If the last message was an image description, ask a question about it.
+1.  **`ASK_QUESTION`**: Ask a friendly, open-ended question to prompt reflection. THIS IS YOUR PRIMARY ACTION.
+    - If an image and caption are provided, your question MUST relate to the user's personal experience in the photo. Do NOT simply describe the photo. Focus on the user's actions, decisions, or reasons.
     - **JSON Structure**:
       ```json
       {
@@ -49,7 +52,7 @@ Your entire response MUST be a single, valid JSON object.
       }
       ```
 
-2.  **`ADD_TO_OUTLINE`**: When a clear idea or point is established from the chat (including from an image description), use this to add it to the outline and ask a follow-up question.
+2.  **`ADD_TO_OUTLINE`**: When a clear idea or point is established, use this to add it to the outline and ask a follow-up question.
     - **JSON Structure**:
       ```json
       {
@@ -63,10 +66,10 @@ Your entire response MUST be a single, valid JSON object.
 
 **RULES:**
 - ALWAYS respond in the specified JSON format.
-- Use the `user_context` to make your questions personal. For example, if their recurring theme is 'exam stress', you could ask, "How did that affect your studies today?"
-- Be proactive. Your goal is to help build the outline.
-- Avoid to talk about user feeling. Try to lean or direct user to talk about their actions or physical stuff. You can talk about their reason or decision. Remember we want to know their thinking pattern.
-- If user dont know what they want to talk, you can direct them to talk about study. (users are students)
+- Use the provided context to make your questions personal and relevant.
+- When an image is present, your goal is to help the user write about the experience, not just the image itself.
+- Focus on the user's thinking, actions, and decisions.
+- If the user is unsure what to discuss, gently guide them toward topics related to their studies.
 """
 
 WRITING_PARTNER_PROMPT_TEMPLATE = """
@@ -200,22 +203,35 @@ User's Message:
 """
 
 
-def get_scaffolding_response(user_context: dict, session_state: dict) -> dict:
+def get_scaffolding_response(user_context: dict, session_state: dict, image_bytes: bytes = None) -> dict:
     """
-    Generates a response for the 'scaffolding' phase.
+    Generates a response for the 'scaffolding' phase. Uses vision model if image is provided.
     """
     try:
         context_payload = {
             "user_context": user_context,
             "session_state": session_state
         }
-        full_prompt = f"{SCAFFOLDING_PROMPT_TEMPLATE}\n\nHere is the current context:\n\n---\n{json.dumps(context_payload, indent=2)}\n---"
+        
+        # The prompt remains the same, but we conditionally change the model and add image data
+        model_to_use = MODEL_FLASH if image_bytes else MODEL_LITE
+        
+        # Prepare API call arguments
+        api_args = {
+            "prompt": f"{SCAFFOLDING_PROMPT_TEMPLATE}\n\nHere is the current context:\n\n---\n{json.dumps(context_payload, indent=2)}\n---",
+            "model": model_to_use
+        }
+        
+        if image_bytes:
+            api_args["image"] = image_bytes
+            api_args["outjson"] = True # Vision model can be instructed to return JSON
 
-        response = query_api_with_retries(
-            prompt=full_prompt,
-            model=MODEL_LITE
-        )
-
+        response = query_api_with_retries(**api_args)
+        
+        # The vision model might wrap the JSON in markdown, so we clean it.
+        if isinstance(response, str):
+            cleaned_text = response.strip().replace("```json", "").replace("```", "").strip()
+            return json.loads(cleaned_text)
         return response
 
     except Exception as e:
@@ -295,3 +311,4 @@ def get_quick_correction(user_message: str) -> dict:
     #     print(f"------------------------------------")
     #     # --- END NEW LOGGING ---
     #     return {"status": "no_errors"}
+
