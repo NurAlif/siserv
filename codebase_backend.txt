@@ -842,7 +842,7 @@ Analyze the user's question in the context of their outline and draft, and provi
     - Example: "This is a very clear description of your morning. To make it even more engaging, maybe you could add a bit more about how you felt during the commute."
 
 **RULES:**
-  - Be specific of what user asked. don't explain to long.
+  - Be specific of what user asked. don't explain too long.
 
 **CONTEXT FOR THIS REQUEST:**
 
@@ -903,6 +903,10 @@ Your task is to meticulously analyze a short message from a user and identify th
 4.  If the user's message is grammatically perfect and has no spelling errors, you MUST respond with a valid JSON object with only ONE key:
     - `status`: MUST be the string "no_errors".
 5.  Your entire response must be ONLY the JSON object.
+
+6.  A special case if user input a word or phrase or sentence in Bahasa Indonesia or in non-english language then you should answer by ignoring any other error and focused on giving the translation of that non english word. 
+    - You will became a thesaurus in this case. 
+    - You still need to follow the standard error format when being a thesaurus.
 
 **EXAMPLE 1 (Error Found):**
 User's Message: "There is many clanlanges."
@@ -1815,6 +1819,9 @@ router = APIRouter(
     tags=["AI"]
 )
 
+# Define the chat turn limit as a constant
+MAX_CHAT_TURNS = 40
+
 @router.post("/feedback/{journal_date}", response_model=schemas.AIFeedbackResponse)
 def get_and_save_ai_feedback(
     journal_date: date,
@@ -1923,6 +1930,15 @@ def chat_with_ai(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Journal entry for date {journal_date} not found."
         )
+
+    # --- NEW: Check chat turn limit ---
+    conversation_messages_count = sum(1 for msg in journal.chat_messages if msg.message_type == models.MessageType.conversation)
+    if conversation_messages_count >= MAX_CHAT_TURNS:
+            raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Chat turn limit has been reached for this journal entry."
+        )
+    # --- END NEW ---
         
     # 1. Add user's message to the session
     user_message = models.ChatMessage(
@@ -2003,6 +2019,5 @@ def chat_with_ai(
     db.refresh(journal)
 
     return journal
-
 
 ```

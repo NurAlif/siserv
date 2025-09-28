@@ -2,12 +2,12 @@
   <div v-if="authStore.isAuthenticated" :class="containerClass">
     <header v-if="!isWriterView" class="flex justify-between items-center mb-6 flex-shrink-0">
       <div class="flex items-center gap-3">
-         <router-link to="/" class="hidden sm:flex items-center gap-3">
+         <router-link to="/" class="flex items-center gap-3">
            <div class="bg-indigo-600 p-2 rounded-lg">
               <!-- Book Icon -->
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" class="text-white" fill="currentColor" viewBox="0 0 256 256"><path d="M208,24H88A48.05,48.05,0,0,0,40,72V208a48.05,48.05,0,0,0,48,48H208a8,8,0,0,0,8-8V32A8,8,0,0,0,208,24ZM88,240a32,32,0,0,1,0-64H200V240ZM200,40v96H88a32,32,0,0,1,0-64h8V40Z"></path></svg>
            </div>
-           <h1 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400">LingoJourn</h1>
+           <h1 class="hidden sm:flex text-2xl font-bold text-indigo-600 dark:text-indigo-400">LingoJourn</h1>
          </router-link>
          <!-- Navigation Link to Learning Hub -->
          <!-- <nav class="ml-6">
