@@ -822,7 +822,7 @@ onMounted(() => {
       <!-- A. Unified Layout for Scaffolding & Writing -->
       <div
         v-if="currentPhase === 'scaffolding' || currentPhase === 'writing'"
-        class="h-full flex flex-col p-6 sm:p-8 gap-6"
+        class="h-full flex flex-col p-4 sm:p-8 gap-6"
       >
         <!-- Phase Banners -->
         <transition name="banner-fade">
@@ -1319,14 +1319,8 @@ onMounted(() => {
             </p>
             <div class="mt-6">
               <div
-                class="relative bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border dark:border-gray-700 text-left"
+                class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border dark:border-gray-700 text-left"
               >
-                <!-- NEW: Image Stack Display -->
-                <ImageStack
-                  v-if="currentJournal?.images?.length > 0"
-                  :images="currentJournal.images"
-                  @stack-clicked="openCarousel(currentJournal.images[0].id)"
-                />
                 <h4
                   class="font-semibold text-gray-700 dark:text-gray-300 mb-2"
                 >
@@ -1337,6 +1331,16 @@ onMounted(() => {
                 >
                   {{ content }}
                 </div>
+              </div>
+              <!-- Image Stack moved below the text box and made larger -->
+              <div
+                v-if="currentJournal?.images?.length > 0"
+                class="mt-8"
+              >
+                <ImageStack
+                  :images="currentJournal.images"
+                  @stack-clicked="openCarousel(currentJournal.images[0].id)"
+                />
               </div>
             </div>
           </div>
@@ -1357,13 +1361,17 @@ onMounted(() => {
         <span class="text-xs text-gray-500 dark:text-gray-400">
           {{ outlineStats.count }} / {{ outlineStats.min }} items complete
         </span>
-        <button
-          @click="moveToPhase('writing')"
-          :disabled="!outlineStats.isComplete"
-          class="w-full sm:w-auto bg-indigo-600 text-white font-semibold px-5 py-1.5 text-sm rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
-        >
-          Start Writing
-        </button>
+        <div class="w-full sm:w-auto">
+          <transition name="action-button">
+            <button
+              v-if="outlineStats.isComplete"
+              @click="moveToPhase('writing')"
+              class="w-full sm:w-auto bg-indigo-600 text-white font-semibold px-5 py-1.5 text-sm rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              Start Writing
+            </button>
+          </transition>
+        </div>
       </div>
 
       <div
@@ -1375,40 +1383,48 @@ onMounted(() => {
           Sentences: {{ writingStats.sentences }} /
           {{ writingStats.minSentences }}
         </span>
-        <button
-          @click="moveToPhase('evaluation')"
-          :disabled="!writingStats.isComplete"
-          class="w-full sm:w-auto bg-teal-500 text-white font-semibold px-5 py-1.5 text-sm rounded-lg hover:bg-teal-600 transition-colors disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
-        >
-          Evaluate Writing
-        </button>
+        <div class="w-full sm:w-auto">
+          <transition name="action-button">
+            <button
+              v-if="writingStats.isComplete"
+              @click="moveToPhase('evaluation')"
+              class="w-full sm:w-auto bg-teal-500 text-white font-semibold px-5 py-1.5 text-sm rounded-lg hover:bg-teal-600 transition-colors"
+            >
+              Evaluate Writing
+            </button>
+          </transition>
+        </div>
       </div>
 
       <div
         v-if="currentPhase === 'evaluation'"
-        class="flex flex-col sm:flex-row justify-between items-center gap-4"
+        class="flex flex-col sm:flex-row sm:justify-between items-center gap-2"
       >
-        <button
-          @click="saveJournal()"
-          :disabled="journalStore.isLoading"
-          class="w-full sm:w-auto bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold px-4 py-1.5 text-sm rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
-        >
-          {{ journalStore.isLoading ? 'Saving...' : 'Save Changes' }}
-        </button>
-        <div class="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+        <div class="flex w-full sm:w-auto gap-2">
+          <button
+            @click="saveJournal()"
+            :disabled="journalStore.isLoading"
+            class="w-1/2 sm:w-auto bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold px-4 py-1.5 text-sm rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+          >
+            {{ journalStore.isLoading ? 'Saving...' : 'Save Changes' }}
+          </button>
           <button
             @click="moveToPhase('writing')"
-            class="w-full sm:w-auto bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold px-4 py-1.5 text-sm rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+            class="w-1/2 sm:w-auto bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold px-4 py-1.5 text-sm rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
           >
             Back to Writing
           </button>
-          <button
-            @click="moveToPhase('completed')"
-            :disabled="!allSuggestionsApplied"
-            class="w-full sm:w-auto bg-green-600 text-white font-semibold px-5 py-1.5 text-sm rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
-          >
-            Mark as Complete
-          </button>
+        </div>
+        <div class="w-full sm:w-auto">
+          <transition name="action-button">
+            <button
+              v-if="allSuggestionsApplied"
+              @click="moveToPhase('completed')"
+              class="w-full sm:w-auto bg-green-600 text-white font-semibold px-5 py-1.5 text-sm rounded-lg hover:bg-green-700 transition-colors"
+            >
+              Mark as Complete
+            </button>
+          </transition>
         </div>
       </div>
 
@@ -1770,6 +1786,9 @@ const togglePhaseDescription = (phaseId) => {
 
 const getPhaseClass = (phaseId) => {
   const phaseValue = phaseMap[currentPhase.value];
+  if (phaseValue === 4) {
+    return 'bg-green-500 text-white scale-100';
+  }
   if (phaseValue > phaseId) return 'bg-green-500 text-white scale-100';
   if (phaseValue === phaseId)
     return 'bg-indigo-600 text-white scale-110 shadow-lg';
@@ -1808,6 +1827,18 @@ const getPhaseLineClass = (phaseId) => {
   padding-bottom: 0;
   margin-top: 0;
   margin-bottom: 0;
+}
+.action-button-enter-active,
+.action-button-leave-active {
+  /* Be specific about what to transition to avoid conflicts */
+  transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+  /* Hint to the browser to optimize animations */
+  will-change: opacity, transform;
+}
+.action-button-enter-from,
+.action-button-leave-to {
+  opacity: 0;
+  transform: translateY(10px); /* A slightly more subtle effect */
 }
 /* UPDATED: Chat bubble notch styles */
 .chat-bubble-user {
@@ -1854,6 +1885,8 @@ const getPhaseLineClass = (phaseId) => {
     border-color: transparent #374151 transparent transparent; /* Tailwind's gray-700 */
 }
 </style>
+
+
 ```
 
 

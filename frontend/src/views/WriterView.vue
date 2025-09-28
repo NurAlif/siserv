@@ -651,15 +651,17 @@
         <span class="text-xs text-gray-500 dark:text-gray-400">
           {{ outlineStats.count }} / {{ outlineStats.min }} items complete
         </span>
-        <transition name="action-button">
-          <button
-            v-if="outlineStats.isComplete"
-            @click="moveToPhase('writing')"
-            class="w-full sm:w-auto bg-indigo-600 text-white font-semibold px-5 py-1.5 text-sm rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            Start Writing
-          </button>
-        </transition>
+        <div class="w-full sm:w-auto">
+          <transition name="action-button">
+            <button
+              v-if="outlineStats.isComplete"
+              @click="moveToPhase('writing')"
+              class="w-full sm:w-auto bg-indigo-600 text-white font-semibold px-5 py-1.5 text-sm rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              Start Writing
+            </button>
+          </transition>
+        </div>
       </div>
 
       <div
@@ -671,15 +673,17 @@
           Sentences: {{ writingStats.sentences }} /
           {{ writingStats.minSentences }}
         </span>
-        <transition name="action-button">
-          <button
-            v-if="writingStats.isComplete"
-            @click="moveToPhase('evaluation')"
-            class="w-full sm:w-auto bg-teal-500 text-white font-semibold px-5 py-1.5 text-sm rounded-lg hover:bg-teal-600 transition-colors"
-          >
-            Evaluate Writing
-          </button>
-        </transition>
+        <div class="w-full sm:w-auto">
+          <transition name="action-button">
+            <button
+              v-if="writingStats.isComplete"
+              @click="moveToPhase('evaluation')"
+              class="w-full sm:w-auto bg-teal-500 text-white font-semibold px-5 py-1.5 text-sm rounded-lg hover:bg-teal-600 transition-colors"
+            >
+              Evaluate Writing
+            </button>
+          </transition>
+        </div>
       </div>
 
       <div
@@ -1114,15 +1118,17 @@ const getPhaseLineClass = (phaseId) => {
   margin-top: 0;
   margin-bottom: 0;
 }
-/* NEW: Action button animation */
 .action-button-enter-active,
 .action-button-leave-active {
-  transition: all 0.4s ease-in-out;
+  /* Be specific about what to transition to avoid conflicts */
+  transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+  /* Hint to the browser to optimize animations */
+  will-change: opacity, transform;
 }
 .action-button-enter-from,
 .action-button-leave-to {
   opacity: 0;
-  transform: translateY(20px);
+  transform: translateY(10px); /* A slightly more subtle effect */
 }
 /* UPDATED: Chat bubble notch styles */
 .chat-bubble-user {
