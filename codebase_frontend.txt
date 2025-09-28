@@ -718,7 +718,6 @@ onMounted(() => {
       ref="imageInput"
       type="file"
       @change="handleImageUpload"
-      multiple
       accept="image/*"
       class="hidden"
     />
@@ -1144,6 +1143,17 @@ onMounted(() => {
                   </div>
                 </div>
               </div>
+              <!-- NEW: Captioning Prompt -->
+              <div v-if="captioningImage" class="p-2 border-t border-gray-200 dark:border-gray-700 bg-indigo-50 dark:bg-indigo-900/50 flex items-center gap-3 transition-all flex-shrink-0">
+                <img :src="getImageUrl(captioningImage.file_path)" alt="caption preview" class="w-12 h-12 object-cover rounded-md">
+                <div class="flex-grow">
+                  <p class="text-sm font-semibold text-indigo-800 dark:text-indigo-200">Image added!</p>
+                  <p class="text-xs text-indigo-700 dark:text-indigo-300">Type your caption in the box below and press send.</p>
+                </div>
+                <button @click="captioningImage = null" title="Cancel caption" class="p-1.5 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-800">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="text-indigo-600 dark:text-indigo-300" viewBox="0 0 256 256"><path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"></path></svg>
+                </button>
+              </div>
               <div
                 class="p-2 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-shrink-0"
               >
@@ -1163,7 +1173,7 @@ onMounted(() => {
                   </span>
                   <button
                     @click="sendMessage"
-                    :disabled="isChatDisabled || !newMessage.trim()"
+                    :disabled="!newMessage.trim()"
                     class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full transition-colors bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-gray-300 dark:disabled:bg-gray-500 disabled:cursor-not-allowed"
                   >
                     <svg
@@ -1449,6 +1459,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useJournalStore } from '../stores/journalStore';
 import { useAiStore } from '../stores/aiStore';
 import { format } from 'date-fns';
+import apiClient from '../services/api'; // Import apiClient
 import AIFeedbackCard from '../components/AIFeedbackCard.vue';
 import ChatFeedbackCard from '../components/ChatFeedbackCard.vue';
 import ImageChatMessage from '../components/ImageChatMessage.vue';
@@ -1478,6 +1489,7 @@ const imageInput = ref(null);
 const isCarouselVisible = ref(false);
 const carouselImages = ref([]);
 const carouselStartIndex = ref(0);
+const captioningImage = ref(null); // Will hold { id, file_path } for the image being captioned
 
 const mobileView = ref('main');
 const isCorrectionModeEnabled = ref(true);
@@ -1558,6 +1570,9 @@ const isChatDisabled = computed(() => {
 });
 
 const chatPlaceholder = computed(() => {
+  if (captioningImage.value) {
+    return 'Add a caption for your new image...';
+  }
   if (chatTurnCount.value >= MAX_CHAT_TURNS) {
     return 'Chat turn limit reached.';
   }
@@ -1577,11 +1592,23 @@ const triggerImageUpload = () => {
 
 const handleImageUpload = async (event) => {
   if (!event.target.files || !currentJournal.value) return;
-  const files = Array.from(event.target.files);
-  for (const file of files) {
-    await journalStore.uploadImage(currentJournal.value.journal_date, file);
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const updatedJournal = await journalStore.uploadImage(currentJournal.value.journal_date, file);
+  event.target.value = ''; // Reset file input to allow re-uploading the same file
+
+  if (updatedJournal && updatedJournal.images.length > 0) {
+    const newImage = updatedJournal.images[updatedJournal.images.length - 1];
+    captioningImage.value = { id: newImage.id, file_path: newImage.file_path };
   }
-  event.target.value = '';
+};
+
+const getImageUrl = (filePath) => {
+    if (!filePath) return '';
+    if (filePath.startsWith('blob:')) return filePath;
+    const baseUrl = (apiClient.defaults.baseURL || '').replace('/api', '');
+    return `${baseUrl}${filePath}`;
 };
 
 const openCarousel = (imageId) => {
@@ -1721,8 +1748,14 @@ const moveToPhase = async (phase) => {
 };
 
 const sendMessage = async () => {
-  if (!newMessage.value.trim() || isChatDisabled.value) return;
-  if (saveTimeout.value) clearTimeout(saveTimeout.value);
+  if (!newMessage.value.trim()) return;
+  
+  const imageIdForMessage = captioningImage.value ? captioningImage.value.id : null;
+  
+  if (imageIdForMessage) {
+    captioningImage.value = null; // Clear captioning state immediately
+  }
+
   await saveJournal(false);
 
   const messageToSend = newMessage.value;
@@ -1731,7 +1764,8 @@ const sendMessage = async () => {
   aiStore.chatWithAI(
     currentJournal.value.journal_date,
     messageToSend,
-    isCorrectionModeEnabled.value
+    isCorrectionModeEnabled.value,
+    imageIdForMessage
   );
 };
 
@@ -1885,7 +1919,6 @@ const getPhaseLineClass = (phaseId) => {
     border-color: transparent #374151 transparent transparent; /* Tailwind's gray-700 */
 }
 </style>
-
 
 ```
 
@@ -2843,33 +2876,10 @@ export const useJournalStore = defineStore('journal', {
       }
     },
 
-    // --- UPDATED ACTION for optimistic image uploading ---
     async uploadImage(date, file) {
       this.isUploading = true;
       this.error = null;
       
-      // --- Optimistic UI Start ---
-      const tempId = `temp-img-${Date.now()}`;
-      const localUrl = URL.createObjectURL(file); // Create a local URL for the image preview
-
-      const optimisticMessage = {
-        id: tempId,
-        sender: 'user',
-        message_type: 'image',
-        message_text: 'Uploading...', // Placeholder text
-        timestamp: new Date().toISOString(), // Use current time for sorting
-        image: {
-          id: tempId,
-          file_path: localUrl, // Use the local blob URL for immediate display
-          ai_description: 'Generating description...'
-        },
-        isOptimistic: true // Flag to identify this temporary message if needed
-      };
-      
-      // Add the optimistic message to the UI immediately
-      this.addChatMessageOptimistically(date, optimisticMessage);
-      // --- Optimistic UI End ---
-
       try {
         const formData = new FormData();
         formData.append('file', file);
@@ -2880,21 +2890,16 @@ export const useJournalStore = defineStore('journal', {
           },
         });
         
-        // The response contains the updated journal, which replaces the optimistic one.
+        // The response contains the updated journal.
         this.updateLocalJournal(response.data);
+        return response.data; // Return the updated journal to the component
 
       } catch (err) {
         this.error = err.response?.data?.detail || 'Failed to upload image.';
         console.error(err);
-        // If upload fails, remove the optimistic message from the chat
-        const journal = this.getJournalByDate(date);
-        if (journal) {
-          journal.chat_messages = journal.chat_messages.filter(m => m.id !== tempId);
-        }
+        return null;
       } finally {
         this.isUploading = false;
-        // Clean up the created blob URL to prevent memory leaks
-        URL.revokeObjectURL(localUrl);
       }
     },
 
@@ -3196,7 +3201,7 @@ export const useAiStore = defineStore('ai', {
       }
     },
 
-    async chatWithAI(date, message, enableCorrection) {
+    async chatWithAI(date, message, enableCorrection, imageId = null) {
       this.isLoading = true;
       this.error = null;
       const journalStore = useJournalStore();
@@ -3212,7 +3217,11 @@ export const useAiStore = defineStore('ai', {
       
       try {
         // The API now returns the complete, updated journal object
-        const payload = { message, enable_correction: enableCorrection };
+        const payload = { 
+          message, 
+          enable_correction: enableCorrection,
+          image_id: imageId // Pass the image ID to the backend
+        };
         const response = await apiClient.post(`/ai/chat/${date}`, payload);
         
         // **KEY CHANGE**: Update the entire journal state with the response from the API.
@@ -3229,7 +3238,6 @@ export const useAiStore = defineStore('ai', {
     },
   },
 });
-
 
 ```
 
@@ -3612,11 +3620,12 @@ defineProps({
     class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors cursor-pointer flex items-start gap-4"
     :class="{ 'border-green-400 dark:border-green-600': journal.writing_phase === 'completed' }"
   >
-    <!-- Image Placeholder -->
-    <div class="w-24 h-[70px] bg-gray-100 dark:bg-gray-700 rounded-md flex items-center justify-center flex-shrink-0">
-      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" class="text-gray-400 dark:text-gray-500" viewBox="0 0 256 256"><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM48,48H208V157.38l-19.52-19.52a16,16,0,0,0-22.62,0L144,160,99.51,115.51a16,16,0,0,0-22.62,0L48,144.38ZM208,208H48V172.69l36.49-36.5,44.49,44.49a16,16,0,0,0,22.62,0L176,159.31l32,32V208Zm-40-88a12,12,0,1,1,12-12A12,12,0,0,1,168,120Z"></path></svg>
+    <!-- Image Thumbnail -->
+    <div class="w-24 h-24 bg-gray-100 dark:bg-gray-700 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden">
+      <img v-if="thumbnailUrl" :src="thumbnailUrl" alt="Journal thumbnail" class="w-full h-full object-cover">
+      <svg v-else xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="text-gray-400 dark:text-gray-500" viewBox="0 0 256 256"><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM48,48H208V157.38l-19.52-19.52a16,16,0,0,0-22.62,0L144,160,99.51,115.51a16,16,0,0,0-22.62,0L48,144.38ZM208,208H48V172.69l36.49-36.5,44.49,44.49a16,16,0,0,0,22.62,0L176,159.31l32,32V208Zm-40-88a12,12,0,1,1,12-12A12,12,0,0,1,168,120Z"></path></svg>
     </div>
-    <div class="flex-grow overflow-hidden">
+    <div class="flex-grow overflow-hidden pt-1">
       <div class="flex items-center gap-2">
         <h4 class="font-bold text-md text-gray-800 dark:text-gray-200 truncate">{{ journal.title || 'Journal Entry' }}</h4>
         <div v-if="journal.writing_phase === 'completed'" class="flex-shrink-0 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xs font-bold px-2 py-0.5 rounded-full">
@@ -3624,7 +3633,7 @@ defineProps({
         </div>
       </div>
       <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">{{ journalStore.formatDisplayDate(journal.journal_date) }}</p>
-      <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{{ snippet }}</p>
+      <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed overflow-hidden" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">{{ snippet }}</p>
     </div>
     <!-- Caret Icon -->
     <div class="self-center">
@@ -3636,6 +3645,7 @@ defineProps({
 <script setup>
 import { computed } from 'vue';
 import { useJournalStore } from '../stores/journalStore';
+import apiClient from '../services/api';
 
 const journalStore = useJournalStore();
 
@@ -3645,6 +3655,19 @@ const props = defineProps({
     required: true,
   },
 });
+
+const thumbnailUrl = computed(() => {
+  if (props.journal.images && props.journal.images.length > 0) {
+    // Get the last uploaded image to use as the thumbnail
+    const lastImage = props.journal.images[props.journal.images.length - 1];
+    const path = lastImage.file_path;
+    if (!path) return null;
+    const baseUrl = (apiClient.defaults.baseURL || '').replace('/api', '');
+    return `${baseUrl}${path}`;
+  }
+  return null;
+});
+
 
 // Create a snippet from the full content
 const snippet = computed(() => {
