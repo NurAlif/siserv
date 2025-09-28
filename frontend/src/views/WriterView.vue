@@ -444,13 +444,30 @@
                     :disabled="isChatDisabled"
                     type="text"
                     :placeholder="chatPlaceholder"
-                    class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none disabled:bg-gray-100 dark:disabled:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 pr-16"
+                    class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none disabled:bg-gray-100 dark:disabled:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 pr-28"
                   />
                   <span
-                    class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500 pointer-events-none"
+                    class="absolute right-12 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500 pointer-events-none"
                   >
                     {{ chatTurnCount }} / {{ MAX_CHAT_TURNS }}
                   </span>
+                  <button
+                    @click="sendMessage"
+                    :disabled="isChatDisabled || !newMessage.trim()"
+                    class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full transition-colors bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-gray-300 dark:disabled:bg-gray-500 disabled:cursor-not-allowed"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="18"
+                      height="18"
+                      fill="currentColor"
+                      viewBox="0 0 256 256"
+                    >
+                      <path
+                        d="M231.72,122.53,46.3,27.11a8,8,0,0,0-10.83,10.83L60.89,128,35.47,218.06a8,8,0,0,0,5.46,10.2,7.92,7.92,0,0,0,5.37.17L231.72,133.47a8,8,0,0,0,0-10.94Z"
+                      ></path>
+                    </svg>
+                  </button>
                 </div>
               </div>
             </div>
@@ -1127,4 +1144,3 @@ const getPhaseLineClass = (phaseId) => {
     border-color: transparent #374151 transparent transparent; /* Tailwind's gray-700 */
 }
 </style>
-

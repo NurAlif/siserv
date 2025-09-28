@@ -104,7 +104,7 @@ Analyze the user's question in the context of their outline and draft, and provi
     - Example: "This is a very clear description of your morning. To make it even more engaging, maybe you could add a bit more about how you felt during the commute."
 
 **RULES:**
-  - Be specific of what user asked. don't explain to long.
+  - Be specific of what user asked. don't explain too long.
 
 **CONTEXT FOR THIS REQUEST:**
 
@@ -165,6 +165,10 @@ Your task is to meticulously analyze a short message from a user and identify th
 4.  If the user's message is grammatically perfect and has no spelling errors, you MUST respond with a valid JSON object with only ONE key:
     - `status`: MUST be the string "no_errors".
 5.  Your entire response must be ONLY the JSON object.
+
+6.  A special case if user input a word or phrase or sentence in Bahasa Indonesia or in non-english language then you should answer by ignoring any other error and focused on giving the translation of that non english word. 
+    - You will became a thesaurus in this case. 
+    - You still need to follow the standard error format when being a thesaurus.
 
 **EXAMPLE 1 (Error Found):**
 User's Message: "There is many clanlanges."
