@@ -7,14 +7,14 @@
       </div>
       <form @submit.prevent="handleLogin" class="space-y-4">
         <div>
-          <label for="username" class="text-sm font-medium text-gray-700 dark:text-gray-300">Username or Email</label>
+          <label for="username" class="text-sm font-medium text-gray-700 dark:text-gray-300">Username or Student ID</label>
           <input
             v-model="username"
             type="text"
             id="username"
             required
             class="w-full px-3 py-2 mt-1 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-            placeholder="yourname"
+            placeholder="yourname or 412..."
           />
         </div>
         <div>
@@ -133,4 +133,3 @@ const participantManualContent = `
 <hr />
 `;
 </script>
-

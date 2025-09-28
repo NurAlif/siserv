@@ -63,11 +63,19 @@
             placeholder="••••••••"
           />
         </div>
-         <div v-if="authStore.error" class="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/50 p-3 rounded-lg">
-          {{ authStore.error }}
+        <div>
+          <label for="confirmPassword" class="text-sm font-medium text-gray-700 dark:text-gray-300">Confirm Password</label>
+          <input
+            v-model="confirmPassword"
+            type="password"
+            id="confirmPassword"
+            required
+            class="w-full px-3 py-2 mt-1 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            placeholder="••••••••"
+          />
         </div>
-        <div v-if="successMessage" class="text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/50 p-3 rounded-lg">
-          {{ successMessage }}
+         <div v-if="authStore.error || localError" class="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/50 p-3 rounded-lg">
+          {{ authStore.error || localError }}
         </div>
         <button
           type="submit"
@@ -89,17 +97,18 @@
 
 <script setup>
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
 
 const authStore = useAuthStore();
-// --- MODIFIED SECTION START ---
+const router = useRouter();
 const realname = ref('');
 const student_id = ref('');
-// --- MODIFIED SECTION END ---
 const username = ref('');
 const email = ref('');
 const password = ref('');
-const successMessage = ref('');
+const confirmPassword = ref('');
+const localError = ref('');
 
 const getGroupFromPort = () => {
   const port = window.location.port;
@@ -120,29 +129,27 @@ const getGroupFromPort = () => {
 };
 
 const handleSignup = async () => {
-  successMessage.value = '';
+  localError.value = '';
+  authStore.error = null;
+
+  if (password.value !== confirmPassword.value) {
+    localError.value = 'Passwords do not match.';
+    return;
+  }
+
   const group = getGroupFromPort(); 
   await authStore.signup({ 
-    // --- MODIFIED SECTION START ---
     realname: realname.value,
     student_id: student_id.value,
     group: group,
-    // --- MODIFIED SECTION END ---
     username: username.value, 
     email: email.value, 
     password: password.value 
   });
 
   if (!authStore.error) {
-    successMessage.value = 'Account created successfully! You can now log in.';
-    // Clear form fields
-    // --- MODIFIED SECTION START ---
-    realname.value = '';
-    student_id.value = '';
-    // --- MODIFIED SECTION END ---
-    username.value = '';
-    email.value = '';
-    password.value = '';
+    // Redirect to the login page on successful signup
+    router.push('/login');
   }
 };
 </script>

@@ -12,6 +12,9 @@ router = APIRouter(
     tags=["AI"]
 )
 
+# Define the chat turn limit as a constant
+MAX_CHAT_TURNS = 40
+
 @router.post("/feedback/{journal_date}", response_model=schemas.AIFeedbackResponse)
 def get_and_save_ai_feedback(
     journal_date: date,
@@ -120,6 +123,15 @@ def chat_with_ai(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Journal entry for date {journal_date} not found."
         )
+
+    # --- NEW: Check chat turn limit ---
+    conversation_messages_count = sum(1 for msg in journal.chat_messages if msg.message_type == models.MessageType.conversation)
+    if conversation_messages_count >= MAX_CHAT_TURNS:
+            raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Chat turn limit has been reached for this journal entry."
+        )
+    # --- END NEW ---
         
     # 1. Add user's message to the session
     user_message = models.ChatMessage(
@@ -200,4 +212,3 @@ def chat_with_ai(
     db.refresh(journal)
 
     return journal
-

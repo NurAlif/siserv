@@ -66,7 +66,8 @@ class Journal(Base):
     
     # Corrected relationships
     owner = relationship("User", back_populates="journals")
-    chat_messages = relationship("ChatMessage", back_populates="journal", cascade="all, delete-orphan")
+    # FIX: Added order_by to ensure chat messages are always sorted chronologically by their timestamp.
+    chat_messages = relationship("ChatMessage", back_populates="journal", cascade="all, delete-orphan", order_by="ChatMessage.timestamp")
     images = relationship("JournalImage", back_populates="journal", cascade="all, delete-orphan") # New relationship
 
 # --- NEW Journal Image Model ---

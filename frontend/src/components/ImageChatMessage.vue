@@ -31,9 +31,16 @@ const props = defineProps({
 defineEmits(['image-clicked']);
 
 const imageUrl = computed(() => {
-  if (!props.image || !props.image.file_path) return '';
+  const path = props.image?.file_path;
+  if (!path) return '';
+  
+  // FIX: Handle both local blob URLs for optimistic previews and server URLs.
+  if (path.startsWith('blob:')) {
+    return path;
+  }
+  
   // Construct the full URL to the static image file on the backend
   const baseUrl = (apiClient.defaults.baseURL || '').replace('/api', '');
-  return `${baseUrl}${props.image.file_path}`;
+  return `${baseUrl}${path}`;
 });
 </script>

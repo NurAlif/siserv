@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from .. import database, schemas, models, security
 
 router = APIRouter(
@@ -79,11 +80,16 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
     """
     Handles user login.
-    - Verifies username and password.
+    - Verifies username/student_id and password.
     - Returns a JWT access token on success.
     """
-    # Find the user by their username (form_data.username)
-    user = db.query(models.User).filter(models.User.username == form_data.username).first()
+    # Find the user by their username OR student_id
+    user = db.query(models.User).filter(
+        or_(
+            models.User.username == form_data.username,
+            models.User.student_id == form_data.username
+        )
+    ).first()
 
     # If user doesn't exist or password doesn't match, raise an error
     if not user or not security.verify_password(form_data.password, user.hashed_password):

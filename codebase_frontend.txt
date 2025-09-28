@@ -522,11 +522,19 @@ watch(() => route.params.topic_id, (newId) => {
             placeholder="••••••••"
           />
         </div>
-         <div v-if="authStore.error" class="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/50 p-3 rounded-lg">
-          {{ authStore.error }}
+        <div>
+          <label for="confirmPassword" class="text-sm font-medium text-gray-700 dark:text-gray-300">Confirm Password</label>
+          <input
+            v-model="confirmPassword"
+            type="password"
+            id="confirmPassword"
+            required
+            class="w-full px-3 py-2 mt-1 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            placeholder="••••••••"
+          />
         </div>
-        <div v-if="successMessage" class="text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/50 p-3 rounded-lg">
-          {{ successMessage }}
+         <div v-if="authStore.error || localError" class="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/50 p-3 rounded-lg">
+          {{ authStore.error || localError }}
         </div>
         <button
           type="submit"
@@ -548,17 +556,18 @@ watch(() => route.params.topic_id, (newId) => {
 
 <script setup>
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
 
 const authStore = useAuthStore();
-// --- MODIFIED SECTION START ---
+const router = useRouter();
 const realname = ref('');
 const student_id = ref('');
-// --- MODIFIED SECTION END ---
 const username = ref('');
 const email = ref('');
 const password = ref('');
-const successMessage = ref('');
+const confirmPassword = ref('');
+const localError = ref('');
 
 const getGroupFromPort = () => {
   const port = window.location.port;
@@ -579,32 +588,31 @@ const getGroupFromPort = () => {
 };
 
 const handleSignup = async () => {
-  successMessage.value = '';
+  localError.value = '';
+  authStore.error = null;
+
+  if (password.value !== confirmPassword.value) {
+    localError.value = 'Passwords do not match.';
+    return;
+  }
+
   const group = getGroupFromPort(); 
   await authStore.signup({ 
-    // --- MODIFIED SECTION START ---
     realname: realname.value,
     student_id: student_id.value,
     group: group,
-    // --- MODIFIED SECTION END ---
     username: username.value, 
     email: email.value, 
     password: password.value 
   });
 
   if (!authStore.error) {
-    successMessage.value = 'Account created successfully! You can now log in.';
-    // Clear form fields
-    // --- MODIFIED SECTION START ---
-    realname.value = '';
-    student_id.value = '';
-    // --- MODIFIED SECTION END ---
-    username.value = '';
-    email.value = '';
-    password.value = '';
+    // Redirect to the login page on successful signup
+    router.push('/login');
   }
 };
 </script>
+
 ```
 
 
@@ -1680,14 +1688,14 @@ onMounted(() => {
       </div>
       <form @submit.prevent="handleLogin" class="space-y-4">
         <div>
-          <label for="username" class="text-sm font-medium text-gray-700 dark:text-gray-300">Username or Email</label>
+          <label for="username" class="text-sm font-medium text-gray-700 dark:text-gray-300">Username or Student ID</label>
           <input
             v-model="username"
             type="text"
             id="username"
             required
             class="w-full px-3 py-2 mt-1 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-            placeholder="yourname"
+            placeholder="yourname or 412..."
           />
         </div>
         <div>
@@ -1806,7 +1814,6 @@ const participantManualContent = `
 <hr />
 `;
 </script>
-
 
 ```
 
@@ -2573,10 +2580,33 @@ export const useJournalStore = defineStore('journal', {
       }
     },
 
-    // --- NEW ACTION for image uploading ---
+    // --- UPDATED ACTION for optimistic image uploading ---
     async uploadImage(date, file) {
       this.isUploading = true;
       this.error = null;
+      
+      // --- Optimistic UI Start ---
+      const tempId = `temp-img-${Date.now()}`;
+      const localUrl = URL.createObjectURL(file); // Create a local URL for the image preview
+
+      const optimisticMessage = {
+        id: tempId,
+        sender: 'user',
+        message_type: 'image',
+        message_text: 'Uploading...', // Placeholder text
+        timestamp: new Date().toISOString(), // Use current time for sorting
+        image: {
+          id: tempId,
+          file_path: localUrl, // Use the local blob URL for immediate display
+          ai_description: 'Generating description...'
+        },
+        isOptimistic: true // Flag to identify this temporary message if needed
+      };
+      
+      // Add the optimistic message to the UI immediately
+      this.addChatMessageOptimistically(date, optimisticMessage);
+      // --- Optimistic UI End ---
+
       try {
         const formData = new FormData();
         formData.append('file', file);
@@ -2587,13 +2617,21 @@ export const useJournalStore = defineStore('journal', {
           },
         });
         
-        // The response contains the updated journal, so we update our local state
+        // The response contains the updated journal, which replaces the optimistic one.
         this.updateLocalJournal(response.data);
+
       } catch (err) {
         this.error = err.response?.data?.detail || 'Failed to upload image.';
         console.error(err);
+        // If upload fails, remove the optimistic message from the chat
+        const journal = this.getJournalByDate(date);
+        if (journal) {
+          journal.chat_messages = journal.chat_messages.filter(m => m.id !== tempId);
+        }
       } finally {
         this.isUploading = false;
+        // Clean up the created blob URL to prevent memory leaks
+        URL.revokeObjectURL(localUrl);
       }
     },
 
@@ -3123,10 +3161,17 @@ const props = defineProps({
 defineEmits(['image-clicked']);
 
 const imageUrl = computed(() => {
-  if (!props.image || !props.image.file_path) return '';
+  const path = props.image?.file_path;
+  if (!path) return '';
+  
+  // FIX: Handle both local blob URLs for optimistic previews and server URLs.
+  if (path.startsWith('blob:')) {
+    return path;
+  }
+  
   // Construct the full URL to the static image file on the backend
   const baseUrl = (apiClient.defaults.baseURL || '').replace('/api', '');
-  return `${baseUrl}${props.image.file_path}`;
+  return `${baseUrl}${path}`;
 });
 </script>
 

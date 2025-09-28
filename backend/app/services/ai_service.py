@@ -237,7 +237,7 @@ def get_writing_partner_response(user_message: str, outline: str, current_draft:
             model=MODEL_LITE,
             outjson=False
         )
-        return response["text"].strip()
+        return response
     except Exception as e:
         print(f"An error occurred with the Gemini API during writing assistance: {e}")
         return "I'm sorry, I'm unable to help with that right now."

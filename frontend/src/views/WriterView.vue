@@ -324,10 +324,26 @@
                     title="Add Image from Device"
                     class="p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="text-gray-600 dark:text-gray-300" viewBox="0 0 256 256"><path d="M208,56H180.28L166.65,35.56A16,16,0,0,0,152.28,24H103.72a16,16,0,0,0-14.37,11.56L75.72,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm16,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8h32a8,8,0,0,0,7.18-4.44l13.63-20.44a.18.18,0,0,1,0-.05H152.28a.18.18,0,0,1,0,.05l13.63,20.44A8,8,0,0,0,173.09,72H208a8,8,0,0,1,8,8ZM128,88a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,88Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,168Z"></path></svg>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      fill="currentColor"
+                      class="text-gray-600 dark:text-gray-300"
+                      viewBox="0 0 256 256"
+                    >
+                      <path
+                        d="M208,56H180.28L166.65,35.56A16,16,0,0,0,152.28,24H103.72a16,16,0,0,0-14.37,11.56L75.72,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm16,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8h32a8,8,0,0,0,7.18-4.44l13.63-20.44a.18.18,0,0,1,0-.05H152.28a.18.18,0,0,1,0,.05l13.63,20.44A8,8,0,0,0,173.09,72H208a8,8,0,0,1,8,8ZM128,88a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,88Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,168Z"
+                      ></path>
+                    </svg>
                   </button>
-                  <label for="correction-toggle" class="flex items-center cursor-pointer">
-                    <span class="mr-2 text-xs text-gray-500 dark:text-gray-400">Correct</span>
+                  <label
+                    for="correction-toggle"
+                    class="flex items-center cursor-pointer"
+                  >
+                    <span class="mr-2 text-xs text-gray-500 dark:text-gray-400"
+                      >Correct</span
+                    >
                     <div class="relative">
                       <input
                         type="checkbox"
@@ -335,8 +351,12 @@
                         class="sr-only"
                         v-model="isCorrectionModeEnabled"
                       />
-                      <div class="block bg-gray-200 dark:bg-gray-600 w-10 h-6 rounded-full"></div>
-                      <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform"></div>
+                      <div
+                        class="block bg-gray-200 dark:bg-gray-600 w-10 h-6 rounded-full"
+                      ></div>
+                      <div
+                        class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform"
+                      ></div>
                     </div>
                   </label>
                 </div>
@@ -346,48 +366,92 @@
                 class="flex-grow p-4 overflow-y-auto space-y-4 custom-scrollbar"
               >
                 <!-- Existing messages -->
-                <template v-for="message in currentJournal?.chat_messages" :key="message.id">
+                <template
+                  v-for="message in currentJournal?.chat_messages"
+                  :key="message.id"
+                >
                   <!-- Conversation Text Message -->
-                  <div v-if="message.message_type === 'conversation'" class="flex" :class="message.sender === 'user' ? 'justify-end' : 'justify-start'">
-                    <div class="p-3 rounded-lg max-w-xs break-words" :class="message.sender === 'user' ? 'bg-indigo-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'">
+                  <div
+                    v-if="message.message_type === 'conversation'"
+                    class="flex"
+                    :class="
+                      message.sender === 'user'
+                        ? 'justify-end'
+                        : 'justify-start'
+                    "
+                  >
+                    <div
+                      class="p-3 rounded-lg max-w-xs break-words"
+                      :class="{
+                        'bg-indigo-500 text-white chat-bubble-user':
+                          message.sender === 'user',
+                        'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 chat-bubble-ai':
+                          message.sender !== 'user',
+                      }"
+                    >
                       <p class="text-sm">{{ message.message_text }}</p>
                     </div>
                   </div>
                   <!-- Image Message -->
-                  <div v-else-if="message.message_type === 'image' && message.image" class="flex" :class="message.sender === 'user' ? 'justify-end' : 'justify-start'">
-                     <ImageChatMessage 
-                        :image="message.image" 
-                        :description="message.message_text"
-                        @image-clicked="openCarousel(message.image.id)" />
+                  <div
+                    v-else-if="
+                      message.message_type === 'image' && message.image
+                    "
+                    class="flex"
+                    :class="
+                      message.sender === 'user'
+                        ? 'justify-end'
+                        : 'justify-start'
+                    "
+                  >
+                    <ImageChatMessage
+                      :image="message.image"
+                      :description="message.message_text"
+                      @image-clicked="openCarousel(message.image.id)"
+                    />
                   </div>
                   <!-- Feedback Message -->
-                  <div v-else-if="message.message_type === 'feedback'" class="flex justify-start">
+                  <div
+                    v-else-if="message.message_type === 'feedback'"
+                    class="flex justify-start"
+                  >
                     <ChatFeedbackCard :message="message" />
                   </div>
                 </template>
-                 <!-- Loading Indicators -->
+                <!-- Loading Indicators -->
                 <div v-if="aiStore.isLoading" class="flex justify-start">
-                  <div class="bg-gray-200 dark:bg-gray-700 p-3 rounded-lg animate-pulse">
+                  <div
+                    class="bg-gray-200 dark:bg-gray-700 p-3 rounded-lg animate-pulse chat-bubble-ai"
+                  >
                     <p class="text-sm text-gray-400">...</p>
                   </div>
                 </div>
                 <div v-if="journalStore.isUploading" class="flex justify-start">
-                    <div class="p-3 rounded-lg max-w-xs break-words bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 italic animate-pulse">
-                      <p class="text-sm">Uploading image...</p>
-                    </div>
+                  <div
+                    class="p-3 rounded-lg max-w-xs break-words bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 italic animate-pulse"
+                  >
+                    <p class="text-sm">Uploading image...</p>
+                  </div>
                 </div>
               </div>
               <div
                 class="p-2 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-shrink-0"
               >
-                <input
-                  v-model="newMessage"
-                  @keyup.enter="sendMessage"
-                  :disabled="aiStore.isLoading || !currentJournal"
-                  type="text"
-                  :placeholder="chatPlaceholder"
-                  class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none disabled:bg-gray-100 dark:disabled:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                />
+                <div class="relative">
+                  <input
+                    v-model="newMessage"
+                    @keyup.enter="sendMessage"
+                    :disabled="isChatDisabled"
+                    type="text"
+                    :placeholder="chatPlaceholder"
+                    class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none disabled:bg-gray-100 dark:disabled:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 pr-16"
+                  />
+                  <span
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500 pointer-events-none"
+                  >
+                    {{ chatTurnCount }} / {{ MAX_CHAT_TURNS }}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -477,7 +541,9 @@
                     v-for="(item, index) in aiStore.feedback"
                     :key="index"
                     :feedback-item="item"
-                    :is-applied="appliedSuggestions.includes(item.incorrect_phrase)"
+                    :is-applied="
+                      appliedSuggestions.includes(item.incorrect_phrase)
+                    "
                     @apply-suggestion="applySuggestion"
                   />
                 </div>
@@ -515,7 +581,9 @@
                 ></path>
               </svg>
             </div>
-            <h3 class="text-2xl font-bold mt-4 text-gray-900 dark:text-gray-100">
+            <h3
+              class="text-2xl font-bold mt-4 text-gray-900 dark:text-gray-100"
+            >
               Journal Completed!
             </h3>
             <p class="text-gray-600 dark:text-gray-400 mt-2">
@@ -532,7 +600,9 @@
                   :images="currentJournal.images"
                   @stack-clicked="openCarousel(currentJournal.images[0].id)"
                 />
-                <h4 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <h4
+                  class="font-semibold text-gray-700 dark:text-gray-300 mb-2"
+                >
                   Your Final Entry
                 </h4>
                 <div
@@ -553,19 +623,35 @@
     <div
       class="flex-shrink-0 p-4 border-t border-gray-200 dark:border-gray-700"
     >
-      <div v-if="currentPhase === 'scaffolding'" class="flex justify-end">
+      <div
+        v-if="currentPhase === 'scaffolding'"
+        class="flex flex-col sm:flex-row justify-end items-center gap-2"
+      >
+        <span class="text-xs text-gray-500 dark:text-gray-400">
+          {{ outlineStats.count }} / {{ outlineStats.min }} items complete
+        </span>
         <button
           @click="moveToPhase('writing')"
-          class="w-full sm:w-auto bg-indigo-600 text-white font-semibold px-5 py-1.5 text-sm rounded-lg hover:bg-indigo-700 transition-colors"
+          :disabled="!outlineStats.isComplete"
+          class="w-full sm:w-auto bg-indigo-600 text-white font-semibold px-5 py-1.5 text-sm rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
         >
           Start Writing
         </button>
       </div>
 
-      <div v-if="currentPhase === 'writing'" class="flex justify-end">
+      <div
+        v-if="currentPhase === 'writing'"
+        class="flex flex-col sm:flex-row justify-end items-center gap-2"
+      >
+        <span class="text-xs text-gray-500 dark:text-gray-400">
+          Words: {{ writingStats.words }} / {{ writingStats.minWords }} |
+          Sentences: {{ writingStats.sentences }} /
+          {{ writingStats.minSentences }}
+        </span>
         <button
           @click="moveToPhase('evaluation')"
-          class="w-full sm:w-auto bg-teal-500 text-white font-semibold px-5 py-1.5 text-sm rounded-lg hover:bg-teal-600 transition-colors"
+          :disabled="!writingStats.isComplete"
+          class="w-full sm:w-auto bg-teal-500 text-white font-semibold px-5 py-1.5 text-sm rounded-lg hover:bg-teal-600 transition-colors disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
         >
           Evaluate Writing
         </button>
@@ -599,7 +685,10 @@
         </div>
       </div>
 
-      <div v-if="currentPhase === 'completed'" class="flex justify-center gap-4">
+      <div
+        v-if="currentPhase === 'completed'"
+        class="flex justify-center gap-4"
+      >
         <router-link
           to="/"
           class="bg-indigo-600 text-white font-semibold px-5 py-1.5 text-sm rounded-lg hover:bg-indigo-700 transition-colors"
@@ -621,7 +710,13 @@ import AIFeedbackCard from '../components/AIFeedbackCard.vue';
 import ChatFeedbackCard from '../components/ChatFeedbackCard.vue';
 import ImageChatMessage from '../components/ImageChatMessage.vue';
 import ImageCarousel from '../components/ImageCarousel.vue';
-import ImageStack from '../components/ImageStack.vue'; // New import
+import ImageStack from '../components/ImageStack.vue';
+
+// --- Constants for validation and limits ---
+const MIN_SCAFFOLD_ITEMS = 5;
+const MIN_WRITING_WORDS = 50;
+const MIN_WRITING_SENTENCES = 3;
+const MAX_CHAT_TURNS = 40;
 
 const route = useRoute();
 const router = useRouter();
@@ -635,7 +730,7 @@ const currentPhase = computed(
   () => currentJournal.value?.writing_phase || 'scaffolding'
 );
 
-// --- NEW STATE FOR IMAGES ---
+// --- Image State ---
 const imageInput = ref(null);
 const isCarouselVisible = ref(false);
 const carouselImages = ref([]);
@@ -668,7 +763,61 @@ const displayDate = computed(() => {
   return format(new Date(), 'MMMM d, yyyy');
 });
 
+// --- Validation and Limit Computeds ---
+const wordCount = (str) => {
+  if (!str) return 0;
+  return str.trim().split(/\s+/).filter(Boolean).length;
+};
+
+const sentenceCount = (str) => {
+  if (!str) return 0;
+  const matches = str.match(/[.!?…]+(\s|$)/g);
+  return matches ? matches.length : 0;
+};
+
+const outlineStats = computed(() => {
+  const count = outlineContent.value
+    .split('\n')
+    .filter((line) => line.trim() !== '').length;
+  return {
+    count,
+    min: MIN_SCAFFOLD_ITEMS,
+    isComplete: count >= MIN_SCAFFOLD_ITEMS,
+  };
+});
+
+const writingStats = computed(() => {
+  const words = wordCount(content.value);
+  const sentences = sentenceCount(content.value);
+  return {
+    words,
+    sentences,
+    minWords: MIN_WRITING_WORDS,
+    minSentences: MIN_WRITING_SENTENCES,
+    isComplete:
+      words >= MIN_WRITING_WORDS && sentences >= MIN_WRITING_SENTENCES,
+  };
+});
+
+const chatTurnCount = computed(() => {
+  if (!currentJournal.value || !currentJournal.value.chat_messages) return 0;
+  return currentJournal.value.chat_messages.filter(
+    (m) => m.message_type === 'conversation'
+  ).length;
+});
+
+const isChatDisabled = computed(() => {
+  return (
+    aiStore.isLoading ||
+    !currentJournal.value ||
+    chatTurnCount.value >= MAX_CHAT_TURNS
+  );
+});
+
 const chatPlaceholder = computed(() => {
+  if (chatTurnCount.value >= MAX_CHAT_TURNS) {
+    return 'Chat turn limit reached.';
+  }
   if (currentPhase.value === 'scaffolding') {
     return 'Not sure what to write about? Chat here!';
   }
@@ -678,7 +827,7 @@ const chatPlaceholder = computed(() => {
   return 'Type your message...';
 });
 
-// --- NEW IMAGE HANDLING METHODS ---
+// --- Image Handling Methods ---
 const triggerImageUpload = () => {
   imageInput.value?.click();
 };
@@ -689,14 +838,13 @@ const handleImageUpload = async (event) => {
   for (const file of files) {
     await journalStore.uploadImage(currentJournal.value.journal_date, file);
   }
-  // Clear the input value to allow uploading the same file again
   event.target.value = '';
 };
 
 const openCarousel = (imageId) => {
   if (!currentJournal.value?.images) return;
   carouselImages.value = currentJournal.value.images;
-  const index = carouselImages.value.findIndex(img => img.id === imageId);
+  const index = carouselImages.value.findIndex((img) => img.id === imageId);
   carouselStartIndex.value = index >= 0 ? index : 0;
   isCarouselVisible.value = true;
 };
@@ -762,7 +910,10 @@ watch(
       }
       scrollToBottom();
 
-      if (!oldJournal || newJournal.writing_phase !== oldJournal.writing_phase) {
+      if (
+        !oldJournal ||
+        newJournal.writing_phase !== oldJournal.writing_phase
+      ) {
         startDescriptionTimer();
       }
     }
@@ -776,7 +927,6 @@ watch(
     scrollToBottom();
   }
 );
-
 
 watch(content, (newValue, oldValue) => {
   if (currentPhase.value === 'writing' && newValue !== oldValue) {
@@ -804,14 +954,31 @@ const saveJournal = async (showStatus = true) => {
 };
 
 const moveToPhase = async (phase) => {
+  // Front-end validation as a safeguard, though buttons are disabled.
+  if (
+    currentPhase.value === 'scaffolding' &&
+    phase === 'writing' &&
+    !outlineStats.value.isComplete
+  )
+    return;
+  if (
+    currentPhase.value === 'writing' &&
+    phase === 'evaluation' &&
+    !writingStats.value.isComplete
+  )
+    return;
+
   if (!currentJournal.value) return;
   if (saveTimeout.value) clearTimeout(saveTimeout.value);
   await saveJournal(false);
-  await journalStore.updateJournalPhase(currentJournal.value.journal_date, phase);
+  await journalStore.updateJournalPhase(
+    currentJournal.value.journal_date,
+    phase
+  );
 };
 
 const sendMessage = async () => {
-  if (!newMessage.value.trim() || !currentJournal.value || aiStore.isLoading) return;
+  if (!newMessage.value.trim() || isChatDisabled.value) return;
   if (saveTimeout.value) clearTimeout(saveTimeout.value);
   await saveJournal(false);
 
@@ -877,7 +1044,8 @@ const togglePhaseDescription = (phaseId) => {
 const getPhaseClass = (phaseId) => {
   const phaseValue = phaseMap[currentPhase.value];
   if (phaseValue > phaseId) return 'bg-green-500 text-white scale-100';
-  if (phaseValue === phaseId) return 'bg-indigo-600 text-white scale-110 shadow-lg';
+  if (phaseValue === phaseId)
+    return 'bg-indigo-600 text-white scale-110 shadow-lg';
   return 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 scale-100';
 };
 
@@ -898,12 +1066,14 @@ const getPhaseLineClass = (phaseId) => {
 .dark #correction-toggle:checked ~ .block {
   background-color: #3730a3;
 }
-.banner-fade-enter-active, .banner-fade-leave-active {
+.banner-fade-enter-active,
+.banner-fade-leave-active {
   transition: all 0.4s ease-in-out;
   max-height: 120px;
   overflow: hidden;
 }
-.banner-fade-enter-from, .banner-fade-leave-to {
+.banner-fade-enter-from,
+.banner-fade-leave-to {
   opacity: 0;
   transform: translateY(-10px);
   max-height: 0;
@@ -912,4 +1082,49 @@ const getPhaseLineClass = (phaseId) => {
   margin-top: 0;
   margin-bottom: 0;
 }
+/* UPDATED: Chat bubble notch styles */
+.chat-bubble-user {
+    position: relative;
+    margin-right: 10px;
+    /* rounded-lg is on the element, this makes the notch corner sharper */
+    border-top-right-radius: 0.25rem;
+}
+.chat-bubble-ai {
+    position: relative;
+    margin-left: 10px;
+    /* rounded-lg is on the element, this makes the notch corner sharper */
+    border-top-left-radius: 0.25rem;
+}
+
+/* User bubble notch (points right) */
+.chat-bubble-user::after {
+    content: '';
+    position: absolute;
+    top: 10px;
+    right: -10px;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 5px 0 5px 10px; /* t r b l */
+    border-color: transparent transparent transparent #4f46e5; /* Tailwind's indigo-500 */
+}
+
+/* AI bubble notch (points left) */
+.chat-bubble-ai::after {
+    content: '';
+    position: absolute;
+    top: 10px;
+    left: -10px;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 5px 10px 5px 0; /* t r b l */
+    border-color: transparent #e5e7eb transparent transparent; /* Tailwind's gray-200 */
+}
+
+/* Dark mode style for AI bubble notch */
+.dark .chat-bubble-ai::after {
+    border-color: transparent #374151 transparent transparent; /* Tailwind's gray-700 */
+}
 </style>
+
