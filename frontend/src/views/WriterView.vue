@@ -238,9 +238,15 @@
         <div class="flex-grow overflow-hidden grid grid-cols-1 md:grid-cols-2 gap-6">
           <!-- Left Column: Outline / Writer -->
           <div
-            class="flex flex-col gap-4 min-h-0"
+            class="relative flex flex-col gap-4 min-h-0"
             :class="{ 'hidden md:flex': mobileView !== 'main' }"
           >
+            <!-- NEW: Image Stack Display -->
+            <ImageStack
+              v-if="currentJournal?.images?.length > 0"
+              :images="currentJournal.images"
+              @stack-clicked="openCarousel(currentJournal.images[0].id)"
+            />
             <!-- Scaffolding View -->
             <template v-if="currentPhase === 'scaffolding'">
               <div
@@ -348,7 +354,7 @@
                     </div>
                   </div>
                   <!-- Image Message -->
-                  <div v-else-if="message.message_type === 'image' && message.image" class="flex justify-start">
+                  <div v-else-if="message.message_type === 'image' && message.image" class="flex" :class="message.sender === 'user' ? 'justify-end' : 'justify-start'">
                      <ImageChatMessage 
                         :image="message.image" 
                         :description="message.message_text"
@@ -518,8 +524,14 @@
             </p>
             <div class="mt-6">
               <div
-                class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border dark:border-gray-700 text-left"
+                class="relative bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border dark:border-gray-700 text-left"
               >
+                <!-- NEW: Image Stack Display -->
+                <ImageStack
+                  v-if="currentJournal?.images?.length > 0"
+                  :images="currentJournal.images"
+                  @stack-clicked="openCarousel(currentJournal.images[0].id)"
+                />
                 <h4 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">
                   Your Final Entry
                 </h4>
@@ -607,8 +619,9 @@ import { useAiStore } from '../stores/aiStore';
 import { format } from 'date-fns';
 import AIFeedbackCard from '../components/AIFeedbackCard.vue';
 import ChatFeedbackCard from '../components/ChatFeedbackCard.vue';
-import ImageChatMessage from '../components/ImageChatMessage.vue'; // New import
-import ImageCarousel from '../components/ImageCarousel.vue'; // New import
+import ImageChatMessage from '../components/ImageChatMessage.vue';
+import ImageCarousel from '../components/ImageCarousel.vue';
+import ImageStack from '../components/ImageStack.vue'; // New import
 
 const route = useRoute();
 const router = useRouter();
@@ -900,4 +913,3 @@ const getPhaseLineClass = (phaseId) => {
   margin-bottom: 0;
 }
 </style>
-

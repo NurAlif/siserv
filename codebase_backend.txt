@@ -17,8 +17,9 @@ Codebase Structure Overview:
     │   ├── ai_service.py
     │   └── context_agent.py
     └── static
-        └── images
-            └── icon
+        ├── images
+        │   └── icon
+        └── uploads
 
 
 ==================================================
@@ -74,7 +75,16 @@ class TokenData(BaseModel):
     """Schema representing the data embedded within a JWT."""
     id: Optional[str] = None
 
-# --- NEW ChatMessage Schemas ---
+# --- NEW JournalImage Schema ---
+class JournalImageOut(BaseModel):
+    id: int
+    file_path: str
+    ai_description: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+# --- ChatMessage Schemas ---
 class ChatMessageBase(BaseModel):
     sender: MessageSender
     message_text: str
@@ -83,6 +93,7 @@ class ChatMessageBase(BaseModel):
 class ChatMessageOut(ChatMessageBase):
     id: int
     timestamp: datetime
+    image: Optional[JournalImageOut] = None # Include image details
 
     class Config:
         from_attributes = True
@@ -123,6 +134,7 @@ class JournalOut(JournalBase):
     created_at: datetime
     updated_at: datetime
     chat_messages: List[ChatMessageOut] = []
+    images: List[JournalImageOut] = [] # Include all journal images
     
     class Config:
         from_attributes = True
@@ -354,6 +366,7 @@ class MessageSender(enum.Enum):
 class MessageType(enum.Enum):
     conversation = "conversation"
     feedback = "feedback"
+    image = "image" # New message type for images
     
 # Define an Enum for the journal writing phase
 class JournalPhase(enum.Enum):
@@ -405,6 +418,19 @@ class Journal(Base):
     # Corrected relationships
     owner = relationship("User", back_populates="journals")
     chat_messages = relationship("ChatMessage", back_populates="journal", cascade="all, delete-orphan")
+    images = relationship("JournalImage", back_populates="journal", cascade="all, delete-orphan") # New relationship
+
+# --- NEW Journal Image Model ---
+class JournalImage(Base):
+    __tablename__ = "journal_images"
+    id = Column(Integer, primary_key=True, index=True)
+    journal_id = Column(Integer, ForeignKey("journals.id", ondelete="CASCADE"), nullable=False)
+    file_path = Column(String(512), nullable=False)
+    ai_description = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
+
+    journal = relationship("Journal", back_populates="images")
+
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
@@ -414,6 +440,10 @@ class ChatMessage(Base):
     message_text = Column(Text, nullable=False)
     message_type = Column(Enum(MessageType), default=MessageType.conversation, nullable=False)
     timestamp = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
+
+    # New relationship to an image
+    image_id = Column(Integer, ForeignKey("journal_images.id"), nullable=True)
+    image = relationship("JournalImage")
 
     journal = relationship("Journal", back_populates="chat_messages")
 
@@ -541,8 +571,9 @@ app.add_middleware(
 # We then join it with 'static' to create a full path.
 static_files_dir = os.path.join(os.path.dirname(__file__), "static")
 
-# Create the directory if it doesn't exist to prevent errors on first run.
+# Create the directories if they don't exist to prevent errors on first run.
 os.makedirs(static_files_dir, exist_ok=True)
+os.makedirs(os.path.join(static_files_dir, "uploads"), exist_ok=True) # Ensure uploads folder exists
 
 # Mount the 'static' directory to the '/static' URL path.
 # Any file inside 'app/static/' will be accessible from '/static/'.
@@ -594,7 +625,7 @@ settings = Settings()
 ### File: app/services/context_agent.py
 
 ```
-import google.generativeai as genai
+from gemini_api_client import query_api_with_retries, MODEL_LITE, MODEL_FLASH
 from sqlalchemy.orm import Session, joinedload
 import json
 from datetime import datetime
@@ -602,33 +633,26 @@ from datetime import datetime
 from .. import models, database
 from ..config import settings
 
-# Configure the Gemini API client
-try:
-    genai.configure(api_key=settings.gemini_api_key)
-    model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
-except Exception as e:
-    print(f"Error configuring Generative AI: {e}")
-    model = None
 
 def _call_gemini_api(prompt):
     """A helper to safely call the Gemini API and parse JSON."""
-    if not model:
-        raise ConnectionError("Generative AI model is not configured.")
-    try:
-        response = model.generate_content(prompt)
-        cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
-        return json.loads(cleaned_response)
-    except Exception as e:
-        print(f"Error calling Gemini API or parsing JSON: {e}")
-        return None
+
+    response = query_api_with_retries(
+            prompt=prompt,
+            model=MODEL_LITE
+        )
+    cleaned_response = response["text"].strip().replace("```json", "").replace("```", "").strip()
+    return json.loads(cleaned_response)
+
 
 def get_thematic_summary(text: str) -> str:
     """Generates a thematic summary of the journal entry."""
     prompt = f"Summarize the key events, topics, and overall sentiment of this journal entry in a few sentences.\n\n---\n{text}\n---"
-    if not model:
-        return "Summary generation unavailable."
-    response = model.generate_content(prompt)
-    return response.text.strip()
+    response = query_api_with_retries(
+            prompt=prompt,
+            model=MODEL_LITE
+        )
+    return response["text"].strip()
 
 def get_cognitive_patterns(summary: str) -> dict:
     """Extracts cognitive patterns from the summary."""
@@ -711,13 +735,32 @@ def process_journal(journal_id: int, user_id: int):
 ### File: app/services/ai_service.py
 
 ```
-import google.generativeai as genai
+import gemini_api_client
+from gemini_api_client import query_api_with_retries, MODEL_LITE, MODEL_FLASH
 from ..config import settings
 import json
+import io
+from PIL import Image
 
 # Configure the Gemini API client
-genai.configure(api_key=settings.gemini_api_key)
-model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
+
+# --- NEW FUNCTION for image description ---
+def get_image_description(image_bytes: bytes) -> str:
+    """
+    Generates a description for an image using the Gemini Vision model.
+    """
+    try:
+        prompt = "Briefly describe this image for a journal entry. Focus on objects, actions, and the overall mood. Keep it concise, like a caption."
+        response = query_api_with_retries(
+            prompt=prompt,
+            model=MODEL_FLASH,
+            image=image_bytes,
+            outjson=False
+        )
+        return response
+    except Exception as e:
+        print(f"An error occurred with Gemini Vision API: {e}")
+        return "Could not generate a description for the image."
 
 SCAFFOLDING_PROMPT_TEMPLATE = """
 You are Lingo, an insightful and encouraging AI writing partner for an English language learner.
@@ -726,7 +769,7 @@ Your tone must be curious, encouraging, and concise (10-50 words).
 
 **CONTEXT PROVIDED (as a JSON object):**
 - `user_context`: A profile of the user's learning patterns and common topics. Use this to ask relevant questions.
-- `session_state`: The current journal outline and recent chat history.
+- `session_state`: The current journal outline and recent chat history. The chat history may contain image descriptions.
 
 **YOUR TASK:**
 Based on the full context and the user's latest message, choose ONE of the following actions.
@@ -734,23 +777,23 @@ Your entire response MUST be a single, valid JSON object.
 
 **AVAILABLE ACTIONS:**
 
-1.  **`ASK_QUESTION`**: Ask a friendly, open-ended question to prompt reflection. This is your default action.
+1.  **`ASK_QUESTION`**: Ask a friendly, open-ended question to prompt reflection. This is your default action. If the last message was an image description, ask a question about it.
     - **JSON Structure**:
       ```json
       {
         "action": "ASK_QUESTION",
-        "payload": { "question": "That sounds interesting. What was the most memorable part for you?" }
+        "payload": { "question": "That looks like a fun day. What happened right before this photo was taken?" }
       }
       ```
 
-2.  **`ADD_TO_OUTLINE`**: When a clear idea or point is established from the chat, use this to add it to the outline and ask a follow-up question.
+2.  **`ADD_TO_OUTLINE`**: When a clear idea or point is established from the chat (including from an image description), use this to add it to the outline and ask a follow-up question.
     - **JSON Structure**:
       ```json
       {
         "action": "ADD_TO_OUTLINE",
         "payload": {
-          "text_to_add": "\\n- Visited the new cafe on Main Street.",
-          "follow_up_question": "Great! I've added that. What happened at the cafe?"
+          "text_to_add": "\\n- Had coffee at the new cafe on Main Street.",
+          "follow_up_question": "Great! I've added that. How was the coffee?"
         }
       }
       ```
@@ -901,9 +944,13 @@ def get_scaffolding_response(user_context: dict, session_state: dict) -> dict:
         }
         full_prompt = f"{SCAFFOLDING_PROMPT_TEMPLATE}\n\nHere is the current context:\n\n---\n{json.dumps(context_payload, indent=2)}\n---"
 
-        response = model.generate_content(full_prompt)
-        cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
-        return json.loads(cleaned_response)
+        response = query_api_with_retries(
+            prompt=full_prompt,
+            model=MODEL_LITE
+        )
+
+        return response
+
     except Exception as e:
         print(f"An error occurred with the Gemini API during scaffolding: {e}")
         # Return a safe default response
@@ -922,8 +969,12 @@ def get_writing_partner_response(user_message: str, outline: str, current_draft:
             outline=outline or "No outline provided.", # Handle empty outline
             current_draft=current_draft or "The user has not written anything yet." # Handle empty draft
         )
-        response = model.generate_content(full_prompt)
-        return response.text.strip()
+        response = query_api_with_retries(
+            prompt=full_prompt,
+            model=MODEL_LITE,
+            outjson=False
+        )
+        return response["text"].strip()
     except Exception as e:
         print(f"An error occurred with the Gemini API during writing assistance: {e}")
         return "I'm sorry, I'm unable to help with that right now."
@@ -934,10 +985,12 @@ def get_evaluation_feedback(text: str) -> dict:
     """
     try:
         full_prompt = f"{EVALUATION_FEEDBACK_PROMPT_TEMPLATE}\n\nHere is the user's journal entry to analyze:\n\n---\n{text}\n---"
-        response = model.generate_content(full_prompt)
-        cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
-        
-        parsed_data = json.loads(cleaned_response)
+        response = query_api_with_retries(
+            prompt=full_prompt,
+            model=MODEL_LITE
+        )
+
+        parsed_data = response
 
         # Check for and correct the common AI typo for the summary field
         if 'high_level_level_summary' in parsed_data:
@@ -955,24 +1008,18 @@ def get_quick_correction(user_message: str) -> dict:
     """
     Analyzes a short user message and returns a single grammar/spelling correction.
     """
-    cleaned_response = ""
+
     # try:
     full_prompt = QUICK_CORRECTION_PROMPT_TEMPLATE.format(user_message=user_message)
-    response = model.generate_content(full_prompt)
-    print(response)
-    # --- NEW: More robust check for a valid response ---
-    if not response.parts:
-        print("--- AI RESPONSE ERROR ---")
-        print(f"AI response was empty or blocked. Candidates: {response.candidates}")
-        print("-------------------------")
-        return {"status": "no_errors"}
-
-    cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
+    response = gemini_api_client.query_api_with_retries(
+            prompt=full_prompt,
+            model=gemini_api_client.MODEL_LITE
+        )
     
-    if not cleaned_response:
+    if not response:
         return {"status": "no_errors"}
         
-    return json.loads(cleaned_response)
+    return response
     # except Exception as e:
     #     print(f"An error occurred during quick correction: {e}")
     #     # --- NEW LOGGING ---
@@ -982,25 +1029,32 @@ def get_quick_correction(user_message: str) -> dict:
     #     # --- END NEW LOGGING ---
     #     return {"status": "no_errors"}
 
-
 ```
 
 
 ### File: app/routers/journals.py
 
 ```
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, UploadFile, File
+from sqlalchemy.orm import Session, joinedload
 from datetime import date
 from typing import List
+import os
+import uuid
+import aiofiles
+
 
 from .. import database, schemas, models, security
-from ..services import context_agent
+from ..services import context_agent, ai_service
 
 router = APIRouter(
     prefix="/api/journals",
     tags=["Journals"]
 )
+
+# Directory for storing user-uploaded images
+UPLOAD_DIR = "app/static/uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.post("/", response_model=schemas.JournalOut, status_code=status.HTTP_201_CREATED)
 def create_journal(
@@ -1059,7 +1113,10 @@ def get_journal_by_date(
     """
     Retrieves a specific journal entry by date for the current user.
     """
-    journal = db.query(models.Journal).filter(
+    journal = db.query(models.Journal).options(
+        joinedload(models.Journal.images),
+        joinedload(models.Journal.chat_messages).joinedload(models.ChatMessage.image)
+    ).filter(
         models.Journal.user_id == current_user.id,
         models.Journal.journal_date == journal_date
     ).first()
@@ -1082,10 +1139,11 @@ def update_journal(
     """
     Updates the content of a specific journal entry by date for the current user.
     """
-    journal = db.query(models.Journal).filter(
+    journal_query = db.query(models.Journal).filter(
         models.Journal.user_id == current_user.id,
         models.Journal.journal_date == journal_date
-    ).first()
+    )
+    journal = journal_query.first()
 
     if not journal:
         raise HTTPException(
@@ -1099,9 +1157,13 @@ def update_journal(
         journal.outline_content = updated_journal.outline_content
 
     db.commit()
-    db.refresh(journal)
+    # After commit, refetch with relations for the response
+    updated_journal_response = journal_query.options(
+        joinedload(models.Journal.images),
+        joinedload(models.Journal.chat_messages).joinedload(models.ChatMessage.image)
+    ).first()
     
-    return journal
+    return updated_journal_response
 
 @router.put("/{journal_date}/phase", response_model=schemas.JournalOut)
 def update_journal_phase(
@@ -1114,10 +1176,11 @@ def update_journal_phase(
     """
     Updates the writing phase of a specific journal entry.
     """
-    journal = db.query(models.Journal).filter(
+    journal_query = db.query(models.Journal).filter(
         models.Journal.user_id == current_user.id,
         models.Journal.journal_date == journal_date
-    ).first()
+    )
+    journal = journal_query.first()
 
     if not journal:
         raise HTTPException(
@@ -1125,26 +1188,85 @@ def update_journal_phase(
             detail=f"Journal entry for date {journal_date} not found."
         )
 
-    # --- FIX STARTS HERE ---
-
-    # 1. Add this line to update the phase from the request
     journal.writing_phase = updated_phase.phase 
-
-    # 2. Add this line to save the change to the database
     db.commit()
 
-    # --- FIX ENDS HERE ---
-
-    # This part handles kicking off background tasks after a journal is completed
     if journal.writing_phase == models.JournalPhase.completed:
         background_tasks.add_task(
             context_agent.process_journal, journal.id, current_user.id
         )
 
-    db.refresh(journal)
+    # After commit, refetch with relations for the response
+    updated_journal_response = journal_query.options(
+        joinedload(models.Journal.images),
+        joinedload(models.Journal.chat_messages).joinedload(models.ChatMessage.image)
+    ).first()
 
-    return journal
+    return updated_journal_response
 
+@router.post("/{journal_date}/images", response_model=schemas.JournalOut)
+async def upload_journal_image(
+    journal_date: date,
+    file: UploadFile = File(...),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Uploads an image for a specific journal entry, generates an AI description,
+    and adds it as a chat message.
+    """
+    journal = db.query(models.Journal).filter(
+        models.Journal.user_id == current_user.id,
+        models.Journal.journal_date == journal_date
+    ).first()
+
+    if not journal:
+        raise HTTPException(status_code=404, detail="Journal entry not found.")
+    
+    if journal.writing_phase != models.JournalPhase.scaffolding:
+        raise HTTPException(status_code=400, detail="Images can only be added during the scaffolding phase.")
+
+    # 1. Save the file
+    # Sanitize filename
+    safe_filename = file.filename.replace("..", "").replace("/", "")
+    filename = f"{uuid.uuid4()}-{safe_filename}"
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    
+    image_bytes = await file.read()
+    async with aiofiles.open(file_path, 'wb') as out_file:
+        await out_file.write(image_bytes)
+    
+    # 2. Get AI description
+    description = ai_service.get_image_description(image_bytes)
+    
+    # 3. Save to DB
+    db_image = models.JournalImage(
+        journal_id=journal.id,
+        file_path=f"/static/uploads/{filename}", # URL path for frontend
+        ai_description=description
+    )
+    db.add(db_image)
+    db.commit()
+    db.refresh(db_image)
+    
+    # 4. Create a chat message for the image
+    db_message = models.ChatMessage(
+        journal_id=journal.id,
+        sender=models.MessageSender.user,
+        message_type=models.MessageType.image,
+        image_id=db_image.id,
+        message_text=description # Store description as text for context
+    )
+    db.add(db_message)
+    db.commit()
+    
+    # 5. Return the updated journal object
+    updated_journal = db.query(models.Journal).options(
+        joinedload(models.Journal.images),
+        joinedload(models.Journal.chat_messages).joinedload(models.ChatMessage.image)
+    ).filter(models.Journal.id == journal.id).first()
+    
+    return updated_journal
 
 ```
 

@@ -1,12 +1,11 @@
-import google.generativeai as genai
+import gemini_api_client
+from gemini_api_client import query_api_with_retries, MODEL_LITE, MODEL_FLASH
 from ..config import settings
 import json
 import io
 from PIL import Image
 
 # Configure the Gemini API client
-genai.configure(api_key=settings.gemini_api_key)
-model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
 
 # --- NEW FUNCTION for image description ---
 def get_image_description(image_bytes: bytes) -> str:
@@ -14,10 +13,14 @@ def get_image_description(image_bytes: bytes) -> str:
     Generates a description for an image using the Gemini Vision model.
     """
     try:
-        image = Image.open(io.BytesIO(image_bytes))
         prompt = "Briefly describe this image for a journal entry. Focus on objects, actions, and the overall mood. Keep it concise, like a caption."
-        response = model.generate_content([prompt, image])
-        return response.text.strip()
+        response = query_api_with_retries(
+            prompt=prompt,
+            model=MODEL_FLASH,
+            image=image_bytes,
+            outjson=False
+        )
+        return response
     except Exception as e:
         print(f"An error occurred with Gemini Vision API: {e}")
         return "Could not generate a description for the image."
@@ -204,9 +207,13 @@ def get_scaffolding_response(user_context: dict, session_state: dict) -> dict:
         }
         full_prompt = f"{SCAFFOLDING_PROMPT_TEMPLATE}\n\nHere is the current context:\n\n---\n{json.dumps(context_payload, indent=2)}\n---"
 
-        response = model.generate_content(full_prompt)
-        cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
-        return json.loads(cleaned_response)
+        response = query_api_with_retries(
+            prompt=full_prompt,
+            model=MODEL_LITE
+        )
+
+        return response
+
     except Exception as e:
         print(f"An error occurred with the Gemini API during scaffolding: {e}")
         # Return a safe default response
@@ -225,8 +232,12 @@ def get_writing_partner_response(user_message: str, outline: str, current_draft:
             outline=outline or "No outline provided.", # Handle empty outline
             current_draft=current_draft or "The user has not written anything yet." # Handle empty draft
         )
-        response = model.generate_content(full_prompt)
-        return response.text.strip()
+        response = query_api_with_retries(
+            prompt=full_prompt,
+            model=MODEL_LITE,
+            outjson=False
+        )
+        return response["text"].strip()
     except Exception as e:
         print(f"An error occurred with the Gemini API during writing assistance: {e}")
         return "I'm sorry, I'm unable to help with that right now."
@@ -237,10 +248,12 @@ def get_evaluation_feedback(text: str) -> dict:
     """
     try:
         full_prompt = f"{EVALUATION_FEEDBACK_PROMPT_TEMPLATE}\n\nHere is the user's journal entry to analyze:\n\n---\n{text}\n---"
-        response = model.generate_content(full_prompt)
-        cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
-        
-        parsed_data = json.loads(cleaned_response)
+        response = query_api_with_retries(
+            prompt=full_prompt,
+            model=MODEL_LITE
+        )
+
+        parsed_data = response
 
         # Check for and correct the common AI typo for the summary field
         if 'high_level_level_summary' in parsed_data:
@@ -258,24 +271,18 @@ def get_quick_correction(user_message: str) -> dict:
     """
     Analyzes a short user message and returns a single grammar/spelling correction.
     """
-    cleaned_response = ""
+
     # try:
     full_prompt = QUICK_CORRECTION_PROMPT_TEMPLATE.format(user_message=user_message)
-    response = model.generate_content(full_prompt)
-    print(response)
-    # --- NEW: More robust check for a valid response ---
-    if not response.parts:
-        print("--- AI RESPONSE ERROR ---")
-        print(f"AI response was empty or blocked. Candidates: {response.candidates}")
-        print("-------------------------")
-        return {"status": "no_errors"}
-
-    cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
+    response = gemini_api_client.query_api_with_retries(
+            prompt=full_prompt,
+            model=gemini_api_client.MODEL_LITE
+        )
     
-    if not cleaned_response:
+    if not response:
         return {"status": "no_errors"}
         
-    return json.loads(cleaned_response)
+    return response
     # except Exception as e:
     #     print(f"An error occurred during quick correction: {e}")
     #     # --- NEW LOGGING ---

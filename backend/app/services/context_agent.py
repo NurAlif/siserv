@@ -1,4 +1,4 @@
-import google.generativeai as genai
+from gemini_api_client import query_api_with_retries, MODEL_LITE, MODEL_FLASH
 from sqlalchemy.orm import Session, joinedload
 import json
 from datetime import datetime
@@ -6,33 +6,26 @@ from datetime import datetime
 from .. import models, database
 from ..config import settings
 
-# Configure the Gemini API client
-try:
-    genai.configure(api_key=settings.gemini_api_key)
-    model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
-except Exception as e:
-    print(f"Error configuring Generative AI: {e}")
-    model = None
 
 def _call_gemini_api(prompt):
     """A helper to safely call the Gemini API and parse JSON."""
-    if not model:
-        raise ConnectionError("Generative AI model is not configured.")
-    try:
-        response = model.generate_content(prompt)
-        cleaned_response = response.text.strip().replace("```json", "").replace("```", "").strip()
-        return json.loads(cleaned_response)
-    except Exception as e:
-        print(f"Error calling Gemini API or parsing JSON: {e}")
-        return None
+
+    response = query_api_with_retries(
+            prompt=prompt,
+            model=MODEL_LITE
+        )
+    cleaned_response = response["text"].strip().replace("```json", "").replace("```", "").strip()
+    return json.loads(cleaned_response)
+
 
 def get_thematic_summary(text: str) -> str:
     """Generates a thematic summary of the journal entry."""
     prompt = f"Summarize the key events, topics, and overall sentiment of this journal entry in a few sentences.\n\n---\n{text}\n---"
-    if not model:
-        return "Summary generation unavailable."
-    response = model.generate_content(prompt)
-    return response.text.strip()
+    response = query_api_with_retries(
+            prompt=prompt,
+            model=MODEL_LITE
+        )
+    return response["text"].strip()
 
 def get_cognitive_patterns(summary: str) -> dict:
     """Extracts cognitive patterns from the summary."""

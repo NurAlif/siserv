@@ -236,3 +236,8 @@ That's a great point! What other creative solutions did you consider before sett
 Necessity, as they say, is the mother of invention, and today, I proved that adage true by building a reusable shopping bag from virtually nothing. My materials were surprisingly simple: two wheels I purchased inexpensively, some sturdy cardboard I found around the house, and an old luggage handle I had lying around. Using tape, I carefully reinforced the cardboard to ensure its strength and durability.
 
 The process involves collecting materials. there are limited budged and there are many left over materials lying around. so why not turn it into something usefull?
+
+I am creating an english learning companion as a journaling activity. However it is not complete yet.
+I need to improve it as follow:
+1. I want to add audio feature. All 
+2. 
