@@ -59,7 +59,8 @@ class Journal(Base):
     title = Column(String(255), nullable=True)
     content = Column(Text, nullable=True, default='')
     outline_content = Column(Text, nullable=True, default='')
-    writing_phase = Column(Enum(JournalPhase), default=JournalPhase.scaffolding, nullable=False)
+    # FIX: Set create_type=False to prevent SQLAlchemy from trying to re-create the ENUM.
+    writing_phase = Column(Enum(JournalPhase, name="journalphase", create_type=False), default=JournalPhase.scaffolding, nullable=False)
     session_state = Column(JSONB, nullable=True) # New field for conversation state
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"), onupdate=datetime.utcnow)
@@ -145,4 +146,3 @@ class UserLearningHistory(Base):
     learning_point_id = Column(Integer, ForeignKey("learning_points.id"), nullable=False)
     timestamp = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
     error_instance = relationship("UserError", back_populates="history")
-

@@ -6,7 +6,10 @@
 -- It targets the user with student_id = '000'.
 UPDATE users
 SET is_admin = true
-WHERE student_id = '000';
+WHERE student_id = '0';
+UPDATE users
+SET is_admin = true
+WHERE student_id = '1';
 
 -- Notification to confirm script execution
 \echo 'Admin privilege script executed.'
