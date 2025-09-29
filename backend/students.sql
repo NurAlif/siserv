@@ -1,4 +1,7 @@
 INSERT INTO student_whitelist (student_id, email, created_at) VALUES
+('1', 'teacher@admin.admin', NOW()),
+('0', 'teacher1@admin.admin', NOW()),
+('25051130001', 'alwiikhsan.2025@student.uny.ac.id', NOW()),
 ('25051130001', 'alwiikhsan.2025@student.uny.ac.id', NOW()),
 ('25051130002', 'nuurullahimaarotul.2025@student.uny.ac.id', NOW()),
 ('25051130003', 'radityaanggara.2025@student.uny.ac.id', NOW()),

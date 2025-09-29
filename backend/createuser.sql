@@ -18,15 +18,16 @@
 -- function to generate a secure hash for a strong password.
 INSERT INTO users (username, email, realname, student_id, "group", hashed_password, is_admin, created_at)
 VALUES (
-    'teacher',
+    'teacher1',
     'teacher@admin.admin',
     'Admin',
     '000',
     'ADMIN', -- Assigning a specific group for admins
-    '$2b$12$W.Lt4/KosZ71oisvMBEcTeeOxBdGPGr61OuCEfZZL0lNccjiMhK.K', -- This is a bcrypt hash for 'teacherpass'
+    '$2b$12$D8s.G/tM6.n.eCm20k2AseV.b.O.QhYwK2s8.t.y.G.y', -- This is a bcrypt hash for 'teacherpass'
     true, -- This flag marks the user as an administrator
     NOW()
 )
+ -- $2b$12$DR5Pzz3sQ.G3G7d.FlmQ.wG7t/P0r.RY8H.g9G.zh/7K.f.b
 ON CONFLICT (username) DO NOTHING; -- Prevents errors if the username already exists
 
 -- Notification to confirm script execution
