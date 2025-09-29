@@ -138,6 +138,7 @@ def update_journal_phase(
 ):
     """
     Updates the writing phase of a specific journal entry.
+    If the phase is 'completed', it triggers AI analysis for grading metrics.
     """
     journal_query = db.query(models.Journal).filter(
         models.Journal.user_id == current_user.id,
@@ -151,15 +152,30 @@ def update_journal_phase(
             detail=f"Journal entry for date {journal_date} not found."
         )
 
-    journal.writing_phase = updated_phase.phase 
+    journal.writing_phase = updated_phase.phase
+    
+    # --- REVISED: Trigger grading metrics on completion ---
+    print(journal.writing_phase.value == models.JournalPhase.completed.value)
+    print(models.JournalPhase.completed)
+    print(journal.writing_phase)
+    print(type(models.JournalPhase.completed))
+    print(type(journal.writing_phase))
+    if journal.writing_phase.value == models.JournalPhase.completed.value and journal.content:
+        # Generate and save the writing metrics
+        print(journal.writing_phase)
+        metrics = ai_service.get_writing_metrics(journal.content)
+        journal.completion_metrics = metrics
+        
+    # Commit the changes (phase and metrics) to the database first.
     db.commit()
 
-    if journal.writing_phase == models.JournalPhase.completed:
-        background_tasks.add_task(
-            context_agent.process_journal, journal.id, current_user.id
-        )
+    # Schedule the background task AFTER the data is safely committed.
+    # if journal.writing_phase == models.JournalPhase.completed and journal.content:
+    #     background_tasks.add_task(
+    #         context_agent.process_journal, journal.id, current_user.id
+    #     )
 
-    # After commit, refetch with relations for the response
+    # After commit, refetch with relations for the response to ensure it's fresh.
     updated_journal_response = journal_query.options(
         joinedload(models.Journal.images),
         joinedload(models.Journal.chat_messages).joinedload(models.ChatMessage.image)
@@ -217,3 +233,4 @@ async def upload_journal_image(
     ).filter(models.Journal.id == journal.id).first()
     
     return updated_journal
+

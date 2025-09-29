@@ -62,6 +62,7 @@ class Journal(Base):
     # FIX: Set create_type=False to prevent SQLAlchemy from trying to re-create the ENUM.
     writing_phase = Column(Enum(JournalPhase, name="journalphase", create_type=False), default=JournalPhase.scaffolding, nullable=False)
     session_state = Column(JSONB, nullable=True) # New field for conversation state
+    completion_metrics = Column(JSONB, nullable=True) # NEW: Field for storing writing metrics
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"), onupdate=datetime.utcnow)
     

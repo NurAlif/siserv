@@ -11,6 +11,7 @@ Codebase Structure Overview:
 │   ├── components
 │   │   ├── AIFeedbackCard.vue
 │   │   ├── ChatFeedbackCard.vue
+│   │   ├── CompletionMetricsChart.vue
 │   │   ├── ErrorDetailCard.vue
 │   │   ├── ImageCarousel.vue
 │   │   ├── ImageChatMessage.vue
@@ -992,7 +993,7 @@ onMounted(() => {
               </div>
               <textarea
                 v-model="content"
-                class="flex-grow w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none transition bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none"
+                class="notebook-lines flex-grow w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none transition bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none"
               ></textarea>
             </template>
           </div>
@@ -1301,9 +1302,9 @@ onMounted(() => {
         </div>
 
         <!-- Phase 4: Completed -->
-        <div v-if="currentPhase === 'completed'" class="p-8 text-center">
-          <div class="max-w-md mx-auto">
-            <div
+        <div v-if="currentPhase === 'completed'" class="p-8 space-y-6">
+           <div class="max-w-md mx-auto text-center">
+             <div
               class="bg-green-100 text-green-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto"
             >
               <svg
@@ -1324,10 +1325,12 @@ onMounted(() => {
               Journal Completed!
             </h3>
             <p class="text-gray-600 dark:text-gray-400 mt-2">
-              Excellent work! You've finished this entry. All your learning
-              points have been saved to your progress hub.
+              Excellent work! You've finished this entry. Review your writing analysis below.
             </p>
-            <div class="mt-6">
+           </div>
+          
+           <div class="max-w-md mx-auto">
+             <div class="mt-6">
               <div
                 class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border dark:border-gray-700 text-left"
               >
@@ -1354,6 +1357,8 @@ onMounted(() => {
               </div>
             </div>
           </div>
+           <!-- NEW: Completion Metrics Chart -->
+          <CompletionMetricsChart v-if="currentJournal?.completion_metrics" :metrics="currentJournal.completion_metrics" />
         </div>
       </div>
     </div>
@@ -1465,6 +1470,7 @@ import ChatFeedbackCard from '../components/ChatFeedbackCard.vue';
 import ImageChatMessage from '../components/ImageChatMessage.vue';
 import ImageCarousel from '../components/ImageCarousel.vue';
 import ImageStack from '../components/ImageStack.vue';
+import CompletionMetricsChart from '../components/CompletionMetricsChart.vue'; // NEW: Import chart
 
 // --- Constants for validation and limits ---
 const MIN_SCAFFOLD_ITEMS = 5;
@@ -1836,6 +1842,34 @@ const getPhaseLineClass = (phaseId) => {
 </script>
 
 <style>
+/* Style for the notebook lines in the textarea */
+.notebook-lines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 27px,
+    #e2e8f0 27px,
+    #e2e8f0 28px
+  );
+  line-height: 28px;
+  background-attachment: local;
+  /* Control line padding with position and size, removing clip */
+  background-repeat: no-repeat;
+  background-position: 1rem 15px; /* 1rem horizontal padding */
+  background-size: calc(100% - 2rem) 100%; /* size gradient to respect padding */
+}
+
+/* Dark mode style for the notebook lines */
+.dark .notebook-lines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 27px,
+    #4a5568 27px,
+    #4a5568 28px
+  );
+}
+
 #correction-toggle:checked ~ .dot {
   transform: translateX(100%);
   background-color: #4f46e5;
@@ -3848,6 +3882,106 @@ const cardColorClasses = computed(() => {
   }
   return { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-800 dark:text-gray-200' }; // Default color
 });
+</script>
+
+```
+
+
+### File: src/components/CompletionMetricsChart.vue
+
+```
+<template>
+  <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Writing Analysis</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+      <!-- Radar Chart -->
+      <div class="relative h-64 md:h-80">
+        <Radar v-if="chartData.labels.length" :data="chartData" :options="chartOptions" />
+        <div v-else class="text-center py-10 text-gray-500 dark:text-gray-400">
+          <p>Analysis data is not available.</p>
+        </div>
+      </div>
+      <!-- Feedback List -->
+      <div class="space-y-3">
+        <div v-for="metric in metrics" :key="metric.name" class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+          <p class="font-semibold text-sm text-gray-800 dark:text-gray-200">{{ metric.name }} - {{ metric.score }}/{{ metric.max_score }}</p>
+          <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">{{ metric.feedback }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed } from 'vue';
+import { Radar } from 'vue-chartjs';
+import { Chart as ChartJS, Title, Tooltip, Legend, PointElement, LineElement, RadialLinearScale, Filler } from 'chart.js';
+import { useUiStore } from '../stores/uiStore';
+
+ChartJS.register(Title, Tooltip, Legend, PointElement, LineElement, RadialLinearScale, Filler);
+
+const props = defineProps({
+  metrics: {
+    type: Array,
+    required: true,
+    default: () => []
+  }
+});
+
+const uiStore = useUiStore();
+
+const chartData = computed(() => {
+  const labels = props.metrics.map(m => m.name);
+  const data = props.metrics.map(m => m.score);
+  return {
+    labels: labels,
+    datasets: [
+      {
+        label: 'Writing Score',
+        backgroundColor: 'rgba(79, 70, 229, 0.2)', // Indigo-600 with opacity
+        borderColor: '#4f46e5', // Indigo-600
+        pointBackgroundColor: '#4f46e5',
+        pointBorderColor: '#fff',
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: '#4f46e5',
+        data: data,
+      },
+    ],
+  };
+});
+
+const chartOptions = computed(() => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      display: false,
+    },
+  },
+  scales: {
+    r: {
+      angleLines: {
+        color: uiStore.isDarkMode ? '#4b5563' : '#e5e7eb', // Grid lines color
+      },
+      grid: {
+        color: uiStore.isDarkMode ? '#4b5563' : '#e5e7eb',
+      },
+      pointLabels: {
+        color: uiStore.isDarkMode ? '#d1d5db' : '#374151', // Label text color
+        font: {
+            weight: 'bold'
+        }
+      },
+      ticks: {
+        color: uiStore.isDarkMode ? '#9ca3af' : '#6b7280',
+        backdropColor: uiStore.isDarkMode ? 'rgba(23, 23, 23, 0.75)' : 'rgba(255, 255, 255, 0.75)',
+        stepSize: 2,
+      },
+       min: 0,
+       max: 10,
+    },
+  },
+}));
 </script>
 
 ```

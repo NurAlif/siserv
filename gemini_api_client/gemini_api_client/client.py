@@ -56,7 +56,7 @@ def query_api_with_retries(
     prompt: str,
     model: str,
     image: Optional[bytes] = None, # Make sure 'image' is in bytes
-    max_retries: int = 5,
+    max_retries: int = 1,
     initial_backoff: float = 1.0,
     timeout: int = 90,
     outjson: bool = True

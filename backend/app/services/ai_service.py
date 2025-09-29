@@ -202,6 +202,67 @@ User's Message:
 ---
 """
 
+# --- NEW PROMPT for Completion Metrics ---
+COMPLETION_METRICS_PROMPT_TEMPLATE = """
+You are Lingo, an AI English teacher providing a final, holistic evaluation of a student's journal entry.
+Your task is to grade the writing based on five key metrics.
+Your entire response MUST be a single, valid JSON object containing a list of metric objects.
+
+For each metric, you MUST provide:
+- "name": The name of the metric (from the list below).
+- "score": An integer score from 1 (Needs Improvement) to 10 (Excellent).
+- "max_score": This must always be 10.
+- "feedback": A concise, one-sentence constructive comment explaining the score.
+
+**METRICS TO EVALUATE:**
+
+1.  **Grammar & Accuracy**: Assess the correctness of grammar, punctuation, and spelling. A higher score means fewer errors.
+2.  **Vocabulary & Richness**: Evaluate the range and appropriate use of vocabulary. A higher score reflects varied and precise word choice.
+3.  **Cohesion & Flow**: Judge how well ideas are connected and organized. A higher score indicates smooth transitions and logical structure.
+4.  **Clarity & Conciseness**: Determine how easy the text is to understand. A higher score means the writing is clear, direct, and not repetitive.
+5.  **Task Fulfillment**: Rate how well the final text reflects the initial outline or ideas. A higher score means the user successfully developed their planned points.
+
+**EXAMPLE JSON RESPONSE:**
+```json
+[
+  {{
+    "name": "Grammar & Accuracy",
+    "score": 8,
+    "max_score": 10,
+    "feedback": "Your grammar is strong, with only a few minor errors in verb tense."
+  }},
+  {{
+    "name": "Vocabulary & Richness",
+    "score": 7,
+    "max_score": 10,
+    "feedback": "You use good vocabulary, but could try incorporating more varied adjectives."
+  }},
+  {{
+    "name": "Cohesion & Flow",
+    "score": 9,
+    "max_score": 10,
+    "feedback": "The journal entry flows very well from one idea to the next."
+  }},
+  {{
+    "name": "Clarity & Conciseness",
+    "score": 8,
+    "max_score": 10,
+    "feedback": "Your points are clear and easy to understand."
+  }},
+  {{
+    "name": "Task Fulfillment",
+    "score": 10,
+    "max_score": 10,
+    "feedback": "You did an excellent job of expanding on all the points from your outline."
+  }}
+]
+```
+
+**Analyze the following journal entry:**
+---
+{journal_text}
+---
+"""
 
 def get_scaffolding_response(user_context: dict, session_state: dict, image_bytes: bytes = None) -> dict:
     """
@@ -312,3 +373,33 @@ def get_quick_correction(user_message: str) -> dict:
     #     # --- END NEW LOGGING ---
     #     return {"status": "no_errors"}
 
+# --- NEW FUNCTION for Completion Metrics ---
+def get_writing_metrics(journal_text: str) -> list:
+    """
+    Generates a holistic evaluation of a journal entry across several metrics.
+    """
+    # try:
+    print(COMPLETION_METRICS_PROMPT_TEMPLATE)
+    full_prompt = COMPLETION_METRICS_PROMPT_TEMPLATE.format(journal_text=journal_text)
+
+    print(full_prompt)
+
+    response = query_api_with_retries(
+        prompt=full_prompt,
+        model=gemini_api_client.MODEL_LITE
+    )
+    print(response)
+    # The AI should return a list of dictionaries directly.
+    if isinstance(response, list):
+        return response
+    else:
+        # Handle cases where the response is a string containing JSON
+        cleaned_text = response
+        return json.loads(cleaned_text)
+
+    # except Exception as e:
+    #     print(f"An error occurred with the Gemini API during metrics generation: {e}")
+    #     # Return a default error structure
+    #     return [
+    #         {"name": "Analysis", "score": 0, "max_score": 10, "feedback": "Could not analyze the text due to an error."}
+    #     ]
