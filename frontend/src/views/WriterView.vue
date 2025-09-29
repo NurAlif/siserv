@@ -591,9 +591,9 @@
         </div>
 
         <!-- Phase 4: Completed -->
-        <div v-if="currentPhase === 'completed'" class="p-8 text-center">
-          <div class="max-w-md mx-auto">
-            <div
+        <div v-if="currentPhase === 'completed'" class="p-8 space-y-6">
+           <div class="max-w-md mx-auto text-center">
+             <div
               class="bg-green-100 text-green-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto"
             >
               <svg
@@ -614,10 +614,12 @@
               Journal Completed!
             </h3>
             <p class="text-gray-600 dark:text-gray-400 mt-2">
-              Excellent work! You've finished this entry. All your learning
-              points have been saved to your progress hub.
+              Excellent work! You've finished this entry. Review your writing analysis below.
             </p>
-            <div class="mt-6">
+           </div>
+          
+           <div class="max-w-md mx-auto">
+             <div class="mt-6">
               <div
                 class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border dark:border-gray-700 text-left"
               >
@@ -644,6 +646,8 @@
               </div>
             </div>
           </div>
+           <!-- NEW: Completion Metrics Chart -->
+          <CompletionMetricsChart v-if="currentJournal?.completion_metrics" :metrics="currentJournal.completion_metrics" />
         </div>
       </div>
     </div>
@@ -755,6 +759,7 @@ import ChatFeedbackCard from '../components/ChatFeedbackCard.vue';
 import ImageChatMessage from '../components/ImageChatMessage.vue';
 import ImageCarousel from '../components/ImageCarousel.vue';
 import ImageStack from '../components/ImageStack.vue';
+import CompletionMetricsChart from '../components/CompletionMetricsChart.vue'; // NEW: Import chart
 
 // --- Constants for validation and limits ---
 const MIN_SCAFFOLD_ITEMS = 5;
@@ -1237,4 +1242,3 @@ const getPhaseLineClass = (phaseId) => {
     border-color: transparent #374151 transparent transparent; /* Tailwind's gray-700 */
 }
 </style>
-

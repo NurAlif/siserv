@@ -67,6 +67,13 @@ class ChatMessageOut(ChatMessageBase):
     class Config:
         from_attributes = True
 
+# --- NEW: Writing Metrics Schemas ---
+class WritingMetric(BaseModel):
+    name: str
+    score: int
+    max_score: int
+    feedback: str
+
 # --- Journal Schemas ---
 
 class JournalBase(BaseModel):
@@ -100,6 +107,7 @@ class JournalOut(JournalBase):
     journal_date: date
     outline_content: Optional[str] = None
     writing_phase: JournalPhase
+    completion_metrics: Optional[List[WritingMetric]] = None # NEW: Add metrics field
     created_at: datetime
     updated_at: datetime
     chat_messages: List[ChatMessageOut] = []

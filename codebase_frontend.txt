@@ -992,7 +992,7 @@ onMounted(() => {
               </div>
               <textarea
                 v-model="content"
-                class="flex-grow w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none transition bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none"
+                class="notebook-lines flex-grow w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none transition bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none"
               ></textarea>
             </template>
           </div>
@@ -1836,6 +1836,34 @@ const getPhaseLineClass = (phaseId) => {
 </script>
 
 <style>
+/* Style for the notebook lines in the textarea */
+.notebook-lines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 27px,
+    #e2e8f0 27px,
+    #e2e8f0 28px
+  );
+  line-height: 28px;
+  background-attachment: local;
+  /* Control line padding with position and size, removing clip */
+  background-repeat: no-repeat;
+  background-position: 1rem 15px; /* 1rem horizontal padding */
+  background-size: calc(100% - 2rem) 100%; /* size gradient to respect padding */
+}
+
+/* Dark mode style for the notebook lines */
+.dark .notebook-lines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 27px,
+    #4a5568 27px,
+    #4a5568 28px
+  );
+}
+
 #correction-toggle:checked ~ .dot {
   transform: translateX(100%);
   background-color: #4f46e5;
@@ -1919,6 +1947,7 @@ const getPhaseLineClass = (phaseId) => {
     border-color: transparent #374151 transparent transparent; /* Tailwind's gray-700 */
 }
 </style>
+
 
 ```
 

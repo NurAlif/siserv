@@ -61,6 +61,7 @@ class Journal(Base):
     outline_content = Column(Text, nullable=True, default='')
     writing_phase = Column(Enum(JournalPhase), default=JournalPhase.scaffolding, nullable=False)
     session_state = Column(JSONB, nullable=True) # New field for conversation state
+    completion_metrics = Column(JSONB, nullable=True) # NEW: Field for storing writing metrics
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"), onupdate=datetime.utcnow)
     
@@ -145,4 +146,3 @@ class UserLearningHistory(Base):
     learning_point_id = Column(Integer, ForeignKey("learning_points.id"), nullable=False)
     timestamp = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
     error_instance = relationship("UserError", back_populates="history")
-
