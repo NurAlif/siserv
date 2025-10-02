@@ -8,8 +8,10 @@ export const useAdminStore = defineStore('admin', {
     studentJournals: [],
     currentStudentJournal: null,
     classAnalytics: null, // This will hold all dashboard data
+    dailySummary: [], // NEW: For today's journals
     isLoading: false,
     isLoadingJournals: false,
+    isLoadingDailySummary: false, // NEW: Loading state for daily summary
     error: null,
     whitelist: [], // New state for student whitelist
     isLoadingWhitelist: false, // New loading state
@@ -107,6 +109,27 @@ export const useAdminStore = defineStore('admin', {
         console.error(err);
       } finally {
         this.isLoading = false;
+      }
+    },
+
+    // --- NEW ACTION for Daily Summary ---
+    async fetchDailySummary(summaryDate = null) {
+      this.isLoadingDailySummary = true;
+      this.error = null;
+      try {
+        let url = '/admin/analytics/daily-summary';
+        if (summaryDate) {
+          // Format the date to YYYY-MM-DD
+          const formattedDate = new Date(summaryDate).toISOString().split('T')[0];
+          url += `?summary_date=${formattedDate}`;
+        }
+        const response = await apiClient.get(url);
+        this.dailySummary = response.data;
+      } catch (err) {
+        this.error = 'Failed to load daily journal summary.';
+        console.error(err);
+      } finally {
+        this.isLoadingDailySummary = false;
       }
     },
 

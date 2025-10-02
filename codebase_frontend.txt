@@ -14,6 +14,7 @@ Codebase Structure Overview:
 │   │   ├── CompletionMetricsChart.vue
 │   │   ├── ErrorDetailCard.vue
 │   │   ├── ImageCarousel.vue
+│   │   ├── ImageChat.vue
 │   │   ├── ImageChatMessage.vue
 │   │   ├── ImageStack.vue
 │   │   ├── JournalCard.vue
@@ -168,6 +169,8 @@ module.exports = {
         document.documentElement.classList.remove('dark');
       }
     </script>
+    <!-- ADDED: Marked.js library to parse markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   </head>
   <body>
     <div id="app"></div>
@@ -1099,7 +1102,12 @@ onMounted(() => {
                           message.sender !== 'user',
                       }"
                     >
-                      <p class="text-sm">{{ message.message_text }}</p>
+                      <div
+                        v-if="message.sender === 'ai'"
+                        v-html="formatMessage(message.message_text)"
+                        class="text-sm formatted-content"
+                      ></div>
+                      <p v-else class="text-sm">{{ message.message_text }}</p>
                     </div>
                   </div>
                   <!-- Image Message -->
@@ -1433,7 +1441,6 @@ onMounted(() => {
         <div class="w-full sm:w-auto">
           <transition name="action-button">
             <button
-              v-if="allSuggestionsApplied"
               @click="moveToPhase('completed')"
               class="w-full sm:w-auto bg-green-600 text-white font-semibold px-5 py-1.5 text-sm rounded-lg hover:bg-green-700 transition-colors"
             >
@@ -1516,6 +1523,17 @@ const phases = ref([
   { id: 3, name: 'Evaluation' },
   { id: 4, name: 'Completed' },
 ]);
+
+const formatMessage = (text) => {
+  if (text && typeof window.marked !== 'undefined') {
+    // Use the 'marked' library (loaded from CDN in index.html) to parse markdown to HTML.
+    // The 'gfm: true' option enables GitHub Flavored Markdown for better compatibility.
+    // The 'breaks: true' option converts single newlines into <br> tags, which is common for chat interfaces.
+    return window.marked.parse(text, { gfm: true, breaks: true });
+  }
+  return text; // Return plain text if 'marked' isn't available or text is empty.
+};
+
 
 const displayDate = computed(() => {
   if (currentJournal.value) {
@@ -1951,6 +1969,15 @@ const getPhaseLineClass = (phaseId) => {
 /* Dark mode style for AI bubble notch */
 .dark .chat-bubble-ai::after {
     border-color: transparent #374151 transparent transparent; /* Tailwind's gray-700 */
+}
+
+/* Styles for content rendered from markdown */
+.formatted-content p {
+  margin: 0; /* Remove default paragraph margins inside chat bubbles */
+}
+.formatted-content strong,
+.formatted-content b {
+  font-weight: 600; /* Ensure bold text is actually bold */
 }
 </style>
 
@@ -3404,7 +3431,7 @@ import { useAuthStore } from '../stores/authStore';
 
 // Create an Axios instance with a base URL from environment variables
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://ai-ndhu-lab:7576/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://ipa.parasyst.com/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -3477,6 +3504,52 @@ const imageUrl = computed(() => {
   // Construct the full URL to the static image file on the backend
   const baseUrl = (apiClient.defaults.baseURL || '').replace('/api', '');
   return `${baseUrl}${path}`;
+});
+</script>
+
+```
+
+
+### File: src/components/ImageChat.vue
+
+```
+<template>
+  <div class="p-2 rounded-lg max-w-xs break-words bg-gray-200 dark:bg-gray-700">
+    <img
+      :src="imageUrl"
+      alt="User upload"
+      class="rounded-md cursor-pointer w-full object-cover"
+      @click="$emit('image-clicked')"
+      loading="lazy"
+    />
+    <p v-if="description" class="text-sm text-gray-800 dark:text-gray-200 mt-2 p-1 italic">
+      "{{ description }}"
+    </p>
+  </div>
+</template>
+
+<script setup>
+import { computed } from 'vue';
+import apiClient from '../services/api';
+
+const props = defineProps({
+  image: {
+    type: Object,
+    required: true,
+  },
+  description: {
+    type: String,
+    default: '',
+  },
+});
+
+defineEmits(['image-clicked']);
+
+const imageUrl = computed(() => {
+  if (!props.image || !props.image.file_path) return '';
+  // Construct the full URL to the static image file on the backend
+  const baseUrl = (apiClient.defaults.baseURL || '').replace('/api', '');
+  return `${baseUrl}${props.image.file_path}`;
 });
 </script>
 

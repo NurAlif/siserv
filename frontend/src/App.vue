@@ -50,15 +50,21 @@ const uiStore = useUiStore();
 const route = useRoute();
 
 const isWriterView = computed(() => route.name === 'Writer');
+const isAdminView = computed(() => route.path.startsWith('/admin'));
 
 const containerClass = computed(() => {
   if (isWriterView.value) {
     // For WriterView, use a full-height flex container for the immersive layout.
     return 'h-full flex flex-col';
   }
+  if (isAdminView.value) {
+    // For Admin views, use a wider container to accommodate large tables.
+    return 'max-w-screen-xl mx-auto p-4 md:p-6';
+  }
   // For all other views, use the original centered, padded layout.
   return 'max-w-4xl mx-auto p-4 md:p-6';
 });
+
 
 onMounted(() => {
   uiStore.initTheme();

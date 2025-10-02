@@ -193,6 +193,23 @@ class AdminStudentDetail(AdminStudentSummary):
     error_distribution: List[AdminErrorDistributionItem]
     error_trend: List[AdminErrorTrendPoint]
 
+# --- NEW Admin Daily Journal Summary ---
+class AdminDailyJournalSummary(BaseModel):
+    # Journal fields are now optional
+    journal_id: Optional[int] = None
+    journal_date: Optional[date] = None
+    writing_phase: Optional[JournalPhase] = None
+    
+    # User fields are always present
+    user_id: int
+    realname: Optional[str] = None
+    student_id: Optional[str] = None
+    group: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 # --- NEW Admin Schemas for Whitelist ---
 class StudentWhitelistBase(BaseModel):
     student_id: str
@@ -233,3 +250,4 @@ class UserTopic(BaseModel):
 class UserTopicDetails(UserTopic):
     """Extends UserTopic to include the full list of errors."""
     errors: List[TopicDetail]
+

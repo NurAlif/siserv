@@ -128,6 +128,74 @@ def get_class_error_trend(db: Session = Depends(database.get_db)):
     ).group_by(cast(models.UserError.last_occurred_at, SQLDate))\
     .order_by(cast(models.UserError.last_occurred_at, SQLDate)).all()
 
+# --- UPDATED ENDPOINT for Daily Journal Summary ---
+@router.get("/analytics/daily-summary", response_model=List[schemas.AdminDailyJournalSummary])
+def get_daily_journal_summary(
+    summary_date: date = None,
+    db: Session = Depends(database.get_db)
+):
+    """
+    Retrieves a summary of all student activity for a specific date.
+    This includes students who have submitted a journal and those who have not.
+    Defaults to today's date.
+    """
+    if summary_date is None:
+        summary_date = date.today()
+
+    # 1. Get all non-admin students
+    all_students = db.query(
+        models.User.id,
+        models.User.realname,
+        models.User.student_id,
+        models.User.group
+    ).filter(models.User.is_admin == False).all()
+
+    # 2. Get all journals for the specified date
+    journals_on_date = db.query(
+        models.Journal.id,
+        models.Journal.journal_date,
+        models.Journal.writing_phase,
+        models.Journal.user_id
+    ).filter(models.Journal.journal_date == summary_date).all()
+
+    # 3. Create a dictionary for quick lookup of submitted journals
+    submitted_journals_map = {j.user_id: j for j in journals_on_date}
+
+    # 4. Build the final summary list
+    summary_list = []
+    for student in all_students:
+        user_id = student.id
+        journal_data = submitted_journals_map.get(user_id)
+
+        if journal_data:
+            # Student has a journal for this date
+            summary_item = schemas.AdminDailyJournalSummary(
+                user_id=user_id,
+                realname=student.realname,
+                student_id=student.student_id,
+                group=student.group,
+                journal_id=journal_data.id,
+                journal_date=journal_data.journal_date,
+                writing_phase=journal_data.writing_phase
+            )
+        else:
+            # Student has not submitted a journal for this date
+            summary_item = schemas.AdminDailyJournalSummary(
+                user_id=user_id,
+                realname=student.realname,
+                student_id=student.student_id,
+                group=student.group,
+                journal_id=None,
+                journal_date=None,
+                writing_phase=None
+            )
+        summary_list.append(summary_item)
+    
+    # Sort the final list (e.g., by group then student_id)
+    summary_list.sort(key=lambda x: (x.group or '', x.student_id or ''))
+
+    return summary_list
+
 # NEW ENDPOINT to get all journals for a student
 @router.get("/students/{student_id}/journals", response_model=List[schemas.JournalOut])
 def get_student_journals(student_id: int, db: Session = Depends(database.get_db)):
@@ -204,4 +272,5 @@ def remove_student_from_whitelist(student_id: str, db: Session = Depends(databas
     
     db.delete(student_to_delete)
     db.commit()
-    return 
+    return
+

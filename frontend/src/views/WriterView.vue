@@ -727,7 +727,6 @@
         <div class="w-full sm:w-auto">
           <transition name="action-button">
             <button
-              v-if="allSuggestionsApplied"
               @click="moveToPhase('completed')"
               class="w-full sm:w-auto bg-green-600 text-white font-semibold px-5 py-1.5 text-sm rounded-lg hover:bg-green-700 transition-colors"
             >
