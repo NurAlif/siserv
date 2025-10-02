@@ -1,7 +1,8 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
-from datetime import date
+from datetime import date, datetime
 from typing import List
+import pytz
 import os
 import uuid
 import aiofiles
@@ -29,13 +30,28 @@ def create_journal(
     Creates a new journal entry for the current user for today's date.
     A user can only create one journal entry per day.
     """
-    today = date.today()
+    # Get the current time in UTC
+    utc_now = datetime.utcnow().replace(tzinfo=pytz.utc)
     
-    # Check if a journal entry for today already exists for this user
+    # Define the Jakarta timezone
+    jakarta_tz = pytz.timezone('Asia/Jakarta')
+    
+    # Convert the current UTC time to Jakarta time and get the date part
+    today_in_jakarta = utc_now.astimezone(jakarta_tz).date()
+
+    # today = date.today()
+    
+    # Check if a journal entry for today (in Jakarta) already exists for this user
     existing_journal = db.query(models.Journal).filter(
         models.Journal.user_id == current_user.id,
-        models.Journal.journal_date == today
+        models.Journal.journal_date == today_in_jakarta # <-- Use the new jakarta date
     ).first()
+
+    # Check if a journal entry for today already exists for this user
+    # existing_journal = db.query(models.Journal).filter(
+    #     models.Journal.user_id == current_user.id,
+    #     models.Journal.journal_date == today
+    # ).first()
 
     if existing_journal:
         raise HTTPException(
@@ -46,7 +62,7 @@ def create_journal(
     # Create the new journal entry
     new_journal = models.Journal(
         user_id=current_user.id,
-        journal_date=today,
+        journal_date=today_in_jakarta,
         content=journal.content or "",
         outline_content = "" # Ensure it's not null
     )

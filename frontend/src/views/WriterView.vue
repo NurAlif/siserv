@@ -767,8 +767,8 @@ import CompletionMetricsChart from '../components/CompletionMetricsChart.vue'; /
 
 // --- Constants for validation and limits ---
 const MIN_SCAFFOLD_ITEMS = 5;
-const MIN_WRITING_WORDS = 50;
-const MIN_WRITING_SENTENCES = 3;
+const MIN_WRITING_WORDS = 120;
+const MIN_WRITING_SENTENCES = 7;
 const MAX_CHAT_TURNS = 40;
 
 const route = useRoute();

@@ -225,6 +225,23 @@ class AdminStudentDetail(AdminStudentSummary):
     error_distribution: List[AdminErrorDistributionItem]
     error_trend: List[AdminErrorTrendPoint]
 
+# --- NEW Admin Daily Journal Summary ---
+class AdminDailyJournalSummary(BaseModel):
+    # Journal fields are now optional
+    journal_id: Optional[int] = None
+    journal_date: Optional[date] = None
+    writing_phase: Optional[JournalPhase] = None
+    
+    # User fields are always present
+    user_id: int
+    realname: Optional[str] = None
+    student_id: Optional[str] = None
+    group: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 # --- NEW Admin Schemas for Whitelist ---
 class StudentWhitelistBase(BaseModel):
     student_id: str
@@ -265,6 +282,7 @@ class UserTopic(BaseModel):
 class UserTopicDetails(UserTopic):
     """Extends UserTopic to include the full list of errors."""
     errors: List[TopicDetail]
+
 
 ```
 
@@ -1163,8 +1181,9 @@ def get_writing_metrics(journal_text: str) -> list:
 ```
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
-from datetime import date
+from datetime import date, datetime
 from typing import List
+import pytz
 import os
 import uuid
 import aiofiles
@@ -1192,13 +1211,28 @@ def create_journal(
     Creates a new journal entry for the current user for today's date.
     A user can only create one journal entry per day.
     """
-    today = date.today()
+    # Get the current time in UTC
+    utc_now = datetime.utcnow().replace(tzinfo=pytz.utc)
     
-    # Check if a journal entry for today already exists for this user
+    # Define the Jakarta timezone
+    jakarta_tz = pytz.timezone('Asia/Jakarta')
+    
+    # Convert the current UTC time to Jakarta time and get the date part
+    today_in_jakarta = utc_now.astimezone(jakarta_tz).date()
+
+    # today = date.today()
+    
+    # Check if a journal entry for today (in Jakarta) already exists for this user
     existing_journal = db.query(models.Journal).filter(
         models.Journal.user_id == current_user.id,
-        models.Journal.journal_date == today
+        models.Journal.journal_date == today_in_jakarta # <-- Use the new jakarta date
     ).first()
+
+    # Check if a journal entry for today already exists for this user
+    # existing_journal = db.query(models.Journal).filter(
+    #     models.Journal.user_id == current_user.id,
+    #     models.Journal.journal_date == today
+    # ).first()
 
     if existing_journal:
         raise HTTPException(
@@ -1209,7 +1243,7 @@ def create_journal(
     # Create the new journal entry
     new_journal = models.Journal(
         user_id=current_user.id,
-        journal_date=today,
+        journal_date=today_in_jakarta,
         content=journal.content or "",
         outline_content = "" # Ensure it's not null
     )
@@ -1656,6 +1690,74 @@ def get_class_error_trend(db: Session = Depends(database.get_db)):
     ).group_by(cast(models.UserError.last_occurred_at, SQLDate))\
     .order_by(cast(models.UserError.last_occurred_at, SQLDate)).all()
 
+# --- UPDATED ENDPOINT for Daily Journal Summary ---
+@router.get("/analytics/daily-summary", response_model=List[schemas.AdminDailyJournalSummary])
+def get_daily_journal_summary(
+    summary_date: date = None,
+    db: Session = Depends(database.get_db)
+):
+    """
+    Retrieves a summary of all student activity for a specific date.
+    This includes students who have submitted a journal and those who have not.
+    Defaults to today's date.
+    """
+    if summary_date is None:
+        summary_date = date.today()
+
+    # 1. Get all non-admin students
+    all_students = db.query(
+        models.User.id,
+        models.User.realname,
+        models.User.student_id,
+        models.User.group
+    ).filter(models.User.is_admin == False).all()
+
+    # 2. Get all journals for the specified date
+    journals_on_date = db.query(
+        models.Journal.id,
+        models.Journal.journal_date,
+        models.Journal.writing_phase,
+        models.Journal.user_id
+    ).filter(models.Journal.journal_date == summary_date).all()
+
+    # 3. Create a dictionary for quick lookup of submitted journals
+    submitted_journals_map = {j.user_id: j for j in journals_on_date}
+
+    # 4. Build the final summary list
+    summary_list = []
+    for student in all_students:
+        user_id = student.id
+        journal_data = submitted_journals_map.get(user_id)
+
+        if journal_data:
+            # Student has a journal for this date
+            summary_item = schemas.AdminDailyJournalSummary(
+                user_id=user_id,
+                realname=student.realname,
+                student_id=student.student_id,
+                group=student.group,
+                journal_id=journal_data.id,
+                journal_date=journal_data.journal_date,
+                writing_phase=journal_data.writing_phase
+            )
+        else:
+            # Student has not submitted a journal for this date
+            summary_item = schemas.AdminDailyJournalSummary(
+                user_id=user_id,
+                realname=student.realname,
+                student_id=student.student_id,
+                group=student.group,
+                journal_id=None,
+                journal_date=None,
+                writing_phase=None
+            )
+        summary_list.append(summary_item)
+    
+    # Sort the final list (e.g., by group then student_id)
+    summary_list.sort(key=lambda x: (x.group or '', x.student_id or ''))
+
+    return summary_list
+
 # NEW ENDPOINT to get all journals for a student
 @router.get("/students/{student_id}/journals", response_model=List[schemas.JournalOut])
 def get_student_journals(student_id: int, db: Session = Depends(database.get_db)):
@@ -1732,7 +1834,8 @@ def remove_student_from_whitelist(student_id: str, db: Session = Depends(databas
     
     db.delete(student_to_delete)
     db.commit()
-    return 
+    return
+
 
 ```
 
