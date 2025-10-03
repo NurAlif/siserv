@@ -1,26 +1,26 @@
 <template>
   <main id="dashboard-view" class="fade-in">
-    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
-      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100">Welcome Back, {{ authStore.user?.username }}!</h2>
-          <p class="text-gray-500 dark:text-gray-400">Ready to practice your English today?</p>
+    <div class="bg-white dark:bg-gray-800 p-3 sm:p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+      <div class="flex flex-row justify-between items-center gap-2">
+        <div class="flex-grow">
+          <h2 class="text-sm sm:text-xl font-bold text-gray-900 dark:text-gray-100 truncate">Welcome Back, {{ authStore.user?.username }}!</h2>
+          <p class="text-gray-500 dark:text-gray-400 text-sm">Ready to practice your English today?</p>
         </div>
-        <div class="flex items-center gap-3 bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300 p-3 rounded-lg">
+        <div class="flex-col sm:flex-row flex-shrink-0 flex items-center gap-2 sm:gap-3 bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300 p-2 sm:p-3 rounded-lg">
           <!-- Fire Icon -->
-          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" viewBox="0 0 256 256">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 sm:w-7 sm:h-7" fill="currentColor" viewBox="0 0 256 256">
             <path d="M221.5,145.45C221.5,184.12,190,224,150,224s-72-39.88-72-78.55c0-20.93,12.35-46,29.9-71.55,14.28-20.81,28.2-38,33.43-45.11a8,8,0,0,1,13.34,0c5.23,7.07,19.15,24.3,33.43,45.11C209.15,99.44,221.5,124.52,221.5,145.45ZM152,80a16,16,0,1,0-16,16A16,16,0,0,0,152,80Z"></path>
           </svg>
           <div>
-            <div class="font-bold text-lg">{{ progressStore.streak }} Day Streak</div>
-            <p class="text-sm">Keep it up!</p>
+            <div class="font-bold text-sm sm:text-xm sm:text-base whitespace-nowrap">{{ progressStore.streak }} Day Streak</div>
+            <p class="text-sm sm:text-sm hidden sm:block">Keep it up!</p>
           </div>
         </div>
       </div>
     </div>
 
     <!-- View Controls -->
-    <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+    <div class="flex flex-row justify-between items-center mb-4 gap-4">
       <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
         <button 
           @click="viewMode = 'list'" 
@@ -38,11 +38,18 @@
         </button>
       </div>
       <router-link
-        to="/writer"
-        class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+      to="/writer"
+      class="bg-indigo-600 text-white font-semibold px-3 py-1 md:px-4 md:py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1 md:gap-2 text-sm md:text-base"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"></path></svg>
-        New Entry for Today
+        <!-- Small icon for mobile -->
+        <svg class="md:hidden" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"></path></svg>
+        <!-- Larger icon for desktop -->
+        <svg class="hidden md:block" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"></path></svg>
+        
+        <!-- Short text for mobile -->
+        <span class="md:hidden">New Entry</span>
+        <!-- Longer text for desktop -->
+        <span class="hidden md:inline">New Entry for Today</span>
       </router-link>
     </div>
 

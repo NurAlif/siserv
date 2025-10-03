@@ -16,41 +16,66 @@
         v-for="(day, index) in calendarDays"
         :key="index"
         :class="getCellClasses(day)"
-        class="h-24 sm:h-32 rounded-lg flex flex-col p-1 sm:p-2 relative transition-all duration-200 group"
+        class="h-20 sm:h-32 rounded-lg flex flex-col p-1 sm:p-2 relative transition-all duration-200 group"
         @click="handleDateClick(day)"
       >
-        <template v-if="!day.placeholder">
-          <div class="flex justify-between items-start">
-            <!-- Day Number -->
+        <!-- A. Locked Future Date Cell -->
+        <template v-if="isFutureDate(day.date)">
+          <div class="w-full h-full flex items-center justify-center">
+            <span class="font-semibold text-xs sm:text-sm">{{ day.date.getDate() }}</span>
+          </div>
+        </template>
+        
+        <!-- B. Active Past/Present Date Cell -->
+        <template v-else-if="!day.placeholder">
+          <!-- Header: Day Number & Late Indicator -->
+          <div class="flex justify-between items-center">
             <div class="font-semibold text-xs sm:text-sm" :class="getDayNumberClasses(day.date)">
               {{ day.date.getDate() }}
             </div>
-            <!-- Indicators -->
-            <div class="flex items-center gap-1.5">
-                <!-- Completion Icon -->
-                <div v-if="getJournalPhase(day.date) === 'completed'" class="w-3.5 h-3.5 bg-green-500 rounded-full flex items-center justify-center" title="Completed">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="currentColor" class="text-white" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"></path></svg>
+            <div v-if="getJournalIsLate(day.date)">
+              <div class="sm:hidden w-2.5 h-2.5 bg-red-500 rounded-full" title="Submitted late"></div>
+              <span class="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">LATE</span>
+            </div>
+          </div>
+
+          <!-- Body: Content based on if a journal exists -->
+          <div class="flex-grow flex items-center justify-center relative">
+            <!-- Image Stack (Background) -->
+            <ImageStack
+              v-if="getJournalImages(day.date).length > 0"
+              :images="getJournalImages(day.date)"
+              class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-0 scale-75 sm:scale-100 opacity-80 group-hover:opacity-100 transition-all"
+              @click.stop="handleDateClick(day)"
+            />
+            
+            <div class="relative z-10">
+                <!-- B1. Journal Exists: Show Status Icon -->
+                <div v-if="journalsByDate[formatDateKey(day.date)]">
+                  <!-- Completed Mark -->
+                  <div v-if="getJournalPhase(day.date) === 'completed'" class="w-6 h-6 sm:w-8 sm:h-8 bg-green-500 rounded-full flex items-center justify-center shadow-lg" title="Completed">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="text-white w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"></path></svg>
+                  </div>
+                  <!-- In-progress Step Number -->
+                  <div v-else class="w-6 h-6 sm:w-9 sm:h-9 bg-indigo-500 rounded-full flex items-center justify-center shadow-lg text-white text-sm sm:text-base" :title="`Phase: ${getJournalPhase(day.date)}`">
+                     {{ getPhaseNumber(getJournalPhase(day.date)) }}
+                  </div>
                 </div>
-                <!-- Late Indicator -->
-                <div v-if="getJournalIsLate(day.date)" class="w-2.5 h-2.5 bg-red-500 rounded-full" title="Submitted late"></div>
+
+                <!-- B2. No Journal: Show 'Add' Button -->
+                <div v-else>
+                   <div class="w-7 h-7 sm:w-10 sm:h-10 rounded-full flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 group-hover:bg-gray-100 dark:group-hover:bg-gray-700/50 transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="text-gray-400 dark:text-gray-500 w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"></path></svg>
+                   </div>
+                </div>
             </div>
           </div>
           
-          <!-- Journal Info -->
-          <div v-if="journalsByDate[formatDateKey(day.date)]" class="mt-1 flex-grow flex flex-col items-center justify-center text-center overflow-hidden">
-             <!-- Image (only if it exists) -->
-             <img v-if="getJournalThumbnail(day.date)" :src="getJournalThumbnail(day.date)" alt="Journal thumbnail" class="w-full h-10 sm:h-12 object-cover rounded-sm mb-1"/>
-             
-             <!-- Phase -->
-             <span v-if="getJournalPhase(day.date) !== 'completed'" class="px-1.5 py-0.5 text-[10px] font-bold rounded-full truncate" :class="getPhaseClass(getJournalPhase(day.date))">
-               {{ getJournalPhase(day.date) }}
-             </span>
-          </div>
-          <!-- New Entry button for past/present empty days -->
-          <div v-else-if="!isFutureDate(day.date)" class="flex-grow flex items-center justify-center">
-             <div class="w-9 h-9 rounded-full flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 group-hover:bg-gray-100 dark:group-hover:bg-gray-700/50 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="text-gray-400 dark:text-gray-500" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"></path></svg>
-             </div>
+          <!-- Footer: Phase name (if journal exists) -->
+          <div v-if="journalsByDate[formatDateKey(day.date)]" class="h-5 text-center hidden sm:flex items-center justify-center">
+              <span class="px-1.5 py-0.5 text-[10px] font-bold rounded-full truncate" :class="getPhaseClass(getJournalPhase(day.date))">
+                 {{ getJournalPhase(day.date) }}
+               </span>
           </div>
         </template>
       </div>
@@ -58,7 +83,10 @@
     <!-- Completion Progress Bar -->
     <div class="mt-4 sm:mt-6">
       <div class="flex justify-between items-center mb-1">
-        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Completion Progress</span>
+        <div>
+          <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Completion Progress</span>
+          <span class="text-sm text-gray-500 dark:text-gray-400 ml-2">{{ completedJournalsCount }} / {{ totalJournalSlots }} days</span>
+        </div>
         <span class="text-sm font-bold text-gray-800 dark:text-gray-200">{{ completionPercentage }}%</span>
       </div>
       <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
@@ -73,6 +101,7 @@ import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { format, isToday as checkIsToday, isFuture } from 'date-fns';
 import apiClient from '../services/api';
+import ImageStack from './ImageStack.vue';
 
 const props = defineProps({
   journals: {
@@ -118,8 +147,9 @@ const completedJournalsCount = computed(() => {
 });
 
 const completionPercentage = computed(() => {
-  if (totalJournalSlots.value === 0) return 0;
-  return Math.round((completedJournalsCount.value / totalJournalSlots.value) * 100);
+    const totalPossible = totalJournalSlots.value;
+    if (totalPossible === 0) return 0;
+    return Math.round((completedJournalsCount.value / totalPossible) * 100);
 });
 
 
@@ -136,17 +166,22 @@ const isFutureDate = (date) => date > today;
 const isToday = (date) => checkIsToday(date);
 
 const getJournalForDate = (date) => journalsByDate.value[formatDateKey(date)];
-const getJournalThumbnail = (date) => {
-  const journal = getJournalForDate(date);
-  if (journal?.images?.length > 0) {
-    const path = journal.images[0].file_path;
-    const baseUrl = (apiClient.defaults.baseURL || '').replace('/api', '');
-    return `${baseUrl}${path}`;
-  }
-  return null;
-};
+
 const getJournalPhase = (date) => getJournalForDate(date)?.writing_phase || 'not_started';
 const getJournalIsLate = (date) => getJournalForDate(date)?.is_late || false;
+const getJournalImages = (date) => {
+    const journal = getJournalForDate(date);
+    return journal?.images || [];
+};
+
+const getPhaseNumber = (phase) => {
+    const phaseMap = {
+        scaffolding: '1/3',
+        writing: '2/3',
+        evaluation: '3/3',
+    };
+    return phaseMap[phase] || '';
+};
 
 const handleDateClick = (day) => {
   if (day.placeholder || isFutureDate(day.date)) {
