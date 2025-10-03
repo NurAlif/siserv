@@ -18,7 +18,7 @@
 -- function to generate a secure hash for a strong password.
 INSERT INTO users (username, email, realname, student_id, "group", hashed_password, is_admin, created_at)
 VALUES (
-    'teacher1',
+    'teacher',
     'teacher@admin.admin',
     'Admin',
     '000',

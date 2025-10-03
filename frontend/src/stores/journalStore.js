@@ -55,24 +55,34 @@ export const useJournalStore = defineStore('journal', {
             }
             return response.data;
         } catch (err) {
+            if (err.response && err.response.status === 404) {
+              // Journal not found, so create it for the specified date.
+              // This is triggered when a user clicks an empty day on the calendar.
+              console.log(`Journal for ${date} not found. Creating a new entry.`);
+              return await this.createJournal('', date);
+            }
             this.error = 'Failed to load journal entry.';
             console.error(err);
-            return null; // Return null on failure
+            return null; // Return null on other failures
         } finally {
             this.isLoading = false;
         }
     },
 
-    async createJournal(content) {
+    async createJournal(content, date = null) {
       this.isLoading = true;
       this.error = null;
       try {
-        const response = await apiClient.post('/journals/', { content });
+        const payload = { content };
+        if (date) {
+          payload.journal_date = date;
+        }
+        const response = await apiClient.post('/journals/', payload);
         // Add the new journal to the front of our local list
         this.journals.unshift(response.data);
         return response.data; // Return the created journal
       } catch (err) {
-        this.error = 'Failed to create journal entry.';
+        this.error = err.response?.data?.detail || 'Failed to create journal entry.';
         console.error(err);
         return null;
       } finally {

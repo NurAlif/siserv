@@ -85,6 +85,7 @@ class JournalBase(BaseModel):
 class JournalCreate(BaseModel):
     """Schema for creating a new journal entry."""
     content: str
+    journal_date: Optional[date] = None # Allow specifying date on creation
 
 class JournalUpdate(BaseModel):
     content: str
@@ -108,6 +109,7 @@ class JournalOut(JournalBase):
     outline_content: Optional[str] = None
     writing_phase: JournalPhase
     completion_metrics: Optional[List[WritingMetric]] = None # NEW: Add metrics field
+    is_late: bool # New field for late status
     created_at: datetime
     updated_at: datetime
     chat_messages: List[ChatMessageOut] = []

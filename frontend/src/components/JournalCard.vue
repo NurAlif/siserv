@@ -12,6 +12,9 @@
     <div class="flex-grow overflow-hidden pt-1">
       <div class="flex items-center gap-2">
         <h4 class="font-bold text-md text-gray-800 dark:text-gray-200 truncate">{{ journal.title || 'Journal Entry' }}</h4>
+        <div v-if="journal.is_late" class="flex-shrink-0 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 text-xs font-bold px-2 py-0.5 rounded-full">
+          Late
+        </div>
         <div v-if="journal.writing_phase === 'completed'" class="flex-shrink-0 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xs font-bold px-2 py-0.5 rounded-full">
           Completed
         </div>
