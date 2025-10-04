@@ -14,8 +14,10 @@ Codebase Structure Overview:
 │   │   ├── CompletionMetricsChart.vue
 │   │   ├── ErrorDetailCard.vue
 │   │   ├── ImageCarousel.vue
+│   │   ├── ImageChat.vue
 │   │   ├── ImageChatMessage.vue
 │   │   ├── ImageStack.vue
+│   │   ├── JournalCalendarView.vue
 │   │   ├── JournalCard.vue
 │   │   ├── ManualModal.vue
 │   │   ├── ProgressSummaryCard.vue
@@ -23,8 +25,10 @@ Codebase Structure Overview:
 │   │   └── admin
 │   │       ├── AdminJournalCard.vue
 │   │       ├── AdminStatCard.vue
+│   │       ├── DailyJournalTable.vue
 │   │       ├── ErrorDistributionChart.vue
 │   │       ├── ErrorTrendChart.vue
+│   │       ├── PhaseDistributionChart.vue
 │   │       └── StudentTable.vue
 │   ├── main.js
 │   ├── router
@@ -168,6 +172,8 @@ module.exports = {
         document.documentElement.classList.remove('dark');
       }
     </script>
+    <!-- ADDED: Marked.js library to parse markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   </head>
   <body>
     <div id="app"></div>
@@ -323,15 +329,21 @@ const uiStore = useUiStore();
 const route = useRoute();
 
 const isWriterView = computed(() => route.name === 'Writer');
+const isAdminView = computed(() => route.path.startsWith('/admin'));
 
 const containerClass = computed(() => {
   if (isWriterView.value) {
     // For WriterView, use a full-height flex container for the immersive layout.
     return 'h-full flex flex-col';
   }
+  if (isAdminView.value) {
+    // For Admin views, use a wider container to accommodate large tables.
+    return 'max-w-screen-xl mx-auto p-4 md:p-6';
+  }
   // For all other views, use the original centered, padded layout.
   return 'max-w-4xl mx-auto p-4 md:p-6';
 });
+
 
 onMounted(() => {
   uiStore.initTheme();
@@ -641,22 +653,30 @@ const handleSignup = async () => {
       </div>
     </div>
 
-    <!-- New Progress Summary Card -->
-    <!-- <ProgressSummaryCard 
-      :summary="progressStore.summary"
-      :is-loading="progressStore.isLoading"
-      :error="progressStore.error"
-    /> -->
-
-    <div class="flex justify-between items-center mb-4">
-      <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">Your Journal Entries</h3>
+    <!-- View Controls -->
+    <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+      <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
+        <button 
+          @click="viewMode = 'list'" 
+          :class="viewMode === 'list' ? 'bg-white dark:bg-gray-800 shadow text-indigo-600' : 'text-gray-500 dark:text-gray-400'" 
+          class="px-3 py-1 text-sm font-semibold rounded-md transition-all flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 256 256"><path d="M224,88H32a8,8,0,0,0-8,8v64a8,8,0,0,0,8,8H224a8,8,0,0,0,8-8V96A8,8,0,0,0,224,88Zm-8,64H40V104H216v48ZM32,48H224a8,8,0,0,0,0-16H32a8,8,0,0,0,0,16Zm0,160H224a8,8,0,0,0,0-16H32a8,8,0,0,0,0,16Z"></path></svg>
+          List
+        </button>
+        <button 
+          @click="viewMode = 'calendar'" 
+          :class="viewMode === 'calendar' ? 'bg-white dark:bg-gray-800 shadow text-indigo-600' : 'text-gray-500 dark:text-gray-400'" 
+          class="px-3 py-1 text-sm font-semibold rounded-md transition-all flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 256 256"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,16V80H48V48ZM48,208V96H208V208Z"></path></svg>
+          Calendar
+        </button>
+      </div>
       <router-link
         to="/writer"
         class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
       >
-        <!-- Plus Icon -->
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"></path></svg>
-        New Entry
+        New Entry for Today
       </router-link>
     </div>
 
@@ -668,38 +688,45 @@ const handleSignup = async () => {
       <p>{{ journalStore.error }}</p>
     </div>
 
-    <!-- Journal List -->
-    <div v-else-if="journalStore.journals.length > 0" id="journal-list" class="space-y-4">
-       <JournalCard
-         v-for="journal in journalStore.journals"
-         :key="journal.id"
-         :journal="journal"
-       />
-    </div>
-    <div v-else class="text-center py-10 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-        <h4 class="font-semibold text-lg text-gray-800 dark:text-gray-200">No entries yet!</h4>
-        <p class="text-gray-500 dark:text-gray-400">Click "New Entry" to start your first journal.</p>
-    </div>
+    <!-- Conditional Views -->
+    <template v-else>
+      <!-- List View -->
+      <div v-if="viewMode === 'list'">
+        <div v-if="journalStore.journals.length > 0" id="journal-list" class="space-y-4">
+          <JournalCard
+            v-for="journal in journalStore.journals"
+            :key="journal.id"
+            :journal="journal"
+          />
+        </div>
+        <div v-else class="text-center py-10 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+            <h4 class="font-semibold text-lg text-gray-800 dark:text-gray-200">No entries yet!</h4>
+            <p class="text-gray-500 dark:text-gray-400">Click "New Entry for Today" to start your first journal.</p>
+        </div>
+      </div>
+      <!-- Calendar View -->
+      <JournalCalendarView v-else-if="viewMode === 'calendar'" :journals="journalStore.journals" />
+    </template>
   </main>
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useAuthStore } from '../stores/authStore';
 import { useJournalStore } from '../stores/journalStore';
-import { useProgressStore } from '../stores/progressStore'; // Import progress store
+import { useProgressStore } from '../stores/progressStore';
 import JournalCard from '../components/JournalCard.vue';
-// import ProgressSummaryCard from '../components/ProgressSummaryCard.vue'; // Import new component
+import JournalCalendarView from '../components/JournalCalendarView.vue';
 
 const authStore = useAuthStore();
 const journalStore = useJournalStore();
-const progressStore = useProgressStore(); // Instantiate progress store
+const progressStore = useProgressStore();
 
-// Fetch data when the component is first mounted
+const viewMode = ref('list'); // 'list' or 'calendar'
+
 onMounted(() => {
   journalStore.fetchJournals();
-  // progressStore.fetchProgressSummary();
-  progressStore.fetchStreak(); // Fetch streak data
+  progressStore.fetchStreak();
 });
 </script>
 
@@ -1099,7 +1126,12 @@ onMounted(() => {
                           message.sender !== 'user',
                       }"
                     >
-                      <p class="text-sm">{{ message.message_text }}</p>
+                      <div
+                        v-if="message.sender === 'ai'"
+                        v-html="formatMessage(message.message_text)"
+                        class="text-sm formatted-content"
+                      ></div>
+                      <p v-else class="text-sm">{{ message.message_text }}</p>
                     </div>
                   </div>
                   <!-- Image Message -->
@@ -1433,7 +1465,6 @@ onMounted(() => {
         <div class="w-full sm:w-auto">
           <transition name="action-button">
             <button
-              v-if="allSuggestionsApplied"
               @click="moveToPhase('completed')"
               class="w-full sm:w-auto bg-green-600 text-white font-semibold px-5 py-1.5 text-sm rounded-lg hover:bg-green-700 transition-colors"
             >
@@ -1474,8 +1505,8 @@ import CompletionMetricsChart from '../components/CompletionMetricsChart.vue'; /
 
 // --- Constants for validation and limits ---
 const MIN_SCAFFOLD_ITEMS = 5;
-const MIN_WRITING_WORDS = 50;
-const MIN_WRITING_SENTENCES = 3;
+const MIN_WRITING_WORDS = 120;
+const MIN_WRITING_SENTENCES = 6;
 const MAX_CHAT_TURNS = 40;
 
 const route = useRoute();
@@ -1516,6 +1547,17 @@ const phases = ref([
   { id: 3, name: 'Evaluation' },
   { id: 4, name: 'Completed' },
 ]);
+
+const formatMessage = (text) => {
+  if (text && typeof window.marked !== 'undefined') {
+    // Use the 'marked' library (loaded from CDN in index.html) to parse markdown to HTML.
+    // The 'gfm: true' option enables GitHub Flavored Markdown for better compatibility.
+    // The 'breaks: true' option converts single newlines into <br> tags, which is common for chat interfaces.
+    return window.marked.parse(text, { gfm: true, breaks: true });
+  }
+  return text; // Return plain text if 'marked' isn't available or text is empty.
+};
+
 
 const displayDate = computed(() => {
   if (currentJournal.value) {
@@ -1952,6 +1994,15 @@ const getPhaseLineClass = (phaseId) => {
 .dark .chat-bubble-ai::after {
     border-color: transparent #374151 transparent transparent; /* Tailwind's gray-700 */
 }
+
+/* Styles for content rendered from markdown */
+.formatted-content p {
+  margin: 0; /* Remove default paragraph margins inside chat bubbles */
+}
+.formatted-content strong,
+.formatted-content b {
+  font-weight: 600; /* Ensure bold text is actually bold */
+}
 </style>
 
 ```
@@ -2335,7 +2386,7 @@ const formatDate = (dateString) => {
 
 ```
 <template>
-  <main id="admin-dashboard-view" class="p-4 md:p-6 fade-in">
+  <main id="admin-dashboard-view" class="fade-in">
     <!-- Header -->
     <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -2368,32 +2419,66 @@ const formatDate = (dateString) => {
       <p>{{ adminStore.error }}</p>
     </div>
 
-    <div v-else-if="adminStore.classAnalytics">
-      <!-- Stat Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <AdminStatCard title="Total Students" :value="adminStore.classAnalytics.total_students" />
-        <AdminStatCard title="Total Journal Entries" :value="adminStore.classAnalytics.total_journals" />
-        <AdminStatCard title="Total Errors Logged" :value="adminStore.classAnalytics.total_errors" />
-        <AdminStatCard title="Avg Errors per Journal" :value="adminStore.classAnalytics.avg_errors_per_journal.toFixed(2)" />
+    <div v-else class="space-y-8">
+       <!-- Class-wide Analytics -->
+      <div v-if="adminStore.classAnalytics">
+        <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Class-wide Analytics</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <AdminStatCard title="Total Students" :value="adminStore.classAnalytics.total_students" />
+          <AdminStatCard title="Total Journal Entries" :value="adminStore.classAnalytics.total_journals" />
+          <AdminStatCard title="Total Errors Logged" :value="adminStore.classAnalytics.total_errors" />
+          <AdminStatCard title="Avg Errors per Journal" :value="adminStore.classAnalytics.avg_errors_per_journal.toFixed(2)" />
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ErrorDistributionChart title="Class Error Distribution" :chart-raw-data="adminStore.classAnalytics.error_distribution" />
+          <ErrorTrendChart title="Class Error Trend" :chart-raw-data="adminStore.classAnalytics.error_trend" />
+        </div>
       </div>
 
-      <!-- Charts -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Error Distribution Chart -->
-          <div class="relative h-80 mb-16">
-            <ErrorDistributionChart title="Class Error Distribution" :chart-raw-data="adminStore.classAnalytics.error_distribution" />
+      <!-- Daily Activity Section -->
+      <div>
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+          <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200">
+            Activity for {{ formattedSelectedDate }}
+          </h3>
+          <div class="flex items-center gap-2 mt-2 sm:mt-0">
+            <button @click="changeDate(-1)" class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M165.66,202.34a8,8,0,0,1-11.32,0L80,128l74.34-53.66a8,8,0,0,1,11.32,11.32L97.31,128l68.35,68.34A8,8,0,0,1,165.66,202.34Z"></path></svg>
+            </button>
+            <input 
+                type="date" 
+                v-model="selectedDate"
+                class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+            />
+            <button @click="changeDate(1)" class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" :disabled="isToday">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M90.34,53.66a8,8,0,0,0-11.32,0l-80,80a8,8,0,0,0,0,11.32l80,80a8,8,0,0,0,11.32-11.32L17.31,128,90.34,53.66Z" transform="rotate(180 128 128)"></path></svg>
+            </button>
           </div>
-
-        <!-- Error Trend Chart -->
-          <div class="relative h-80 mb-16">
-            <ErrorTrendChart title="Class Error Trend" :chart-raw-data="adminStore.classAnalytics.error_trend" />
+        </div>
+        <div v-if="adminStore.isLoadingDailySummary" class="text-center py-10">
+          <p class="text-gray-500 dark:text-gray-400">Loading summary for {{ formattedSelectedDate }}...</p>
+        </div>
+        <div v-else-if="adminStore.dailySummary.length > 0" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-1">
+            <PhaseDistributionChart :journals="adminStore.dailySummary" />
           </div>
+          <div class="lg:col-span-2">
+            <DailyJournalTable :journals="adminStore.dailySummary" />
+          </div>
+        </div>
+        <div v-else class="text-center py-10 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+          <h4 class="font-semibold text-lg text-gray-800 dark:text-gray-200">No Journals Submitted on this Day</h4>
+          <p class="text-gray-500 dark:text-gray-400">Please select another date to view submissions.</p>
+        </div>
       </div>
+
       <!-- Student Table -->
       <div>
+        <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">All Students</h3>
         <StudentTable :students="adminStore.students" />
       </div>
     </div>
+
      <!-- Modal for the admin manual -->
     <ManualModal 
         :show="showManualModal" 
@@ -2405,21 +2490,64 @@ const formatDate = (dateString) => {
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useAdminStore } from '../../stores/adminStore';
 import AdminStatCard from '../../components/admin/AdminStatCard.vue';
 import ErrorDistributionChart from '../../components/admin/ErrorDistributionChart.vue';
 import ErrorTrendChart from '../../components/admin/ErrorTrendChart.vue';
 import StudentTable from '../../components/admin/StudentTable.vue';
-import ManualModal from '../../components/ManualModal.vue'; // Import the new modal component
+import ManualModal from '../../components/ManualModal.vue';
+import PhaseDistributionChart from '../../components/admin/PhaseDistributionChart.vue';
+import DailyJournalTable from '../../components/admin/DailyJournalTable.vue';
 
 const adminStore = useAdminStore();
-const showManualModal = ref(false); // State to control the modal's visibility
+const showManualModal = ref(false);
+const selectedDate = ref(new Date().toISOString().split('T')[0]); // YYYY-MM-DD format
 
 onMounted(() => {
   adminStore.fetchClassAnalytics();
   adminStore.fetchAllStudents();
+  adminStore.fetchDailySummary(selectedDate.value); // Fetch today's summary on load
 });
+
+watch(selectedDate, (newDate) => {
+  if (newDate) {
+    adminStore.fetchDailySummary(newDate);
+  }
+});
+
+const formattedSelectedDate = computed(() => {
+  if (!selectedDate.value) return 'Select a Date';
+  const [year, month, day] = selectedDate.value.split('-').map(Number);
+  // Use UTC to prevent timezone off-by-one errors
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+});
+
+const isToday = computed(() => {
+    const today = new Date();
+    // Get today's date in UTC
+    const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+    
+    // Get selected date in UTC
+    const [year, month, day] = selectedDate.value.split('-').map(Number);
+    const selectedUTC = new Date(Date.UTC(year, month - 1, day));
+    
+    return selectedUTC >= todayUTC;
+});
+
+
+const changeDate = (days) => {
+    // Parse selected date string into UTC date object
+    const [year, month, day] = selectedDate.value.split('-').map(Number);
+    const currentDate = new Date(Date.UTC(year, month - 1, day));
+
+    // Modify the UTC date
+    currentDate.setUTCDate(currentDate.getUTCDate() + days);
+
+    // Format back to YYYY-MM-DD string
+    selectedDate.value = currentDate.toISOString().split('T')[0];
+};
 
 // The content for the admin manual is stored here as an HTML string.
 // I've added an image with loading="lazy" to illustrate a key feature.
@@ -2641,8 +2769,10 @@ export const useAdminStore = defineStore('admin', {
     studentJournals: [],
     currentStudentJournal: null,
     classAnalytics: null, // This will hold all dashboard data
+    dailySummary: [], // NEW: For today's journals
     isLoading: false,
     isLoadingJournals: false,
+    isLoadingDailySummary: false, // NEW: Loading state for daily summary
     error: null,
     whitelist: [], // New state for student whitelist
     isLoadingWhitelist: false, // New loading state
@@ -2740,6 +2870,27 @@ export const useAdminStore = defineStore('admin', {
         console.error(err);
       } finally {
         this.isLoading = false;
+      }
+    },
+
+    // --- NEW ACTION for Daily Summary ---
+    async fetchDailySummary(summaryDate = null) {
+      this.isLoadingDailySummary = true;
+      this.error = null;
+      try {
+        let url = '/admin/analytics/daily-summary';
+        if (summaryDate) {
+          // Format the date to YYYY-MM-DD
+          const formattedDate = new Date(summaryDate).toISOString().split('T')[0];
+          url += `?summary_date=${formattedDate}`;
+        }
+        const response = await apiClient.get(url);
+        this.dailySummary = response.data;
+      } catch (err) {
+        this.error = 'Failed to load daily journal summary.';
+        console.error(err);
+      } finally {
+        this.isLoadingDailySummary = false;
       }
     },
 
@@ -2852,24 +3003,34 @@ export const useJournalStore = defineStore('journal', {
             }
             return response.data;
         } catch (err) {
+            if (err.response && err.response.status === 404) {
+              // Journal not found, so create it for the specified date.
+              // This is triggered when a user clicks an empty day on the calendar.
+              console.log(`Journal for ${date} not found. Creating a new entry.`);
+              return await this.createJournal('', date);
+            }
             this.error = 'Failed to load journal entry.';
             console.error(err);
-            return null; // Return null on failure
+            return null; // Return null on other failures
         } finally {
             this.isLoading = false;
         }
     },
 
-    async createJournal(content) {
+    async createJournal(content, date = null) {
       this.isLoading = true;
       this.error = null;
       try {
-        const response = await apiClient.post('/journals/', { content });
+        const payload = { content };
+        if (date) {
+          payload.journal_date = date;
+        }
+        const response = await apiClient.post('/journals/', payload);
         // Add the new journal to the front of our local list
         this.journals.unshift(response.data);
         return response.data; // Return the created journal
       } catch (err) {
-        this.error = 'Failed to create journal entry.';
+        this.error = err.response?.data?.detail || 'Failed to create journal entry.';
         console.error(err);
         return null;
       } finally {
@@ -3404,7 +3565,8 @@ import { useAuthStore } from '../stores/authStore';
 
 // Create an Axios instance with a base URL from environment variables
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://ai-ndhu-lab:7576/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:7576/api',
+  // baseURL: import.meta.env.VITE_API_BASE_URL || 'https://ipa.parasyst.com/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -3483,6 +3645,52 @@ const imageUrl = computed(() => {
 ```
 
 
+### File: src/components/ImageChat.vue
+
+```
+<template>
+  <div class="p-2 rounded-lg max-w-xs break-words bg-gray-200 dark:bg-gray-700">
+    <img
+      :src="imageUrl"
+      alt="User upload"
+      class="rounded-md cursor-pointer w-full object-cover"
+      @click="$emit('image-clicked')"
+      loading="lazy"
+    />
+    <p v-if="description" class="text-sm text-gray-800 dark:text-gray-200 mt-2 p-1 italic">
+      "{{ description }}"
+    </p>
+  </div>
+</template>
+
+<script setup>
+import { computed } from 'vue';
+import apiClient from '../services/api';
+
+const props = defineProps({
+  image: {
+    type: Object,
+    required: true,
+  },
+  description: {
+    type: String,
+    default: '',
+  },
+});
+
+defineEmits(['image-clicked']);
+
+const imageUrl = computed(() => {
+  if (!props.image || !props.image.file_path) return '';
+  // Construct the full URL to the static image file on the backend
+  const baseUrl = (apiClient.defaults.baseURL || '').replace('/api', '');
+  return `${baseUrl}${props.image.file_path}`;
+});
+</script>
+
+```
+
+
 ### File: src/components/ChatFeedbackCard.vue
 
 ```
@@ -3538,6 +3746,237 @@ const textColor = computed(() => {
 });
 
 </script>
+```
+
+
+### File: src/components/JournalCalendarView.vue
+
+```
+<template>
+  <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+    <!-- Calendar Header (Days of the week) -->
+    <div class="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">
+      <div>Sun</div>
+      <div>Mon</div>
+      <div>Tue</div>
+      <div>Wed</div>
+      <div>Thu</div>
+      <div>Fri</div>
+      <div>Sat</div>
+    </div>
+    <!-- Calendar Grid -->
+    <div class="grid grid-cols-7 gap-1 sm:gap-2">
+      <div
+        v-for="(day, index) in calendarDays"
+        :key="index"
+        :class="getCellClasses(day)"
+        class="h-24 sm:h-32 rounded-lg flex flex-col p-1 sm:p-2 relative transition-all duration-200 group"
+        @click="handleDateClick(day)"
+      >
+        <!-- A. Locked Future Date Cell -->
+        <template v-if="isFutureDate(day.date)">
+          <div class="w-full h-full flex items-center justify-center">
+            <span class="font-semibold text-xs sm:text-sm">{{ day.date.getDate() }}</span>
+          </div>
+        </template>
+        
+        <!-- B. Active Past/Present Date Cell -->
+        <template v-else-if="!day.placeholder">
+          <!-- Header: Day Number & Late Indicator -->
+          <div class="flex justify-between items-start">
+            <div class="font-semibold text-xs sm:text-sm" :class="getDayNumberClasses(day.date)">
+              {{ day.date.getDate() }}
+            </div>
+            <div v-if="getJournalIsLate(day.date)" class="w-2.5 h-2.5 bg-red-500 rounded-full" title="Submitted late"></div>
+          </div>
+
+          <!-- Body: Content based on if a journal exists -->
+          <div class="flex-grow flex items-center justify-center">
+            <!-- B1. Journal Exists: Show Status Icon -->
+            <div v-if="journalsByDate[formatDateKey(day.date)]">
+              <!-- Completed Mark -->
+              <div v-if="getJournalPhase(day.date) === 'completed'" class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center shadow-lg" title="Completed">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="text-white" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"></path></svg>
+              </div>
+              <!-- In-progress Step Number -->
+              <div v-else class="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center shadow-lg text-white font-bold text-base" :title="`Phase: ${getJournalPhase(day.date)}`">
+                 {{ getPhaseNumber(getJournalPhase(day.date)) }}
+              </div>
+            </div>
+
+            <!-- B2. No Journal: Show 'Add' Button -->
+            <div v-else>
+               <div class="w-9 h-9 rounded-full flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 group-hover:bg-gray-100 dark:group-hover:bg-gray-700/50 transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="text-gray-400 dark:text-gray-500" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"></path></svg>
+               </div>
+            </div>
+          </div>
+          
+          <!-- Footer: Phase name (if journal exists) -->
+          <div v-if="journalsByDate[formatDateKey(day.date)]" class="h-5 text-center">
+              <span class="px-1.5 py-0.5 text-[10px] font-bold rounded-full truncate" :class="getPhaseClass(getJournalPhase(day.date))">
+                 {{ getJournalPhase(day.date) }}
+               </span>
+          </div>
+        </template>
+      </div>
+    </div>
+    <!-- Completion Progress Bar -->
+    <div class="mt-4 sm:mt-6">
+      <div class="flex justify-between items-center mb-1">
+        <div>
+          <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Completion Progress</span>
+          <span class="text-sm text-gray-500 dark:text-gray-400 ml-2">{{ completedJournalsCount }} / {{ totalJournalSlots }} days</span>
+        </div>
+        <span class="text-sm font-bold text-gray-800 dark:text-gray-200">{{ completionPercentage }}%</span>
+      </div>
+      <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+        <div class="bg-green-500 h-2.5 rounded-full transition-all duration-500" :style="{ width: completionPercentage + '%' }"></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
+import { format, isToday as checkIsToday, isFuture } from 'date-fns';
+import apiClient from '../services/api';
+
+const props = defineProps({
+  journals: {
+    type: Array,
+    required: true,
+  },
+});
+
+const router = useRouter();
+
+const today = new Date();
+// Set hours to 0 to compare dates only
+today.setHours(0, 0, 0, 0);
+
+const getCalendarDays = () => {
+  const days = [];
+  const start = new Date('2025-09-29T00:00:00');
+  const end = new Date('2025-11-14T00:00:00');
+  let current = new Date(start);
+
+  const startDayOfWeek = start.getDay();
+  for (let i = 0; i < startDayOfWeek; i++) {
+    days.push({ placeholder: true });
+  }
+
+  while (current <= end) {
+    days.push({ date: new Date(current), placeholder: false });
+    current.setDate(current.getDate() + 1);
+  }
+
+  return days;
+};
+
+const calendarDays = ref(getCalendarDays());
+
+// --- Progress Calculation ---
+const totalJournalSlots = computed(() => {
+  return calendarDays.value.filter(day => !day.placeholder).length;
+});
+
+const completedJournalsCount = computed(() => {
+  return props.journals.filter(j => j.writing_phase === 'completed').length;
+});
+
+const completionPercentage = computed(() => {
+    const totalPossible = totalJournalSlots.value;
+    if (totalPossible === 0) return 0;
+    return Math.round((completedJournalsCount.value / totalPossible) * 100);
+});
+
+
+const formatDateKey = (date) => format(date, 'yyyy-MM-dd');
+
+const journalsByDate = computed(() => {
+  return props.journals.reduce((acc, journal) => {
+    acc[journal.journal_date] = journal;
+    return acc;
+  }, {});
+});
+
+const isFutureDate = (date) => date > today;
+const isToday = (date) => checkIsToday(date);
+
+const getJournalForDate = (date) => journalsByDate.value[formatDateKey(date)];
+
+const getJournalPhase = (date) => getJournalForDate(date)?.writing_phase || 'not_started';
+const getJournalIsLate = (date) => getJournalForDate(date)?.is_late || false;
+
+const getPhaseNumber = (phase) => {
+    const phaseMap = {
+        scaffolding: '1/3',
+        writing: '2/3',
+        evaluation: '3/3',
+    };
+    return phaseMap[phase] || '';
+};
+
+const handleDateClick = (day) => {
+  if (day.placeholder || isFutureDate(day.date)) {
+    return; // Do nothing for placeholders or future dates
+  }
+  const dateKey = formatDateKey(day.date);
+  router.push(`/writer/${dateKey}`);
+};
+
+// --- Styling Helpers ---
+const getCellClasses = (day) => {
+  if (day.placeholder) return 'bg-gray-50 dark:bg-gray-800/50';
+  
+  const journal = getJournalForDate(day.date);
+  const baseClasses = [];
+
+  if (isToday(day.date)) {
+    baseClasses.push('border-2 border-indigo-500');
+  } else if (journal && journal.writing_phase === 'completed') {
+    baseClasses.push('border-2 border-green-500');
+  } else {
+    baseClasses.push('border border-gray-200 dark:border-gray-700');
+  }
+
+  if (isFutureDate(day.date)) {
+    baseClasses.push('bg-gray-100 dark:bg-gray-700/50 text-gray-400 dark:text-gray-500 cursor-not-allowed');
+    return baseClasses.join(' ');
+  }
+
+  if (journal) {
+     baseClasses.push('bg-white dark:bg-gray-800 cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-500');
+  } else {
+     baseClasses.push('bg-gray-50 dark:bg-gray-800/50 cursor-pointer hover:border-gray-300 dark:hover:border-gray-600');
+  }
+  return baseClasses.join(' ');
+};
+
+const getDayNumberClasses = (date) => {
+  if (isToday(date)) return 'bg-indigo-600 text-white rounded-full w-5 h-5 flex items-center justify-center';
+  return 'text-gray-700 dark:text-gray-300';
+};
+
+const getPhaseClass = (phase) => {
+  switch (phase) {
+    case 'scaffolding':
+      return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300';
+    case 'writing':
+      return 'bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300';
+    case 'evaluation':
+      return 'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300';
+    case 'completed':
+      return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300';
+    default:
+      return '';
+  }
+};
+</script>
+
+
 ```
 
 
@@ -3662,6 +4101,9 @@ defineProps({
     <div class="flex-grow overflow-hidden pt-1">
       <div class="flex items-center gap-2">
         <h4 class="font-bold text-md text-gray-800 dark:text-gray-200 truncate">{{ journal.title || 'Journal Entry' }}</h4>
+        <div v-if="journal.is_late" class="flex-shrink-0 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 text-xs font-bold px-2 py-0.5 rounded-full">
+          Late
+        </div>
         <div v-if="journal.writing_phase === 'completed'" class="flex-shrink-0 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xs font-bold px-2 py-0.5 rounded-full">
           Completed
         </div>
@@ -4229,6 +4671,80 @@ const formatDate = (dateString) => {
 ```
 
 
+### File: src/components/admin/DailyJournalTable.vue
+
+```
+<template>
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="p-4">
+      <h4 class="font-semibold text-gray-800 dark:text-gray-200">Daily Submissions</h4>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead class="bg-gray-50 dark:bg-gray-700/50">
+          <tr>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Student</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Group</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+            <th scope="col" class="relative px-6 py-3"><span class="sr-only">View</span></th>
+          </tr>
+        </thead>
+        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+          <tr v-if="journals.length === 0">
+            <td colspan="4" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+              No students to display.
+            </td>
+          </tr>
+          <tr v-for="journal in journals" :key="journal.user_id" class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ journal.realname }}</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">{{ journal.student_id }}</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{{ journal.group }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="getPhaseClass(journal.writing_phase)">
+                {{ journal.writing_phase || 'Not Started' }}
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+              <router-link v-if="journal.journal_id" :to="`/admin/student/${journal.user_id}/journal/${journal.journal_date}`" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">View</router-link>
+              <span v-else class="text-gray-400 dark:text-gray-500">N/A</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</template>
+
+<script setup>
+defineProps({
+  journals: {
+    type: Array,
+    required: true,
+  },
+});
+
+const getPhaseClass = (phase) => {
+  switch (phase) {
+    case 'scaffolding':
+      return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300';
+    case 'writing':
+      return 'bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300';
+    case 'evaluation':
+      return 'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300';
+    case 'completed':
+      return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300';
+    default:
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'; // Class for "Not Started"
+  }
+};
+</script>
+
+
+```
+
+
 ### File: src/components/admin/ErrorDistributionChart.vue
 
 ```
@@ -4400,6 +4916,90 @@ const formatDate = (dateString) => {
   return format(date, 'MMMM d, yyyy');
 };
 </script>
+
+```
+
+
+### File: src/components/admin/PhaseDistributionChart.vue
+
+```
+<template>
+  <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 h-full">
+    <h4 class="font-semibold text-gray-800 dark:text-gray-200 mb-4">Daily Phase Distribution</h4>
+    <div class="relative h-72">
+      <Doughnut v-if="hasData" :data="chartData" :options="chartOptions" />
+      <div v-else class="flex items-center justify-center h-full text-center text-gray-500 dark:text-gray-400">
+        <p>No student data to display.</p>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed } from 'vue';
+import { Doughnut } from 'vue-chartjs';
+import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement } from 'chart.js';
+import { useUiStore } from '../../stores/uiStore';
+
+ChartJS.register(Title, Tooltip, Legend, ArcElement);
+
+const props = defineProps({
+  journals: {
+    type: Array,
+    required: true,
+    default: () => []
+  }
+});
+
+const uiStore = useUiStore();
+
+const phaseCounts = computed(() => {
+  const counts = {
+    scaffolding: 0,
+    writing: 0,
+    evaluation: 0,
+    completed: 0,
+    not_started: 0, // New category
+  };
+  props.journals.forEach(journal => {
+    if (journal.writing_phase && journal.writing_phase in counts) {
+      counts[journal.writing_phase]++;
+    } else {
+      counts.not_started++;
+    }
+  });
+  return counts;
+});
+
+const hasData = computed(() => props.journals.length > 0);
+
+const chartData = computed(() => {
+  const counts = phaseCounts.value;
+  return {
+    labels: ['Not Started', 'Scaffolding', 'Writing', 'Evaluation', 'Completed'],
+    datasets: [
+      {
+        backgroundColor: ['#9CA3AF', '#6366F1', '#14B8A6', '#F43F5E', '#22C55E'], // Gray, Indigo, Teal, Rose, Green
+        data: [counts.not_started, counts.scaffolding, counts.writing, counts.evaluation, counts.completed],
+      },
+    ],
+  };
+});
+
+const chartOptions = computed(() => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: 'bottom',
+      labels: {
+        color: uiStore.isDarkMode ? '#d1d5db' : '#4b5563',
+      },
+    },
+  },
+}));
+</script>
+
 
 ```
 

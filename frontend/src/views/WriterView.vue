@@ -727,7 +727,6 @@
         <div class="w-full sm:w-auto">
           <transition name="action-button">
             <button
-              v-if="allSuggestionsApplied"
               @click="moveToPhase('completed')"
               class="w-full sm:w-auto bg-green-600 text-white font-semibold px-5 py-1.5 text-sm rounded-lg hover:bg-green-700 transition-colors"
             >
@@ -768,8 +767,8 @@ import CompletionMetricsChart from '../components/CompletionMetricsChart.vue'; /
 
 // --- Constants for validation and limits ---
 const MIN_SCAFFOLD_ITEMS = 5;
-const MIN_WRITING_WORDS = 50;
-const MIN_WRITING_SENTENCES = 3;
+const MIN_WRITING_WORDS = 120;
+const MIN_WRITING_SENTENCES = 6;
 const MAX_CHAT_TURNS = 40;
 
 const route = useRoute();

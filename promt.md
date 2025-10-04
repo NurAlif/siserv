@@ -240,4 +240,3 @@ The process involves collecting materials. there are limited budged and there ar
 I am creating an english learning companion as a journaling activity. However it is not complete yet.
 I need to improve it as follow:
 1. I want to add audio feature. All 
-2. 

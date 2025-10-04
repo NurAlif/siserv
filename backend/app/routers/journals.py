@@ -1,7 +1,8 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
-from datetime import date
+from datetime import date, datetime
 from typing import List
+import pytz
 import os
 import uuid
 import aiofiles
@@ -26,29 +27,52 @@ def create_journal(
     current_user: models.User = Depends(security.get_current_user)
 ):
     """
-    Creates a new journal entry for the current user for today's date.
+    Creates a new journal entry for the current user for a specific date.
     A user can only create one journal entry per day.
+    If no date is provided, it defaults to today.
     """
-    today = date.today()
+    # Get the current time in UTC and convert to Jakarta time
+    utc_now = datetime.utcnow().replace(tzinfo=pytz.utc)
     
-    # Check if a journal entry for today already exists for this user
+    # Define the Jakarta timezone
+    jakarta_tz = pytz.timezone('Asia/Jakarta')
+    
+    # Convert the current UTC time to Jakarta time and get the date part
+    today_in_jakarta = utc_now.astimezone(jakarta_tz).date()
+
+    # Use the provided date or default to today in Jakarta
+    target_date = journal.journal_date if journal.journal_date else today_in_jakarta
+    
+    # Check if a journal entry for the target date already exists for this user
     existing_journal = db.query(models.Journal).filter(
         models.Journal.user_id == current_user.id,
-        models.Journal.journal_date == today
+        models.Journal.journal_date == target_date
     ).first()
+
+    # Check if a journal entry for today already exists for this user
+    # existing_journal = db.query(models.Journal).filter(
+    #     models.Journal.user_id == current_user.id,
+    #     models.Journal.journal_date == today
+    # ).first()
 
     if existing_journal:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A journal entry for today already exists."
+            detail=f"A journal entry for {target_date} already exists."
         )
+
+    # Determine if the submission is late
+    is_late = False
+    if target_date < today_in_jakarta:
+        is_late = True
 
     # Create the new journal entry
     new_journal = models.Journal(
         user_id=current_user.id,
-        journal_date=today,
+        journal_date=target_date,
         content=journal.content or "",
-        outline_content = "" # Ensure it's not null
+        outline_content = "",
+        is_late=is_late # Set the late status
     )
     db.add(new_journal)
     db.commit()
@@ -139,6 +163,7 @@ def update_journal_phase(
     """
     Updates the writing phase of a specific journal entry.
     If the phase is 'completed', it triggers AI analysis for grading metrics.
+    Also checks if an entry is being worked on late.
     """
     journal_query = db.query(models.Journal).filter(
         models.Journal.user_id == current_user.id,
@@ -151,6 +176,16 @@ def update_journal_phase(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Journal entry for date {journal_date} not found."
         )
+
+    # --- NEW: Logic to mark journal as late ---
+    # A journal is late if it's moved to the writing phase on a day after its intended journal_date.
+    if not journal.is_late and updated_phase.phase == schemas.JournalPhase.writing:
+        utc_now = datetime.utcnow().replace(tzinfo=pytz.utc)
+        jakarta_tz = pytz.timezone('Asia/Jakarta')
+        today_in_jakarta = utc_now.astimezone(jakarta_tz).date()
+        if journal.journal_date < today_in_jakarta:
+            journal.is_late = True
+    # --- END NEW LOGIC ---
 
     journal.writing_phase = updated_phase.phase
     

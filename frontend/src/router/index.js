@@ -9,7 +9,9 @@ import TopicDetailView from '../views/TopicDetailView.vue';
 import AdminDashboardView from '../views/admin/AdminDashboardView.vue';
 import AdminStudentDetailView from '../views/admin/AdminStudentDetailView.vue';
 import AdminJournalDetailView from '../views/admin/AdminJournalDetailView.vue';
-import AdminManageStudentsView from '../views/admin/AdminManageStudentsView.vue'; // New Import
+import AdminManageStudentsView from '../views/admin/AdminManageStudentsView.vue';
+import AdminManageNotificationsView from '../views/admin/AdminManageNotificationsView.vue';
+import AdminSurveyResultsView from '../views/admin/AdminSurveyResultsView.vue'; // New Import
 
 const routes = [
   {
@@ -19,10 +21,10 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
-    path: '/writer/:date?', // The date parameter is optional
+    path: '/writer/:date?',
     name: 'Writer',
     component: WriterView,
-    props: true, // Pass route params as props to the component
+    props: true,
     meta: { requiresAuth: true },
   },
   {
@@ -68,12 +70,25 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true },
     props: true,
   },
-  // --- NEW ROUTE ---
   {
     path: '/admin/manage-students',
     name: 'AdminManageStudents',
     component: AdminManageStudentsView,
     meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: '/admin/manage-notifications',
+    name: 'AdminManageNotifications',
+    component: AdminManageNotificationsView,
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  // --- NEW SURVEY RESULTS ROUTE ---
+  {
+    path: '/admin/notification/:id/results',
+    name: 'AdminSurveyResults',
+    component: AdminSurveyResultsView,
+    meta: { requiresAuth: true, requiresAdmin: true },
+    props: true
   },
 ];
 
@@ -86,7 +101,6 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
   
-  // Try to fetch user on page load if token exists but user object is null
   if (authStore.token && !authStore.user) {
     await authStore.fetchUser();
   }
@@ -95,19 +109,16 @@ router.beforeEach(async (to, from, next) => {
   const requiresAdmin = to.matched.some(record => record.meta.requiresAdmin);
   
   if (requiresAuth && !authStore.isAuthenticated) {
-    // If route requires auth and user is not authenticated, redirect to login
     next('/login');
   } else if (requiresAdmin && !authStore.isAdmin) {
-    // If route requires admin and user is not admin, redirect to dashboard
     next('/');
   } else if (to.path === '/login' && authStore.isAuthenticated) {
-    // If user is authenticated and tries to visit login page, redirect to dashboard
     next('/');
   }
   else {
-    // Otherwise, proceed
     next();
   }
 });
 
 export default router;
+
