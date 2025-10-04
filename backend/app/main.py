@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from . import models
 from .database import engine
-from .routers import auth, journals, ai, progress, admin
+from .routers import auth, journals, ai, progress, admin, notifications
 import os
 
 # This line creates the database tables.
@@ -54,3 +54,4 @@ app.include_router(journals.router)
 app.include_router(ai.router)
 app.include_router(progress.router)
 app.include_router(admin.router)
+app.include_router(notifications.router)

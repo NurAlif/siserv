@@ -90,9 +90,9 @@ class ChatMessage(Base):
     __tablename__ = "chat_messages"
     id = Column(Integer, primary_key=True, index=True)
     journal_id = Column(Integer, ForeignKey("journals.id", ondelete="CASCADE"), nullable=False)
-    sender = Column(Enum(MessageSender), nullable=False)
+    sender = Column(Enum(MessageSender, name="messagesender", create_type=False), nullable=False)
     message_text = Column(Text, nullable=False)
-    message_type = Column(Enum(MessageType), default=MessageType.conversation, nullable=False)
+    message_type = Column(Enum(MessageType, name="messagetype", create_type=False), default=MessageType.conversation, nullable=False)
     timestamp = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
 
     # New relationship to an image
@@ -148,3 +148,71 @@ class UserLearningHistory(Base):
     learning_point_id = Column(Integer, ForeignKey("learning_points.id"), nullable=False)
     timestamp = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
     error_instance = relationship("UserError", back_populates="history")
+
+
+# --- NEW Notification and Survey Models ---
+
+class NotificationType(enum.Enum):
+    announcement = "announcement"
+    survey = "survey"
+
+class SurveyQuestionType(enum.Enum):
+    multiple_choice_single = "multiple_choice_single"
+    multiple_choice_multiple = "multiple_choice_multiple"
+    text = "text"
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
+    notification_type = Column(Enum(NotificationType, name="notificationtype", create_type=False), nullable=False)
+    is_published = Column(Boolean, default=False, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
+
+    questions = relationship("SurveyQuestion", back_populates="notification", cascade="all, delete-orphan")
+
+class SurveyQuestion(Base):
+    __tablename__ = "survey_questions"
+    id = Column(Integer, primary_key=True, index=True)
+    notification_id = Column(Integer, ForeignKey("notifications.id", ondelete="CASCADE"), nullable=False)
+    question_text = Column(Text, nullable=False)
+    question_type = Column(Enum(SurveyQuestionType, name="questiontype", create_type=False), nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
+
+    notification = relationship("Notification", back_populates="questions")
+    options = relationship("SurveyOption", back_populates="question", cascade="all, delete-orphan")
+    responses = relationship("SurveyResponse", back_populates="question", cascade="all, delete-orphan")
+
+class SurveyOption(Base):
+    __tablename__ = "survey_options"
+    id = Column(Integer, primary_key=True, index=True)
+    question_id = Column(Integer, ForeignKey("survey_questions.id", ondelete="CASCADE"), nullable=False)
+    option_text = Column(String(500), nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
+
+    question = relationship("SurveyQuestion", back_populates="options")
+
+class UserNotificationStatus(Base):
+    __tablename__ = "user_notification_status"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    notification_id = Column(Integer, ForeignKey("notifications.id", ondelete="CASCADE"), nullable=False)
+    is_seen = Column(Boolean, default=False, nullable=False)
+    is_completed = Column(Boolean, default=False, nullable=False)
+
+    user = relationship("User")
+    notification = relationship("Notification")
+
+class SurveyResponse(Base):
+    __tablename__ = "survey_responses"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    question_id = Column(Integer, ForeignKey("survey_questions.id", ondelete="CASCADE"), nullable=False)
+    selected_option_id = Column(Integer, ForeignKey("survey_options.id", ondelete="CASCADE"), nullable=True)
+    text_response = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("timezone('utc', now())"))
+
+    user = relationship("User")
+    question = relationship("SurveyQuestion", back_populates="responses")
+    selected_option = relationship("SurveyOption")

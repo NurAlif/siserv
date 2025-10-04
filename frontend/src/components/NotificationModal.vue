@@ -10,12 +10,13 @@
       <main class="flex-grow overflow-y-auto p-6 custom-scrollbar">
         <!-- Announcement Content -->
         <div v-if="notification.notification_type === 'announcement'">
-          <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ notification.content }}</p>
+          <div v-html="formattedContent" class="prose dark:prose-invert max-w-none"></div>
         </div>
         
         <!-- Survey Content -->
         <div v-if="notification.notification_type === 'survey'" class="space-y-6">
-          <p class="text-gray-700 dark:text-gray-300">{{ notification.content }}</p>
+          <!-- MODIFIED: Use v-html to render the survey description -->
+          <div v-html="formattedContent" class="prose dark:prose-invert max-w-none"></div>
           
           <!-- Questions -->
           <div v-for="(question, q_index) in notification.questions" :key="question.id" class="border-t border-gray-200 dark:border-gray-700 pt-4">
@@ -78,15 +79,26 @@ const responses = ref({});
 
 const isSurvey = computed(() => props.notification?.notification_type === 'survey');
 
+// NEW: This computed property will parse the markdown content into HTML.
+const formattedContent = computed(() => {
+  if (props.notification && props.notification.content && typeof window.marked !== 'undefined') {
+    // The 'marked' library is loaded from a CDN in index.html.
+    // It converts the markdown string to an HTML string.
+    return window.marked.parse(props.notification.content, { gfm: true, breaks: true });
+  }
+  // Fallback to plain text if 'marked' isn't available or there's no content.
+  return props.notification?.content || '';
+});
+
+
 // Logic to check if all survey questions have been answered
 const isSurveyComplete = computed(() => {
   if (!isSurvey.value) return false;
   const questions = props.notification.questions;
   return questions.every(q => {
     const response = responses.value[q.id];
-    if (response === null || response === undefined) return false;
+    if (!response) return false;
     if (Array.isArray(response) && response.length === 0) return false;
-    if (typeof response === 'string' && response.trim() === '') return false;
     return true;
   });
 });
@@ -102,7 +114,7 @@ watch(() => props.notification, (newVal) => {
   } else {
     responses.value = {};
   }
-}, { immediate: true });
+});
 
 const close = () => {
   emit('close');
@@ -132,3 +144,22 @@ const handleOverlayClick = () => {
     }
 }
 </script>
+
+<style>
+/* NEW: Basic styles to make the HTML from the manual content look good.
+  They are scoped to the `.prose` class which is applied to the content area.
+*/
+.prose h1, .prose h2, .prose h3 { @apply font-bold mb-2; }
+.prose h1 { @apply text-2xl; }
+.prose h2 { @apply text-xl border-b border-gray-200 dark:border-gray-700 pb-2 mb-4; }
+.prose h3 { @apply text-lg; }
+.prose p { @apply mb-4 leading-relaxed; }
+.prose ul, .prose ol { @apply list-inside mb-4 pl-2; }
+.prose li { @apply mb-2; }
+.prose code { @apply bg-gray-100 dark:bg-gray-700 rounded px-1 py-0.5 text-sm font-mono text-indigo-600 dark:text-indigo-400; }
+.prose strong { @apply font-semibold; }
+.prose a { @apply text-indigo-600 dark:text-indigo-400 hover:underline; }
+.prose hr { @apply my-6 border-gray-200 dark:border-gray-700; }
+.prose img { @apply rounded-lg shadow-md my-4 max-w-full h-auto; }
+</style>
+

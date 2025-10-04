@@ -1,10 +1,10 @@
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime, date
-from typing import Optional, List
+from typing import Optional, List, Union
 import enum
 
 # --- Import the new Enums from models ---
-from .models import MessageSender, MessageType
+from .models import MessageSender, MessageType, NotificationType, SurveyQuestionType
 
 # --- User Schemas ---
 
@@ -253,3 +253,84 @@ class UserTopicDetails(UserTopic):
     """Extends UserTopic to include the full list of errors."""
     errors: List[TopicDetail]
 
+
+# --- NEW: Notification and Survey Schemas ---
+
+class SurveyOptionOut(BaseModel):
+    id: int
+    option_text: str
+
+    class Config:
+        from_attributes = True
+
+class SurveyQuestionOut(BaseModel):
+    id: int
+    question_text: str
+    question_type: SurveyQuestionType
+    options: List[SurveyOptionOut] = []
+
+    class Config:
+        from_attributes = True
+
+class NotificationOut(BaseModel):
+    id: int
+    title: str
+    content: str
+    notification_type: NotificationType
+    is_published: bool
+    created_at: datetime
+    questions: List[SurveyQuestionOut] = []
+
+    class Config:
+        from_attributes = True
+
+# Schemas for creating notifications (Admin)
+class SurveyOptionCreate(BaseModel):
+    option_text: str
+
+class SurveyQuestionCreate(BaseModel):
+    question_text: str
+    question_type: SurveyQuestionType
+    options: List[SurveyOptionCreate] = []
+
+class NotificationCreate(BaseModel):
+    title: str
+    content: str
+    notification_type: NotificationType
+    questions: List[SurveyQuestionCreate] = []
+
+# Schemas for survey responses (User)
+class SurveyResponseIn(BaseModel):
+    question_id: int
+    # User provides *either* selected_option_id(s) *or* a text_response
+    selected_option_ids: Optional[List[int]] = None
+    text_response: Optional[str] = None
+
+class SurveyResponseCreate(BaseModel):
+    notification_id: int
+    responses: List[SurveyResponseIn]
+
+# Schemas for viewing survey results (Admin)
+class SurveyResponseDetail(BaseModel):
+    user: UserOut
+    selected_option: Optional[SurveyOptionOut] = None
+    text_response: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class SurveyResultOut(BaseModel):
+    question_id: int
+    question_text: str
+    responses: List[SurveyResponseDetail]
+
+    class Config:
+        from_attributes = True
+
+class UserNotificationStatusOut(BaseModel):
+    notification: NotificationOut
+    is_seen: bool
+    is_completed: bool
+
+    class Config:
+        from_attributes = True
