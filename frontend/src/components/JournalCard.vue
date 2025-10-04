@@ -5,9 +5,9 @@
     :class="{ 'border-green-400 dark:border-green-600': journal.writing_phase === 'completed' }"
   >
     <!-- Image Thumbnail -->
-    <div class="w-20 h-20 sm:w-24 sm:h-24 bg-gray-100 dark:bg-gray-700 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden">
-      <img v-if="thumbnailUrl" :src="thumbnailUrl" alt="Journal thumbnail" class="w-full h-full object-cover">
-      <svg v-else xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="text-gray-400 dark:text-gray-500" viewBox="0 0 256 256"><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM48,48H208V157.38l-19.52-19.52a16,16,0,0,0-22.62,0L144,160,99.51,115.51a16,16,0,0,0-22.62,0L48,144.38ZM208,208H48V172.69l36.49-36.5,44.49,44.49a16,16,0,0,0,22.62,0L176,159.31l32,32V208Zm-40-88a12,12,0,1,1,12-12A12,12,0,0,1,168,120Z"></path></svg>
+    <div v-if="thumbnailUrl" class="w-20 h-20 sm:w-24 sm:h-24 bg-gray-100 dark:bg-gray-700 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden">
+      <img :src="thumbnailUrl" alt="Journal thumbnail" class="w-full h-full object-cover">
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="text-gray-400 dark:text-gray-500" viewBox="0 0 256 256"><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM48,48H208V157.38l-19.52-19.52a16,16,0,0,0-22.62,0L144,160,99.51,115.51a16,16,0,0,0-22.62,0L48,144.38ZM208,208H48V172.69l36.49-36.5,44.49,44.49a16,16,0,0,0,22.62,0L176,159.31l32,32V208Zm-40-88a12,12,0,1,1,12-12A12,12,0,0,1,168,120Z"></path></svg>
     </div>
     <div class="flex-grow overflow-hidden pt-1">
       <div class="flex items-center gap-2">

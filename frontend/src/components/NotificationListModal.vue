@@ -19,18 +19,19 @@
         </div>
         <ul v-else class="space-y-2">
           <li v-for="item in notificationStore.notificationHistory" :key="item.notification.id">
-            <div @click="viewNotification(item.notification)" class="block p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 cursor-pointer transition-colors">
+            <div 
+              @click="handleClick(item)" 
+              class="block p-3 rounded-lg transition-colors"
+              :class="getItemClasses(item)"
+            >
               <div class="flex justify-between items-start">
                 <div>
                     <p class="font-semibold text-gray-800 dark:text-gray-200">{{ item.notification.title }}</p>
                     <p class="text-sm text-gray-500 dark:text-gray-400">{{ item.notification.content.substring(0, 100) }}...</p>
                 </div>
                 <div class="flex-shrink-0 ml-4 flex items-center gap-2">
-                   <span v-if="!item.is_completed && !item.is_seen" class="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
-                        New
-                    </span>
-                    <span v-else class="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200">
-                        Viewed
+                   <span class="px-2 py-0.5 text-xs font-semibold rounded-full" :class="getStatusClass(item)">
+                        {{ getStatusText(item) }}
                     </span>
                 </div>
               </div>
@@ -57,7 +58,43 @@ const close = () => {
   emit('close');
 };
 
-const viewNotification = (notification) => {
-  emit('view-notification', notification);
+const canViewNotification = (item) => {
+    // Only announcements are re-viewable from the list.
+    return item.notification.notification_type === 'announcement';
 };
+
+const handleClick = (item) => {
+    if (canViewNotification(item)) {
+        emit('view-notification', item.notification);
+    }
+};
+
+const getItemClasses = (item) => {
+    if (canViewNotification(item)) {
+        return 'hover:bg-gray-100 dark:hover:bg-gray-700/50 cursor-pointer';
+    }
+    return 'cursor-not-allowed opacity-70';
+};
+
+const getStatusText = (item) => {
+    if (!item.is_seen) {
+        return 'New';
+    }
+    if (item.notification.notification_type === 'survey') {
+        return item.is_completed ? 'Completed' : 'Pending';
+    }
+    return 'Viewed';
+};
+
+const getStatusClass = (item) => {
+    if (!item.is_seen) {
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'; // New
+    }
+    if (item.notification.notification_type === 'survey' && item.is_completed) {
+        return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'; // Completed
+    }
+    return 'bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200'; // Viewed / Pending
+};
+
 </script>
+

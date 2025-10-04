@@ -14,9 +14,11 @@
     "startdev": "npm run start"
   },
   "dependencies": {
+    "@lucide/lab": "^0.1.2",
     "axios": "^1.7.2",
     "chart.js": "^4.5.0",
     "date-fns": "^4.1.0",
+    "lucide-vue-next": "^0.544.0",
     "pinia": "^2.1.7",
     "serve": "^14.2.5",
     "vue": "^3.4.21",

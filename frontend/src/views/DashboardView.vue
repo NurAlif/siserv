@@ -1,5 +1,21 @@
 <template>
   <main id="dashboard-view" class="fade-in">
+    <!-- Modal for showing a SINGLE notification (announcement or survey) -->
+    <NotificationModal
+      v-if="notificationToView"
+      :notification="notificationToView"
+      :is-loading="notificationStore.isLoading"
+      @close="handleModalClose"
+      @submit="handleSurveySubmit"
+    />
+
+    <!-- Modal for showing the list of ALL notifications -->
+    <NotificationListModal 
+        :show="notificationStore.showHistoryModal"
+        @close="notificationStore.closeHistoryModal()"
+        @view-notification="handleViewNotificationFromList"
+    />
+
     <div class="bg-white dark:bg-gray-800 p-3 sm:p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
       <div class="flex flex-row justify-between items-center gap-2">
         <div class="flex-grow">
@@ -8,9 +24,7 @@
         </div>
         <div class="flex-col sm:flex-row flex-shrink-0 flex items-center gap-2 sm:gap-3 bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300 p-2 sm:p-3 rounded-lg">
           <!-- Fire Icon -->
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 sm:w-7 sm:h-7" fill="currentColor" viewBox="0 0 256 256">
-            <path d="M221.5,145.45C221.5,184.12,190,224,150,224s-72-39.88-72-78.55c0-20.93,12.35-46,29.9-71.55,14.28-20.81,28.2-38,33.43-45.11a8,8,0,0,1,13.34,0c5.23,7.07,19.15,24.3,33.43,45.11C209.15,99.44,221.5,124.52,221.5,145.45ZM152,80a16,16,0,1,0-16,16A16,16,0,0,0,152,80Z"></path>
-          </svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-flame-icon lucide-flame"><path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"/></svg>
           <div>
             <div class="font-bold text-sm sm:text-xm sm:text-base whitespace-nowrap">{{ progressStore.streak }} Day Streak</div>
             <p class="text-sm sm:text-sm hidden sm:block">Keep it up!</p>
@@ -84,21 +98,82 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch, onUnmounted } from 'vue';
 import { useAuthStore } from '../stores/authStore';
 import { useJournalStore } from '../stores/journalStore';
 import { useProgressStore } from '../stores/progressStore';
+import { useNotificationStore } from '../stores/notificationStore';
 import JournalCard from '../components/JournalCard.vue';
 import JournalCalendarView from '../components/JournalCalendarView.vue';
+import NotificationModal from '../components/NotificationModal.vue';
+import NotificationListModal from '../components/NotificationListModal.vue';
+
 
 const authStore = useAuthStore();
 const journalStore = useJournalStore();
 const progressStore = useProgressStore();
+const notificationStore = useNotificationStore();
 
-const viewMode = ref('list'); // 'list' or 'calendar'
+const viewMode = ref('list');
+const notificationToView = ref(null); // This will hold the notification for the single modal
+
+// This watcher is the core of the sequential display logic
+watch(
+  () => notificationStore.activeNotifications,
+  (active) => {
+    // If there are active notifications and the user hasn't manually opened the history list...
+    if (active.length > 0 && notificationStore.shouldShowModal) {
+      // ...show the first one in the queue.
+      notificationToView.value = active[0];
+    } else {
+      // Otherwise, there's nothing to show, so close the modal.
+      notificationToView.value = null;
+    }
+  },
+  { immediate: true, deep: true } // deep is important for array changes
+);
+
+
+// This function is called when a notification is selected from the history list
+const handleViewNotificationFromList = (notification) => {
+    notificationStore.closeHistoryModal(); // Close the list modal
+    // Need a small delay for the modals to transition smoothly
+    setTimeout(() => {
+        notificationToView.value = notification;
+    }, 200);
+};
+
+const handleModalClose = async () => {
+  const notif = notificationToView.value;
+  if (notif && notif.notification_type === 'announcement') {
+    // This action will remove the notification from the active list if it's new
+    await notificationStore.markAsSeen(notif.id);
+  } else {
+    // If it's a survey or the user just closes an old announcement
+    notificationToView.value = null; 
+  }
+  // The watcher will automatically show the next notification if one exists
+};
+
+
+const handleSurveySubmit = async (payload) => {
+  // This action will remove the notification from the active list
+  await notificationStore.submitSurvey(payload);
+  // The watcher will automatically show the next notification or close the modal
+};
 
 onMounted(() => {
   journalStore.fetchJournals();
   progressStore.fetchStreak();
+  // Fetch active (new) notifications if the list is empty
+  if (notificationStore.notificationCount === 0) {
+      notificationStore.fetchActiveNotifications();
+  }
+});
+
+onUnmounted(() => {
+    // Reset the state when leaving the dashboard to allow modals on next visit
+    notificationStore.resetManualOpenState();
 });
 </script>
+

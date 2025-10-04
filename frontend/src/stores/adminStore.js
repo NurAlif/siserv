@@ -7,14 +7,19 @@ export const useAdminStore = defineStore('admin', {
     studentDetails: null,
     studentJournals: [],
     currentStudentJournal: null,
-    classAnalytics: null, // This will hold all dashboard data
-    dailySummary: [], // NEW: For today's journals
+    classAnalytics: null,
+    dailySummary: [],
     isLoading: false,
     isLoadingJournals: false,
-    isLoadingDailySummary: false, // NEW: Loading state for daily summary
+    isLoadingDailySummary: false,
     error: null,
-    whitelist: [], // New state for student whitelist
-    isLoadingWhitelist: false, // New loading state
+    whitelist: [],
+    isLoadingWhitelist: false,
+    notifications: [],
+    isLoadingNotifications: false,
+    // --- NEW Survey Results State ---
+    surveyResults: null,
+    isLoadingSurveyResults: false,
   }),
   actions: {
     async fetchAllStudents() {
@@ -64,7 +69,6 @@ export const useAdminStore = defineStore('admin', {
             const total_errors = studentsData.reduce((sum, student) => sum + student.total_errors, 0);
             const avg_errors_per_journal = total_journals > 0 ? total_errors / total_journals : 0;
             
-            // Combine all data into the classAnalytics object
             this.classAnalytics = {
               total_students,
               total_journals,
@@ -112,14 +116,12 @@ export const useAdminStore = defineStore('admin', {
       }
     },
 
-    // --- NEW ACTION for Daily Summary ---
     async fetchDailySummary(summaryDate = null) {
       this.isLoadingDailySummary = true;
       this.error = null;
       try {
         let url = '/admin/analytics/daily-summary';
         if (summaryDate) {
-          // Format the date to YYYY-MM-DD
           const formattedDate = new Date(summaryDate).toISOString().split('T')[0];
           url += `?summary_date=${formattedDate}`;
         }
@@ -133,7 +135,6 @@ export const useAdminStore = defineStore('admin', {
       }
     },
 
-    // --- NEW ACTIONS for Whitelist Management ---
     async fetchWhitelist() {
       this.isLoadingWhitelist = true;
       this.error = null;
@@ -149,12 +150,10 @@ export const useAdminStore = defineStore('admin', {
     },
 
     async addStudentToWhitelist(studentData) {
-      // Clear previous errors before a new attempt
       this.error = null;
       try {
         const response = await apiClient.post('/admin/whitelist', studentData);
         this.whitelist.push(response.data);
-        // Sort the list after adding
         this.whitelist.sort((a, b) => a.student_id.localeCompare(b.student_id));
         return { success: true };
       } catch (err) {
@@ -174,6 +173,81 @@ export const useAdminStore = defineStore('admin', {
         this.error = err.response?.data?.detail || 'Failed to remove student.';
         console.error(err);
         return { success: false, error: this.error };
+      }
+    },
+
+    async fetchAllNotifications() {
+      this.isLoadingNotifications = true;
+      this.error = null;
+      try {
+        const response = await apiClient.get('/notifications/');
+        this.notifications = response.data;
+      } catch (err) {
+        this.error = 'Failed to load notifications.';
+        console.error(err);
+      } finally {
+        this.isLoadingNotifications = false;
+      }
+    },
+
+    async createNotification(notificationData) {
+      this.error = null;
+      try {
+        const response = await apiClient.post('/notifications/', notificationData);
+        this.notifications.unshift(response.data);
+        return { success: true };
+      } catch (err){
+        this.error = err.response?.data?.detail || 'Failed to create notification.';
+        console.error(err);
+        return { success: false, error: this.error };
+      }
+    },
+
+    async publishNotification(notificationId) {
+      this.error = null;
+      try {
+        // The API now returns the updated notification object
+        const response = await apiClient.post(`/notifications/${notificationId}/publish`);
+        const updatedNotif = response.data;
+        const index = this.notifications.findIndex(n => n.id === notificationId);
+        if (index !== -1) {
+          // Replace the old notification with the updated one to ensure reactivity
+          this.notifications.splice(index, 1, updatedNotif);
+        }
+        return { success: true };
+      } catch (err) {
+        this.error = err.response?.data?.detail || 'Failed to publish notification.';
+        console.error(err);
+        return { success: false, error: this.error };
+      }
+    },
+    
+    // --- NEW Survey Results Action ---
+    async fetchSurveyResults(notificationId) {
+      this.isLoadingSurveyResults = true;
+      this.error = null;
+      this.surveyResults = null;
+      try {
+        // Find notification details from the already-loaded list
+        let notificationDetails = this.notifications.find(n => n.id == notificationId);
+        
+        // If navigating directly, the list might not be loaded yet.
+        if (!notificationDetails) {
+            await this.fetchAllNotifications();
+            notificationDetails = this.notifications.find(n => n.id == notificationId);
+        }
+
+        const resultsResponse = await apiClient.get(`/notifications/${notificationId}/results`);
+        
+        this.surveyResults = {
+            notification: notificationDetails,
+            results: resultsResponse.data
+        };
+      } catch (err) {
+        this.error = 'Failed to load survey results.';
+        console.error(err);
+      } finally {
+        this.isLoadingSurveyResults = false;
       }
     },
   },

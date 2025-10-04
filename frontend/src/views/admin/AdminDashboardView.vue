@@ -10,9 +10,16 @@
         <div class="flex items-center gap-3">
           <!-- Button to open the admin manual -->
           <button @click="showManualModal = true" class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-semibold px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M128,24a8,8,0,0,0-8,8V64a8,8,0,0,0,16,0V32A8,8,0,0,0,128,24Zm0,176a8,8,0,0,0-8,8v32a8,8,0,0,0,16,0V208A8,8,0,0,0,128,200Zm88-88H192a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16ZM40,120H64a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16Zm151.78-63.78a8,8,0,0,0-11.32,0L158.11,78.59a8,8,0,0,0,11.31,11.31l22.35-22.34a8,8,0,0,0,0-11.32ZM78.59,158.11,56.24,180.46a8,8,0,0,0,11.32,11.32l22.34-22.35a8,8,0,0,0-11.31-11.31Zm11.31-68.2L67.54,67.54a8,8,0,0,0-11.32,11.32l22.35,22.34a8,8,0,0,0,11.31-11.31ZM128,72a56,56,0,1,0,56,56A56.06,56.06,0,0,0,128,72Zm0,96a40,40,0,1,1,40-40A40,40,0,0,1,128,168Z"></path></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-lightbulb-icon lucide-lightbulb text-gray-700 dark:text-gray-200"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
             Admin Manual
           </button>
+          <router-link
+            to="/admin/manage-notifications"
+            class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bell-icon lucide-bell text-gray-100"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>
+            Manage Notifications
+          </router-link>
           <router-link
             to="/admin/manage-students"
             class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
@@ -120,7 +127,7 @@ const selectedDate = ref(new Date().toISOString().split('T')[0]); // YYYY-MM-DD 
 onMounted(() => {
   adminStore.fetchClassAnalytics();
   adminStore.fetchAllStudents();
-  adminStore.fetchDailySummary(selectedDate.value); // Fetch today's summary on load
+  adminStore.fetchDailySummary(selectedDate.value);
 });
 
 watch(selectedDate, (newDate) => {
@@ -200,4 +207,3 @@ const adminManualContent = `
   <br/>
 `;
 </script>
-
